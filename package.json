@@ -1,0 +1,37 @@
+{
+  "name": "bitcoin-block-clock",
+  "version": "1.0.0",
+  "description": "Desktop Electron wrapper for Bitcoin Block Clock",
+  "main": "electron/main.js",
+  "scripts": {
+    "electron": "electron .",
+    "build:electron": "electron-builder --win portable",
+    "pack:electron": "electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.example.bitcoinblockclock.desktop",
+    "productName": "Bitcoin Block Clock",
+    "asar": false,
+    "directories": {
+      "output": "dist/electron"
+    },
+    "files": [
+      "electron/**/*",
+      "app/src/main/assets/**/*",
+      "package.json"
+    ],
+    "portable": {
+      "artifactName": "BitcoinBlockClock.exe"
+    },
+    "win": {
+      "icon": "electron/assets/bitcoin-logo.ico",
+      "target": [
+        "portable"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^41.1.0",
+    "electron-builder": "^26.8.1"
+  }
+}

@@ -1,0 +1,4585 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Block Clock</title>
+    <style>
+        :root {
+            --bg-ink: #07141b;
+            --frame-pad: clamp(16px, 2vw, 30px);
+            --panel: rgba(7, 15, 22, 0.7);
+            --panel-strong: rgba(6, 12, 18, 0.82);
+            --line: rgba(255, 255, 255, 0.08);
+            --text: #f2f6fa;
+            --muted: rgba(242, 246, 250, 0.7);
+            --soft: rgba(242, 246, 250, 0.44);
+            --accent: #f5a42d;
+            --cool: #99cbff;
+            --signal: #9ee169;
+            --shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: var(--frame-pad);
+            overflow: hidden;
+            font-family: 'Aptos', 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+            color: var(--text);
+            background: #061019 url('background.png') center center / cover no-repeat fixed;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 16% 18%, rgba(10, 59, 87, 0.48), transparent 34%),
+                radial-gradient(circle at 82% 14%, rgba(245, 164, 45, 0.18), transparent 28%),
+                linear-gradient(135deg, rgba(3, 10, 16, 0.74), rgba(5, 12, 18, 0.28) 42%, rgba(5, 13, 19, 0.8));
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            right: 8vw;
+            top: 9vh;
+            width: min(34vw, 420px);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(245, 164, 45, 0.24), transparent 72%);
+            filter: blur(20px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .dashboard {
+            position: relative;
+            z-index: 1;
+            width: min(1760px, 100%);
+            height: min(calc(100vh - (var(--frame-pad) * 2)), 980px);
+            display: grid;
+            grid-template-columns: minmax(340px, 0.92fr) minmax(720px, 1.28fr);
+            gap: clamp(16px, 2vw, 28px);
+            opacity: 0;
+            transform: translateY(22px) scale(0.985);
+            transition: opacity 820ms ease, transform 920ms cubic-bezier(0.2, 0.9, 0.2, 1);
+        }
+
+        body.loaded .dashboard {
+            opacity: 1;
+            transform: none;
+        }
+
+        body.layout-scroll {
+            overflow: auto;
+            align-items: flex-start;
+        }
+
+        body.layout-scroll .dashboard {
+            height: auto;
+            min-height: calc(100vh - (var(--frame-pad) * 2));
+        }
+
+        body.layout-scroll .panel {
+            overflow: visible;
+        }
+
+        body.layout-scroll .market-board {
+            grid-template-rows: auto auto auto;
+        }
+
+        .panel {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 30px;
+            background: linear-gradient(180deg, rgba(7, 15, 22, 0.78), rgba(5, 11, 17, 0.56));
+            backdrop-filter: blur(24px);
+            box-shadow: var(--shadow);
+        }
+
+        .network-panel {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: clamp(18px, 3vh, 36px);
+            padding: clamp(24px, 3.2vw, 48px);
+            isolation: isolate;
+        }
+
+        .network-panel::before {
+            content: '';
+            position: absolute;
+            inset: 18% -8% auto 12%;
+            height: 48%;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(153, 203, 255, 0.18), transparent 70%);
+            filter: blur(28px);
+            z-index: -1;
+        }
+
+        .network-panel::after {
+            content: '';
+            position: absolute;
+            right: 10%;
+            bottom: 10%;
+            width: min(34vw, 360px);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            opacity: 0.34;
+            z-index: -1;
+        }
+
+        .network-header {
+            display: grid;
+            gap: 14px;
+            max-width: 26rem;
+        }
+
+        .brand-mark {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            display: block;
+            object-fit: contain;
+            filter: drop-shadow(0 12px 24px rgba(245, 164, 45, 0.16));
+        }
+
+        .eyebrow {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .network-title {
+            margin: 0;
+            font-size: clamp(38px, 4.8vw, 72px);
+            line-height: 0.93;
+            letter-spacing: -0.045em;
+            font-weight: 600;
+            max-width: 7ch;
+        }
+
+        .network-summary {
+            margin: 0;
+            font-size: clamp(14px, 1.2vw, 17px);
+            line-height: 1.65;
+            color: var(--muted);
+            max-width: 18rem;
+        }
+
+        .network-fx {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            align-self: center;
+            gap: 12px;
+            width: 100%;
+            min-height: clamp(156px, 24vh, 250px);
+            padding: 18px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(90deg, rgba(153, 203, 255, 0.08), rgba(153, 203, 255, 0));
+        }
+
+        .network-fx-meta {
+            display: grid;
+            gap: 6px;
+            padding-inline: clamp(20px, 1.8vw, 32px);
+        }
+
+        .network-fx-label {
+            font-size: 12px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .network-fx-span {
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .network-fx-chart {
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .network-fx-chart[data-interactive="true"] {
+            cursor: crosshair;
+        }
+
+        .stage {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 16px;
+        }
+
+        .stage-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .hero-value {
+            font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
+            font-size: clamp(56px, min(10vw, 18vh), 138px);
+            line-height: 0.9;
+            letter-spacing: 0.03em;
+            color: var(--cool);
+            text-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+        }
+
+        .stage-divider {
+            width: min(100%, 420px);
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+        }
+
+        .stage-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 20px;
+            max-width: 460px;
+        }
+
+        .meta-block {
+            display: grid;
+            gap: 7px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .meta-label {
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .meta-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .market-board {
+            display: grid;
+            grid-template-rows: auto minmax(0, 0.92fr) minmax(0, 1.08fr);
+            gap: 18px;
+            padding: clamp(24px, 3vw, 40px);
+            min-height: 0;
+        }
+
+        .board-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 18px;
+        }
+
+        .board-title {
+            margin: 6px 0 10px;
+            font-size: clamp(24px, min(2.8vw, 5vh), 46px);
+            line-height: 0.95;
+            letter-spacing: -0.04em;
+            font-weight: 600;
+        }
+
+        .board-copy {
+            margin: 0;
+            max-width: 34rem;
+            font-size: clamp(13px, min(1vw, 2.2vh), 15px);
+            line-height: 1.5;
+            color: var(--muted);
+        }
+
+        .live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            font-size: 12px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--soft);
+            white-space: nowrap;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 0 0 rgba(245, 164, 45, 0.72);
+            animation: livePulse 2.6s infinite;
+        }
+
+        .board-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: repeat(3, minmax(0, 1fr));
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+            min-height: 0;
+        }
+
+        .board-grid::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0));
+            pointer-events: none;
+        }
+
+        .metric {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: clamp(6px, 1vh, 14px);
+            min-height: 0;
+            padding: clamp(14px, 1.7vw, 24px);
+            overflow: hidden;
+        }
+
+        .metric:nth-child(odd) {
+            border-right: 1px solid var(--line);
+        }
+
+        .metric:nth-child(-n+4) {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .metric::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(7, 14, 20, 0.06), rgba(7, 14, 20, 0.38));
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .metric-label, .metric-value {
+            position: relative;
+            z-index: 1;
+        }
+
+        .metric-live-chart {
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .metric-live-chart .metric-label {
+            align-self: flex-start;
+            max-width: calc(100% - 112px);
+        }
+
+        .metric-live-chart .metric-value {
+            align-self: flex-start;
+            margin-top: auto;
+            max-width: 100%;
+            white-space: nowrap;
+            transition:
+                opacity 220ms ease,
+                transform 320ms cubic-bezier(0.2, 0.9, 0.2, 1),
+                filter 220ms ease;
+            transform-origin: left bottom;
+        }
+
+        .metric-chart-bg {
+            position: absolute;
+            inset: 36% 0 0 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0;
+            transform: translateY(10px) scaleY(0.88);
+            transform-origin: center bottom;
+            transition:
+                opacity 260ms ease,
+                transform 360ms cubic-bezier(0.2, 0.9, 0.2, 1);
+        }
+
+        .metric-live-chart[data-chart-available="true"] .metric-chart-bg {
+            opacity: 1;
+        }
+
+        .metric-chart-svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .metric-chart-area,
+        .metric-chart-line,
+        .metric-chart-guide,
+        .metric-chart-dot {
+            transition:
+                opacity 220ms ease,
+                transform 320ms ease;
+        }
+
+        .metric-chart-area {
+            opacity: 0.16;
+        }
+
+        .metric-chart-line {
+            opacity: 0.34;
+        }
+
+        .metric-chart-guide,
+        .metric-chart-dot {
+            opacity: 0;
+        }
+
+        .metric-corner-value {
+            position: absolute;
+            top: clamp(12px, 1.2vw, 18px);
+            right: clamp(12px, 1.3vw, 18px);
+            z-index: 1;
+            max-width: 46%;
+            text-align: right;
+            font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+            color: rgba(248, 244, 236, 0.84);
+            text-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition:
+                opacity 220ms ease,
+                transform 280ms cubic-bezier(0.2, 0.9, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-chart-bg {
+            transform: none;
+        }
+
+        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-chart-area {
+            opacity: 0.28;
+        }
+
+        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-chart-line {
+            opacity: 0.88;
+        }
+
+        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-value {
+            opacity: 0;
+            transform: translateY(12px) scale(0.84);
+            filter: saturate(0.84);
+        }
+
+        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-corner-value {
+            opacity: 1;
+            transform: none;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .metric-value {
+            font-family: 'Bahnschrift SemiBold', 'Aptos', 'Segoe UI', sans-serif;
+            font-size: clamp(26px, min(4vw, 6vh), 60px);
+            line-height: 0.95;
+            letter-spacing: -0.04em;
+            color: #f8f4ec;
+            text-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+        }
+
+        .metric[data-tone="accent"] .metric-value {
+            color: #ffb33a;
+        }
+
+        .metric[data-tone="cool"] .metric-value {
+            color: var(--cool);
+        }
+
+        .metric[data-tone="signal"] .metric-value {
+            color: var(--signal);
+        }
+
+        .flash {
+            animation: valueFlash 540ms ease;
+        }
+
+        .metric-halving {
+            justify-content: center;
+        }
+
+        .metric-halving .metric-value {
+            font-size: clamp(24px, min(3.6vw, 5.4vh), 54px);
+        }
+
+        #halvingProgress {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 100%;
+            background: linear-gradient(90deg, rgba(103, 142, 193, 0.76), rgba(86, 117, 166, 0.96));
+            z-index: 0;
+            transition: width 900ms ease;
+        }
+
+        .metric-halving::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18));
+            z-index: 0;
+        }
+
+        .metric-halving .metric-label,
+        .metric-halving .metric-value {
+            z-index: 1;
+        }
+
+        .trend-section {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 14px;
+            min-height: 0;
+        }
+
+        .trend-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 14px;
+        }
+
+        .trend-title {
+            margin: 0;
+            font-size: 12px;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .trend-copy {
+            margin: 6px 0 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        .trend-grid {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .trend-panel {
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012));
+        }
+
+        .trend-panel[data-tone="accent"] {
+            background: linear-gradient(180deg, rgba(245, 164, 45, 0.08), rgba(255, 255, 255, 0.012));
+        }
+
+        .trend-panel[data-tone="signal"] {
+            background: linear-gradient(180deg, rgba(158, 225, 105, 0.08), rgba(255, 255, 255, 0.012));
+        }
+
+        .trend-meta {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 6px;
+            padding: 18px 18px 0;
+        }
+
+        .trend-label {
+            font-size: 12px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+
+        .trend-span {
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .trend-chart {
+            position: absolute;
+            inset: 68px 0 0 0;
+            width: 100%;
+            height: calc(100% - 68px);
+            overflow: hidden;
+        }
+
+        .chart-svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .trend-chart[data-interactive="true"] {
+            cursor: crosshair;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            left: 0;
+            top: 0;
+            z-index: 2;
+            min-width: 132px;
+            max-width: min(220px, calc(100% - 16px));
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            background: rgba(6, 14, 20, 0.92);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+            backdrop-filter: blur(16px);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 120ms ease;
+        }
+
+        .chart-tooltip.is-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .chart-tooltip-date {
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--soft);
+        }
+
+        .chart-tooltip-value {
+            margin-top: 4px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--text);
+        }
+
+        .chart-tooltip-series {
+            margin-top: 6px;
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        body.layout-short .dashboard {
+            gap: clamp(14px, 1.5vw, 22px);
+        }
+
+        body.layout-short .network-panel {
+            gap: 10px;
+            padding: 18px 20px;
+        }
+
+        body.layout-short .network-header {
+            gap: 8px;
+            max-width: 18rem;
+        }
+
+        body.layout-short .brand-mark {
+            width: 46px;
+            height: 46px;
+            border-radius: 15px;
+        }
+
+        body.layout-short .network-title {
+            font-size: clamp(30px, min(3.4vw, 6vh), 50px);
+        }
+
+        body.layout-short .network-summary {
+            font-size: 12px;
+            line-height: 1.35;
+            max-width: 14rem;
+        }
+
+        body.layout-short .network-fx {
+            gap: 8px;
+            min-height: clamp(104px, 17vh, 142px);
+            padding: 14px 0;
+        }
+
+        body.layout-short .network-fx-meta {
+            gap: 4px;
+        }
+
+        body.layout-short .network-fx-label {
+            font-size: 10px;
+            letter-spacing: 0.16em;
+        }
+
+        body.layout-short .network-fx-span {
+            font-size: 9px;
+            letter-spacing: 0.14em;
+        }
+
+        body.layout-short .hero-value {
+            font-size: clamp(40px, min(6.4vw, 9.5vh), 88px);
+        }
+
+        body.layout-short .stage {
+            gap: 8px;
+        }
+
+        body.layout-short .stage-label {
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        body.layout-short .stage-meta {
+            gap: 8px 16px;
+        }
+
+        body.layout-short .meta-block {
+            padding-top: 8px;
+        }
+
+        body.layout-short .meta-label {
+            font-size: 10px;
+            letter-spacing: 0.15em;
+        }
+
+        body.layout-short .meta-value {
+            font-size: 15px;
+        }
+
+        body.layout-short .market-board {
+            grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.68fr);
+            gap: 8px;
+            padding: 18px;
+        }
+
+        body.layout-short .board-title {
+            margin: 4px 0 8px;
+            font-size: clamp(22px, min(2.35vw, 4vh), 36px);
+        }
+
+        body.layout-short .board-copy {
+            font-size: 12px;
+            line-height: 1.4;
+            max-width: 30rem;
+        }
+
+        body.layout-short .live-pill {
+            padding: 8px 12px;
+            font-size: 11px;
+        }
+
+        body.layout-short .metric {
+            padding: 10px 12px;
+            gap: 5px;
+        }
+
+        body.layout-short .metric-live-chart {
+            gap: 10px;
+        }
+
+        body.layout-short .metric-live-chart .metric-label {
+            max-width: calc(100% - 88px);
+        }
+
+        body.layout-short .metric-chart-bg {
+            inset: 40% 0 0 0;
+        }
+
+        body.layout-short .metric-corner-value {
+            top: 10px;
+            right: 12px;
+            font-size: 10px;
+            max-width: 48%;
+        }
+
+        body.layout-short .metric-label {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+        }
+
+        body.layout-short .metric-value {
+            font-size: clamp(21px, min(2.45vw, 3.9vh), 36px);
+        }
+
+        body.layout-short .metric-halving .metric-value {
+            font-size: clamp(19px, min(2.25vw, 3.6vh), 32px);
+        }
+
+        body.layout-short .trend-section {
+            gap: 8px;
+        }
+
+        body.layout-short .trend-copy {
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        body.layout-short .trend-grid {
+            gap: 8px;
+        }
+
+        body.layout-short .trend-panel {
+            min-height: 136px;
+            border-radius: 18px;
+        }
+
+        body.layout-short .trend-meta {
+            gap: 4px;
+            padding: 10px 12px 0;
+        }
+
+        body.layout-short .trend-label {
+            font-size: 11px;
+        }
+
+        body.layout-short .trend-span {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+        }
+
+        body.layout-short .trend-chart {
+            inset: 44px 0 0 0;
+            height: calc(100% - 44px);
+        }
+
+        body.layout-short .chart-tooltip {
+            min-width: 118px;
+            max-width: min(188px, calc(100% - 12px));
+            padding: 8px 10px;
+            border-radius: 12px;
+        }
+
+        body.layout-short .chart-tooltip-date {
+            font-size: 10px;
+        }
+
+        body.layout-short .chart-tooltip-value {
+            margin-top: 3px;
+            font-size: 15px;
+        }
+
+        body.layout-short .chart-tooltip-series {
+            margin-top: 5px;
+            font-size: 9px;
+        }
+
+        body.layout-short.layout-compact .board-head {
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+        }
+
+        body.layout-short.layout-compact .trend-panel {
+            min-height: 128px;
+        }
+
+        body.layout-compact .network-panel {
+            gap: 14px;
+            padding: 24px;
+        }
+
+        body.layout-compact .network-header {
+            gap: 12px;
+            max-width: 22rem;
+        }
+
+        body.layout-compact .network-title {
+            font-size: clamp(34px, min(4vw, 8vh), 58px);
+        }
+
+        body.layout-compact .network-summary {
+            font-size: 13px;
+            line-height: 1.5;
+            max-width: 15rem;
+        }
+
+        body.layout-compact .network-fx {
+            gap: 10px;
+            min-height: clamp(124px, 20vh, 196px);
+            padding: 16px 0;
+        }
+
+        body.layout-compact .network-fx-label {
+            font-size: 11px;
+        }
+
+        body.layout-compact .network-fx-span {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+        }
+
+        body.layout-compact .hero-value {
+            font-size: clamp(48px, min(8.2vw, 13vh), 110px);
+        }
+
+        body.layout-compact .stage {
+            gap: 12px;
+        }
+
+        body.layout-compact .meta-value {
+            font-size: 16px;
+        }
+
+        body.layout-compact .market-board {
+            grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.88fr);
+            gap: 12px;
+            padding: 22px;
+        }
+
+        body.layout-compact .board-head {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        body.layout-compact .live-pill {
+            padding: 8px 12px;
+        }
+
+        body.layout-compact .metric {
+            padding: 14px 16px;
+            gap: 8px;
+        }
+
+        body.layout-compact .metric-live-chart {
+            gap: 10px;
+        }
+
+        body.layout-compact .metric-live-chart .metric-label {
+            max-width: calc(100% - 94px);
+        }
+
+        body.layout-compact .metric-chart-bg {
+            inset: 38% 0 0 0;
+        }
+
+        body.layout-compact .metric-corner-value {
+            top: 12px;
+            right: 14px;
+            font-size: 11px;
+            max-width: 48%;
+        }
+
+        body.layout-compact .metric-label {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+        }
+
+        body.layout-compact .metric-value {
+            font-size: clamp(22px, min(2.8vw, 4.6vh), 40px);
+        }
+
+        body.layout-compact .metric-halving .metric-value {
+            font-size: clamp(20px, min(2.6vw, 4.2vh), 36px);
+        }
+
+        body.layout-compact .trend-section {
+            gap: 10px;
+        }
+
+        body.layout-compact .trend-copy {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        body.layout-compact .trend-grid {
+            gap: 8px;
+        }
+
+        body.layout-compact .trend-panel {
+            border-radius: 18px;
+        }
+
+        body.layout-compact .trend-meta {
+            gap: 4px;
+            padding: 14px 14px 0;
+        }
+
+        body.layout-compact .trend-label {
+            font-size: 11px;
+        }
+
+        body.layout-compact .trend-span {
+            font-size: 10px;
+            letter-spacing: 0.14em;
+        }
+
+        body.layout-compact .trend-chart {
+            inset: 52px 0 0 0;
+            height: calc(100% - 52px);
+        }
+
+        body.layout-compact .chart-tooltip {
+            min-width: 122px;
+            max-width: min(196px, calc(100% - 12px));
+            padding: 8px 10px;
+        }
+
+        body.layout-compact .chart-tooltip-date {
+            font-size: 10px;
+        }
+
+        body.layout-compact .chart-tooltip-value {
+            font-size: 16px;
+        }
+
+        body.layout-trend-medium .trend-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        body.layout-trend-medium .trend-panel:last-child {
+            grid-column: 1 / -1;
+        }
+
+        body.layout-trend-medium .trend-panel {
+            min-height: 188px;
+        }
+
+        .chart-shell {
+            animation: chartReveal 900ms ease both;
+        }
+
+        @keyframes livePulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 164, 45, 0.68);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(245, 164, 45, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 164, 45, 0);
+            }
+        }
+
+        @keyframes chartReveal {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 0.86;
+                transform: none;
+            }
+        }
+
+        @keyframes valueFlash {
+            0% {
+                filter: brightness(1.75);
+                transform: translateY(4px);
+            }
+            100% {
+                filter: none;
+                transform: none;
+            }
+        }
+
+        .mobile-app {
+            display: none;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                display: block;
+                min-height: 100vh;
+                padding: 12px;
+                overflow: auto;
+                background-attachment: scroll;
+            }
+
+            body::after {
+                display: none;
+            }
+
+            .dashboard {
+                display: none;
+            }
+
+            .mobile-app {
+                position: relative;
+                z-index: 1;
+                display: grid;
+                gap: 12px;
+                width: 100%;
+                -webkit-user-select: none;
+                user-select: none;
+                opacity: 0;
+                transform: translateY(18px) scale(0.99);
+                transition: opacity 680ms ease, transform 760ms cubic-bezier(0.2, 0.9, 0.2, 1);
+            }
+
+            body.loaded .mobile-app {
+                opacity: 1;
+                transform: none;
+            }
+
+            .mobile-panel {
+                position: relative;
+                overflow: hidden;
+                display: grid;
+                gap: 14px;
+                padding: 18px;
+                border: 1px solid var(--line);
+                border-radius: 24px;
+                background: linear-gradient(180deg, rgba(7, 15, 22, 0.84), rgba(5, 11, 17, 0.66));
+                box-shadow: 0 20px 46px rgba(0, 0, 0, 0.34);
+                backdrop-filter: blur(22px);
+            }
+
+            .mobile-panel::before {
+                content: '';
+                position: absolute;
+                inset: -28% -18% auto 14%;
+                height: 52%;
+                background: radial-gradient(circle, rgba(153, 203, 255, 0.16), transparent 70%);
+                filter: blur(22px);
+                pointer-events: none;
+            }
+
+            .mobile-panel > * {
+                position: relative;
+                z-index: 1;
+            }
+
+            .mobile-price-panel {
+                min-height: calc(100svh - 24px);
+            }
+
+            .mobile-brand-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .mobile-brand-mark {
+                width: 44px;
+                height: 44px;
+                display: block;
+                object-fit: contain;
+                flex: 0 0 auto;
+                border-radius: 50%;
+                filter: drop-shadow(0 12px 24px rgba(245, 164, 45, 0.16));
+            }
+
+            .mobile-eyebrow,
+            .mobile-label,
+            .mobile-range-button,
+            .mobile-chart-span {
+                margin: 0;
+                font-size: 11px;
+                letter-spacing: 0.13em;
+                line-height: 1.35;
+                text-transform: uppercase;
+                color: var(--soft);
+            }
+
+            .mobile-title,
+            .mobile-section-title {
+                margin: 0;
+                letter-spacing: 0;
+                color: var(--text);
+            }
+
+            .mobile-title {
+                font-size: 31px;
+                line-height: 1.02;
+                font-weight: 680;
+            }
+
+            .mobile-section-title {
+                font-size: 24px;
+                line-height: 1.05;
+                font-weight: 660;
+            }
+
+            .mobile-copy {
+                margin: 0;
+                color: var(--muted);
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            .mobile-range-switch {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 4px;
+                padding: 4px;
+                border: 1px solid var(--line);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.04);
+            }
+
+            .mobile-price-card .mobile-range-switch {
+                margin-top: 10px;
+            }
+
+            .mobile-range-button {
+                min-width: 0;
+                padding: 8px 6px;
+                border: 0;
+                border-radius: 999px;
+                background: transparent;
+                color: var(--soft);
+                font-family: inherit;
+                font-weight: 750;
+                text-align: center;
+            }
+
+            .mobile-range-button[aria-selected="true"] {
+                background: rgba(245, 164, 45, 0.96);
+                color: #101418;
+            }
+
+            .mobile-price-card,
+            .mobile-card,
+            .mobile-stat-chip,
+            .mobile-support-card {
+                border: 1px solid var(--line);
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.014));
+            }
+
+            .mobile-price-card {
+                position: relative;
+                overflow: hidden;
+                min-height: 306px;
+                padding: 16px;
+                border-radius: 22px;
+                background:
+                    radial-gradient(circle at 76% 14%, rgba(245, 164, 45, 0.16), transparent 34%),
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014));
+            }
+
+            .mobile-price-row {
+                position: relative;
+                min-width: 0;
+            }
+
+            .mobile-price-toggle {
+                display: block;
+                min-width: 0;
+                max-width: 100%;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                color: inherit;
+                font: inherit;
+                text-align: left;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .mobile-price-toggle:active {
+                transform: translateY(1px) scale(0.995);
+            }
+
+            .mobile-price-label-row {
+                display: inline-flex;
+                align-items: center;
+                min-height: 34px;
+                max-width: calc(100% - 74px);
+                margin: 0;
+                gap: 8px;
+            }
+
+            .mobile-price-label-row .mobile-label {
+                font-size: 14px;
+                font-weight: 750;
+                line-height: 1;
+                letter-spacing: 0.08em;
+                white-space: nowrap;
+            }
+
+            .mobile-selected-currency-pill {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 52px;
+                min-height: 36px;
+                padding: 0 12px;
+                border: 1px solid rgba(245, 164, 45, 0.24);
+                border-radius: 999px;
+                background: rgba(245, 164, 45, 0.1);
+                color: rgba(255, 194, 94, 0.96);
+                font-size: 14px;
+                font-weight: 750;
+                line-height: 1;
+                letter-spacing: 0;
+            }
+
+            .mobile-price-value,
+            .mobile-detail-price,
+            .mobile-clock-value,
+            .mobile-row-value,
+            .mobile-support-value {
+                font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
+                font-weight: 800;
+                line-height: 0.95;
+                letter-spacing: 0;
+            }
+
+            .mobile-price-value {
+                margin-top: 8px;
+                color: var(--accent);
+                max-width: 100%;
+                overflow: hidden;
+                font-size: 38px;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-alternate-price {
+                margin: 6px 0 0;
+                color: rgba(179, 189, 196, 0.78);
+                font-size: 15px;
+                font-weight: 650;
+                line-height: 1.22;
+            }
+
+            .mobile-change-pill {
+                position: absolute;
+                top: 0;
+                right: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 62px;
+                min-height: 36px;
+                padding: 0 12px;
+                border-radius: 999px;
+                background: rgba(158, 225, 105, 0.14);
+                color: var(--signal);
+                font-size: 14px;
+                font-weight: 750;
+                white-space: nowrap;
+            }
+
+            .mobile-change-pill.is-negative {
+                background: rgba(255, 92, 92, 0.14);
+                color: #ff8c8c;
+            }
+
+            .mobile-chart,
+            .mobile-price-chart {
+                position: relative;
+                width: 100%;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            .mobile-price-chart {
+                width: calc(100% + 32px);
+                height: 148px;
+                margin: 14px -16px 0;
+            }
+
+            .mobile-price-chart[data-interactive="true"] {
+                cursor: crosshair;
+                touch-action: pan-y;
+            }
+
+            .mobile-detail-chart-shell {
+                position: relative;
+                height: 178px;
+                margin: 20px -18px -18px;
+            }
+
+            .mobile-detail-chart-shell .mobile-chart {
+                height: 100%;
+            }
+
+            .mobile-chart-marker {
+                position: absolute;
+                right: 9%;
+                bottom: 0;
+                height: 76%;
+                display: grid;
+                align-content: end;
+                justify-items: center;
+                pointer-events: none;
+            }
+
+            .mobile-chart-marker::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                bottom: 38px;
+                width: 1px;
+                background: rgba(255, 255, 255, 0.34);
+            }
+
+            .mobile-chart-chip {
+                position: relative;
+                z-index: 1;
+                padding: 9px 11px;
+                border: 1px solid rgba(255, 255, 255, 0.13);
+                border-radius: 13px;
+                background: rgba(6, 14, 20, 0.92);
+                box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+                color: var(--text);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+
+            .mobile-stat-strip {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .mobile-stat-chip {
+                display: grid;
+                gap: 5px;
+                min-width: 0;
+                padding: 10px;
+                border-radius: 16px;
+            }
+
+            .mobile-stat-chip:nth-child(3) {
+                grid-column: 1 / -1;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+            }
+
+            .mobile-stat-value {
+                color: var(--text);
+                font-size: 16px;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .mobile-card {
+                overflow: hidden;
+                border-radius: 20px;
+                padding: 14px;
+            }
+
+            .mobile-card + .mobile-card {
+                margin-top: 12px;
+            }
+
+            .mobile-row {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 12px 0;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .mobile-row:first-child {
+                border-top: 0;
+                padding-top: 0;
+            }
+
+            .mobile-row-value {
+                color: var(--text);
+                font-size: 22px;
+                white-space: nowrap;
+            }
+
+            .mobile-detail-price {
+                margin-top: 10px;
+                color: var(--accent);
+                font-size: 56px;
+            }
+
+            .mobile-network-hero {
+                display: grid;
+                gap: 10px;
+            }
+
+            .mobile-network-hero .mobile-chart {
+                height: 116px;
+                margin: 2px -15px -15px;
+            }
+
+            .mobile-clock-value {
+                color: var(--cool);
+                font-size: 56px;
+                letter-spacing: 0.04em;
+            }
+
+            .mobile-halving-card {
+                position: relative;
+                min-height: 126px;
+                display: grid;
+                place-items: center;
+                padding: 18px;
+                overflow: hidden;
+                border: 1px solid var(--line);
+                border-radius: 22px;
+                background: rgba(255, 255, 255, 0.015);
+            }
+
+            .mobile-halving-fill {
+                position: absolute;
+                inset: 0 auto 0 0;
+                width: 0%;
+                background: linear-gradient(90deg, rgba(103, 142, 193, 0.78), rgba(86, 117, 166, 0.96));
+                transition: width 900ms ease;
+            }
+
+            .mobile-halving-card .mobile-label,
+            .mobile-halving-card .mobile-row-value {
+                position: relative;
+                z-index: 1;
+                text-align: center;
+            }
+
+            .mobile-support-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .mobile-support-card {
+                display: grid;
+                gap: 8px;
+                min-height: 96px;
+                padding: 14px;
+                border-radius: 18px;
+            }
+
+            .mobile-support-value {
+                color: var(--text);
+                font-size: 23px;
+            }
+
+            .mobile-fx-chart-card {
+                display: grid;
+                gap: 10px;
+                min-height: 208px;
+            }
+
+            .mobile-fx-chart-card .mobile-chart {
+                height: 132px;
+            }
+
+            .mobile-accent {
+                color: var(--accent);
+            }
+
+            .mobile-cool {
+                color: var(--cool);
+            }
+
+            .mobile-signal {
+                color: var(--signal);
+            }
+        }
+
+        @media (max-width: 1120px) {
+            body {
+                padding: 16px;
+                overflow: auto;
+            }
+
+            .dashboard {
+                height: auto;
+                min-height: calc(100vh - 32px);
+                grid-template-columns: 1fr;
+            }
+
+            .network-panel {
+                min-height: 34vh;
+            }
+
+            .network-fx {
+                width: 100%;
+                min-height: 220px;
+            }
+
+            .network-title {
+                max-width: none;
+            }
+
+            .market-board {
+                grid-template-rows: auto auto auto;
+            }
+
+            .board-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .board-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(6, minmax(112px, auto));
+            }
+
+            .trend-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metric:nth-child(odd) {
+                border-right: none;
+            }
+
+            .metric:nth-child(-n+4) {
+                border-bottom: none;
+            }
+
+            .metric:not(:last-child) {
+                border-bottom: 1px solid var(--line);
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel {
+                border-radius: 22px;
+            }
+
+            .network-panel,
+            .market-board {
+                padding: 22px 20px;
+            }
+
+            .brand-mark {
+                width: 48px;
+                height: 48px;
+                border-radius: 15px;
+            }
+
+            .network-title {
+                font-size: 38px;
+            }
+
+            .network-summary,
+            .board-copy {
+                font-size: 14px;
+            }
+
+            .hero-value {
+                font-size: clamp(64px, 16vw, 110px);
+            }
+
+            .stage-meta {
+                grid-template-columns: 1fr;
+            }
+
+            .metric {
+                min-height: 112px;
+                padding: 20px 18px;
+            }
+
+            .metric-value {
+                font-size: 38px;
+            }
+
+            .network-fx {
+                min-height: 190px;
+            }
+
+            .trend-panel {
+                min-height: 210px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="dashboard">
+    <section class="panel network-panel">
+        <div class="network-header">
+            <img class="brand-mark" src="bitcoin-logo.png" alt="" aria-hidden="true">
+            <div>
+                <p class="eyebrow">Live network surface</p>
+                <h1 class="network-title">Bitcoin Block Clock</h1>
+            </div>
+            <p class="network-summary">Latest block height and sync state.</p>
+        </div>
+        <div class="network-fx">
+            <div class="network-fx-meta">
+                <span class="network-fx-label">EUR / USD</span>
+                <span class="network-fx-span">365-day exchange rate</span>
+            </div>
+            <div id="trendEurUsd" class="network-fx-chart" aria-hidden="true"></div>
+        </div>
+        <div class="stage">
+            <div>
+                <span class="stage-label">Block Time</span>
+                <div id="blockCounter" class="hero-value">Loading...</div>
+            </div>
+            <div class="stage-divider"></div>
+            <div class="stage-meta">
+                <div class="meta-block">
+                    <span class="meta-label">Last Sync</span>
+                    <span id="lastUpdated" class="meta-value">Pending</span>
+                </div>
+                <div class="meta-block">
+                    <span class="meta-label">Average Cadence</span>
+                    <span class="meta-value">~10 min</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="panel market-board">
+        <div class="board-head">
+            <div>
+                <p class="eyebrow">Market board</p>
+                <h2 class="board-title">Spot, sats, and network pressure</h2>
+                <p class="board-copy">Live BTC price, sats per unit, hashrate, and the halving countdown.</p>
+            </div>
+            <div class="live-pill">
+                <span class="live-dot"></span>
+                Live Data
+            </div>
+        </div>
+        <div class="board-grid">
+            <article class="metric metric-live-chart" data-tone="accent" data-chart-available="false" data-hover-ready="false" data-hover-active="false">
+                <div id="metricPriceUSDChart" class="metric-chart-bg" aria-hidden="true"></div>
+                <span class="metric-label">Price in USD</span>
+                <span id="bitcoinPriceUSDCorner" class="metric-corner-value" aria-hidden="true">Loading...</span>
+                <span id="bitcoinPriceUSD" class="metric-value">Loading...</span>
+            </article>
+            <article class="metric metric-live-chart" data-tone="accent" data-chart-available="false" data-hover-ready="false" data-hover-active="false">
+                <div id="metricPriceEURChart" class="metric-chart-bg" aria-hidden="true"></div>
+                <span class="metric-label">Price in EUR</span>
+                <span id="bitcoinPriceEURCorner" class="metric-corner-value" aria-hidden="true">Loading...</span>
+                <span id="bitcoinPriceEUR" class="metric-value">Loading...</span>
+            </article>
+            <article class="metric" data-tone="cool">
+                <span class="metric-label">Sats / USD</span>
+                <span id="satsPerDollar" class="metric-value">Loading...</span>
+            </article>
+            <article class="metric" data-tone="cool">
+                <span class="metric-label">Sats / EUR</span>
+                <span id="satsPerEuro" class="metric-value">Loading...</span>
+            </article>
+            <article class="metric" data-tone="signal">
+                <span class="metric-label">Hash Rate</span>
+                <span id="hashRate" class="metric-value">Loading...</span>
+            </article>
+            <article class="metric metric-halving" data-tone="accent">
+                <span class="metric-label">Halving In</span>
+                <span id="nextHalving" class="metric-value">Loading...</span>
+                <div id="halvingProgress"></div>
+            </article>
+        </div>
+        <div class="trend-section">
+            <div class="trend-head">
+                <div>
+                    <p class="trend-title">One Year of Data</p>
+                    <p class="trend-copy">Trailing 365-day curves for BTC and network hashrate.</p>
+                </div>
+            </div>
+            <div class="trend-grid">
+                <article class="trend-panel" data-tone="accent">
+                    <div class="trend-meta">
+                        <span class="trend-label">BTC / USD</span>
+                        <span class="trend-span">1Y price history</span>
+                    </div>
+                    <div id="trendPriceUSD" class="trend-chart" aria-hidden="true"></div>
+                </article>
+                <article class="trend-panel" data-tone="accent">
+                    <div class="trend-meta">
+                        <span class="trend-label">BTC / EUR</span>
+                        <span class="trend-span">1Y price history</span>
+                    </div>
+                    <div id="trendPriceEUR" class="trend-chart" aria-hidden="true"></div>
+                </article>
+                <article class="trend-panel" data-tone="signal">
+                    <div class="trend-meta">
+                        <span class="trend-label">Hash Rate</span>
+                        <span class="trend-span">1Y network history</span>
+                    </div>
+                    <div id="trendHashRate" class="trend-chart" aria-hidden="true"></div>
+                </article>
+            </div>
+        </div>
+    </section>
+</main>
+<main class="mobile-app" aria-label="Bitcoin price tracker mobile view">
+    <section class="mobile-panel mobile-price-panel" aria-labelledby="mobilePriceTitle">
+        <div class="mobile-brand-row">
+            <img class="mobile-brand-mark" src="bitcoin-logo-android.png" alt="" aria-hidden="true">
+            <div>
+                <p class="mobile-eyebrow">Bitcoin price tracker</p>
+                <h1 id="mobilePriceTitle" class="mobile-title">BTC price today</h1>
+            </div>
+        </div>
+        <article class="mobile-price-card">
+            <div class="mobile-price-row">
+                <button class="mobile-price-toggle" type="button" data-mobile-currency-toggle aria-label="Switch BTC price currency">
+                    <p class="mobile-price-label-row">
+                        <span id="mobilePriceLabel" class="mobile-label">BTC price</span>
+                        <span id="mobileSelectedCurrencyPill" class="mobile-selected-currency-pill">USD</span>
+                    </p>
+                    <div id="mobileBitcoinPriceUSD" class="mobile-price-value">Loading...</div>
+                    <p id="mobileAlternatePrice" class="mobile-alternate-price">EUR loading...</p>
+                </button>
+                <span id="mobileRangeChange" class="mobile-change-pill">Pending</span>
+            </div>
+            <div id="mobilePrimaryChart" class="mobile-chart mobile-price-chart" aria-hidden="true"></div>
+            <div class="mobile-range-switch" role="tablist" aria-label="BTC price range">
+                <button class="mobile-range-button" type="button" data-mobile-range="day" role="tab" aria-selected="true">Day</button>
+                <button class="mobile-range-button" type="button" data-mobile-range="week" role="tab" aria-selected="false">Week</button>
+                <button class="mobile-range-button" type="button" data-mobile-range="month" role="tab" aria-selected="false">Month</button>
+                <button class="mobile-range-button" type="button" data-mobile-range="year" role="tab" aria-selected="false">Year</button>
+            </div>
+        </article>
+        <div class="mobile-stat-strip">
+            <div class="mobile-stat-chip">
+                <p id="mobileHighLabel" class="mobile-label">24h High</p>
+                <strong id="mobileRangeHigh" class="mobile-stat-value">Loading...</strong>
+            </div>
+            <div class="mobile-stat-chip">
+                <p id="mobileLowLabel" class="mobile-label">24h Low</p>
+                <strong id="mobileRangeLow" class="mobile-stat-value">Loading...</strong>
+            </div>
+            <div class="mobile-stat-chip">
+                <p class="mobile-label">Updated</p>
+                <strong id="mobileLastUpdated" class="mobile-stat-value">Pending</strong>
+            </div>
+        </div>
+        <div class="mobile-card">
+            <div class="mobile-row">
+                <p class="mobile-label">Hash Rate</p>
+                <strong id="mobileHashRateSummary" class="mobile-row-value mobile-signal">Loading...</strong>
+            </div>
+            <div class="mobile-row">
+                <p id="mobileSatsLabel" class="mobile-label">Sats / USD</p>
+                <strong id="mobileSatsPerDollar" class="mobile-row-value">Loading...</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="mobile-panel" aria-labelledby="mobileTimingTitle">
+        <div class="mobile-brand-row">
+            <img class="mobile-brand-mark" src="bitcoin-logo-android.png" alt="" aria-hidden="true">
+            <div>
+                <p class="mobile-eyebrow">Block clock</p>
+                <h2 id="mobileTimingTitle" class="mobile-section-title">Network timing</h2>
+            </div>
+        </div>
+        <div>
+            <p class="mobile-label">Current block height</p>
+            <div id="mobileBlockCounter" class="mobile-clock-value">Loading...</div>
+        </div>
+        <div class="mobile-card">
+            <div class="mobile-row">
+                <p class="mobile-label">Last Sync</p>
+                <strong id="mobileTimingLastSync" class="mobile-row-value">Pending</strong>
+            </div>
+            <div class="mobile-row">
+                <p class="mobile-label">Average Cadence</p>
+                <strong class="mobile-row-value">~10 min</strong>
+            </div>
+            <div class="mobile-row">
+                <p class="mobile-label">Next Halving</p>
+                <strong id="mobileNextHalving" class="mobile-row-value">Loading...</strong>
+            </div>
+        </div>
+        <div class="mobile-halving-card">
+            <div id="mobileHalvingProgressFill" class="mobile-halving-fill" aria-hidden="true"></div>
+            <div>
+                <p class="mobile-label">Halving Progress</p>
+                <strong id="mobileHalvingPercent" class="mobile-row-value mobile-accent">Loading...</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="mobile-panel" aria-labelledby="mobileNetworkTitle">
+        <div>
+            <p class="mobile-eyebrow">Network health</p>
+            <h2 id="mobileNetworkTitle" class="mobile-section-title">Hashrate and fee pressure</h2>
+            <p class="mobile-copy">Hashrate, difficulty, fee pressure, and the next difficulty retarget.</p>
+        </div>
+        <div class="mobile-card mobile-network-hero">
+            <div>
+                <p class="mobile-label">Hash Rate</p>
+                <strong id="mobileHashRate" class="mobile-row-value mobile-signal">Loading...</strong>
+            </div>
+            <div id="mobileHashChart" class="mobile-chart" aria-hidden="true"></div>
+        </div>
+        <div class="mobile-card">
+            <div class="mobile-row">
+                <p class="mobile-label">Difficulty</p>
+                <strong id="mobileDifficulty" class="mobile-row-value">Loading...</strong>
+            </div>
+            <div class="mobile-row">
+                <p class="mobile-label">Next Retarget</p>
+                <strong id="mobileAdjustment" class="mobile-row-value mobile-signal">Loading...</strong>
+            </div>
+            <div class="mobile-row">
+                <p class="mobile-label">Mempool Fee</p>
+                <strong id="mobileMempoolFee" class="mobile-row-value">Loading...</strong>
+            </div>
+            <div class="mobile-row">
+                <p class="mobile-label">Block Height</p>
+                <strong id="mobileNetworkBlockCounter" class="mobile-row-value">Loading...</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="mobile-panel" aria-labelledby="mobileSupportTitle">
+        <div>
+            <p class="mobile-eyebrow">Supporting context</p>
+            <h2 id="mobileSupportTitle" class="mobile-section-title">FX and conversion rates</h2>
+            <p class="mobile-copy">Useful, but deliberately below the Bitcoin price and network views.</p>
+        </div>
+        <div class="mobile-support-grid">
+            <div class="mobile-support-card">
+                <p class="mobile-label">BTC / EUR</p>
+                <strong id="mobileBitcoinPriceEUR" class="mobile-support-value">Loading...</strong>
+            </div>
+            <div class="mobile-support-card">
+                <p class="mobile-label">Sats / EUR</p>
+                <strong id="mobileSatsPerEuro" class="mobile-support-value">Loading...</strong>
+            </div>
+            <div class="mobile-support-card">
+                <p class="mobile-label">EUR / USD</p>
+                <strong id="mobileEurUsd" class="mobile-support-value">Loading...</strong>
+            </div>
+            <div class="mobile-support-card">
+                <p class="mobile-label">USD / EUR</p>
+                <strong id="mobileUsdEur" class="mobile-support-value">Loading...</strong>
+            </div>
+        </div>
+        <div class="mobile-card mobile-fx-chart-card">
+            <div>
+                <p class="mobile-label">EUR / USD</p>
+                <p class="mobile-chart-span">365-day exchange rate</p>
+            </div>
+            <div id="mobileFxChart" class="mobile-chart" aria-hidden="true"></div>
+        </div>
+    </section>
+</main>
+<script>
+    let databasePromise = null;
+    let historyRefreshPromise = null;
+    let intradayHistoryRefreshPromise = null;
+    let mobileWeeklyHistoryRefreshPromise = null;
+    let mobileMonthlyHistoryRefreshPromise = null;
+
+    function promisifyIDBRequest(req) {
+        return new Promise((resolve, reject) => {
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    function getLocalStorageKey(key) {
+        return `bitcoin-block-clock:${key}`;
+    }
+
+    function getLocalStorageData(key) {
+        try {
+            return JSON.parse(localStorage.getItem(getLocalStorageKey(key)) || '{}');
+        } catch (error) {
+            console.error('Failed to read localStorage cache:', error);
+            return {};
+        }
+    }
+
+    function setLocalStorageData(key, data) {
+        try {
+            localStorage.setItem(getLocalStorageKey(key), JSON.stringify(data));
+        } catch (error) {
+            console.error('Failed to write localStorage cache:', error);
+        }
+    }
+
+    async function getDatabase() {
+        if (!window.indexedDB) {
+            return null;
+        }
+
+        if (!databasePromise) {
+            databasePromise = new Promise((resolve) => {
+                try {
+                    const dbRequest = indexedDB.open("BitcoinAppDB", 1);
+                    const fallbackTimer = setTimeout(() => {
+                        console.warn('IndexedDB initialization timed out, falling back to localStorage.');
+                        resolve(null);
+                    }, 1500);
+                    dbRequest.onupgradeneeded = event => {
+                        const db = event.target.result;
+                        db.createObjectStore("data", { keyPath: "key" });
+                    };
+                    dbRequest.onsuccess = () => {
+                        clearTimeout(fallbackTimer);
+                        resolve(dbRequest.result);
+                    };
+                    dbRequest.onerror = () => {
+                        clearTimeout(fallbackTimer);
+                        console.warn('IndexedDB unavailable, falling back to localStorage.', dbRequest.error);
+                        resolve(null);
+                    };
+                } catch (error) {
+                    console.warn('IndexedDB initialization failed, falling back to localStorage.', error);
+                    resolve(null);
+                }
+            });
+        }
+
+        return await databasePromise;
+    }
+
+    async function getStoredData(key) {
+        const db = await getDatabase();
+        const localData = getLocalStorageData(key);
+
+        if (!db) {
+            return localData;
+        }
+
+        try {
+            const transaction = db.transaction(["data"], "readonly");
+            const store = transaction.objectStore("data");
+            const request = store.get(key);
+            const data = await promisifyIDBRequest(request);
+            const storedValue = (data && data.value) ? data.value : {};
+
+            return { ...localData, ...storedValue };
+        } catch (error) {
+            console.warn('IndexedDB read failed, falling back to localStorage.', error);
+            return localData;
+        }
+    }
+
+    async function setStoredData(key, data) {
+        setLocalStorageData(key, data);
+
+        const db = await getDatabase();
+        if (!db) {
+            return;
+        }
+
+        try {
+            const transaction = db.transaction(["data"], "readwrite");
+            const store = transaction.objectStore("data");
+            const request = store.put({ key, value: data });
+            await promisifyIDBRequest(request);
+        } catch (error) {
+            console.warn('IndexedDB write failed, falling back to localStorage.', error);
+        }
+    }
+
+    function setElementText(id, text) {
+        const element = document.getElementById(id);
+        if (!element) {
+            return false;
+        }
+
+        if (element.textContent === text) {
+            return false;
+        }
+
+        element.textContent = text;
+        return true;
+    }
+
+    function setMetricText(id, text) {
+        const element = document.getElementById(id);
+        if (!element) {
+            return;
+        }
+
+        if (!setElementText(id, text)) {
+            return;
+        }
+
+        element.classList.remove('flash');
+        void element.offsetWidth;
+        element.classList.add('flash');
+    }
+
+    function setMetricTileLiveValue(containerId, text) {
+        const container = document.getElementById(containerId);
+        const tile = container?.closest('.metric-live-chart');
+        if (!tile) {
+            return;
+        }
+
+        tile.dataset.liveValue = text;
+    }
+
+    function updateLastUpdated() {
+        const formattedTime = new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        setMetricText('lastUpdated', formattedTime);
+        setElementText('mobileLastUpdated', formattedTime);
+        setElementText('mobileTimingLastSync', formattedTime);
+    }
+
+    function hasPanelOverflow() {
+        const panels = document.querySelectorAll('.panel');
+        return Array.from(panels).some(panel =>
+            panel.scrollHeight > panel.clientHeight + 8
+        );
+    }
+
+    function applyTrendLayout() {
+        const body = document.body;
+        const trendGrid = document.querySelector('.trend-grid');
+
+        body.classList.remove('layout-trend-medium');
+
+        if (!trendGrid || window.innerWidth <= 1120 || body.classList.contains('layout-short')) {
+            return;
+        }
+
+        if (trendGrid.clientWidth < 920) {
+            body.classList.add('layout-trend-medium');
+        }
+    }
+
+    function collapseTrendLayoutIfOverflowing() {
+        const body = document.body;
+
+        if (body.classList.contains('layout-trend-medium') && hasPanelOverflow()) {
+            body.classList.remove('layout-trend-medium');
+        }
+    }
+
+    function applyResponsiveLayout() {
+        const body = document.body;
+
+        body.classList.remove('layout-short', 'layout-compact', 'layout-scroll', 'layout-trend-medium');
+
+        if (window.innerWidth <= 1120) {
+            return;
+        }
+
+        if (window.innerHeight <= 840) {
+            body.classList.add('layout-short');
+        }
+
+        applyTrendLayout();
+        collapseTrendLayoutIfOverflowing();
+
+        if (hasPanelOverflow()) {
+            body.classList.add('layout-compact');
+            applyTrendLayout();
+            collapseTrendLayoutIfOverflowing();
+        }
+
+        if (hasPanelOverflow()) {
+            body.classList.add('layout-scroll');
+        }
+    }
+
+    const responsiveLayoutClasses = ['layout-short', 'layout-compact', 'layout-scroll', 'layout-trend-medium'];
+
+    function getResponsiveLayoutSignature() {
+        return responsiveLayoutClasses
+            .filter(className => document.body.classList.contains(className))
+            .join(' ');
+    }
+
+    async function updatePriceHistory(date, usdRate, eurRate, hashRate) {
+        const priceHistory = await getStoredData('bitcoinPriceHistory');
+        priceHistory[date] = {
+            USD: usdRate,
+            EUR: eurRate,
+            HashRate: hashRate
+        };
+        await setStoredData('bitcoinPriceHistory', priceHistory);
+    }
+
+    async function getPriceHistory() {
+        return await getStoredData('bitcoinPriceHistory');
+    }
+
+    async function purgeOldPrices() {
+        const { startDate, endDate } = getHistoryWindow();
+
+        const priceHistory = await getPriceHistory();
+        let changed = false;
+
+        Object.keys(priceHistory).forEach(date => {
+            if (date < startDate || date > endDate) {
+                delete priceHistory[date];
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            await setStoredData('bitcoinPriceHistory', priceHistory);
+        }
+    }
+
+    const HISTORY_WINDOW_DAYS = 365;
+    const INTRADAY_WINDOW_HOURS = 24;
+    const INTRADAY_WINDOW_MS = INTRADAY_WINDOW_HOURS * 60 * 60 * 1000;
+    const INTRADAY_BUCKET_MINUTES = 10;
+    const INTRADAY_BUCKET_MS = INTRADAY_BUCKET_MINUTES * 60 * 1000;
+    const INTRADAY_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+    const INTRADAY_STORAGE_KEY = 'bitcoinIntradayPriceHistory';
+    const MOBILE_WEEKLY_WINDOW_DAYS = 7;
+    const MOBILE_WEEKLY_WINDOW_MS = MOBILE_WEEKLY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const MOBILE_WEEKLY_BUCKET_HOURS = 1;
+    const MOBILE_WEEKLY_BUCKET_MS = MOBILE_WEEKLY_BUCKET_HOURS * 60 * 60 * 1000;
+    const MOBILE_WEEKLY_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+    const MOBILE_WEEKLY_STORAGE_KEY = 'bitcoinMobileWeeklyPriceHistory';
+    const MOBILE_MONTHLY_WINDOW_DAYS = 30;
+    const MOBILE_MONTHLY_WINDOW_MS = MOBILE_MONTHLY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const MOBILE_MONTHLY_BUCKET_HOURS = 6;
+    const MOBILE_MONTHLY_BUCKET_MS = MOBILE_MONTHLY_BUCKET_HOURS * 60 * 60 * 1000;
+    const MOBILE_MONTHLY_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
+    const MOBILE_MONTHLY_STORAGE_KEY = 'bitcoinMobileMonthlyPriceHistory';
+    const MOBILE_RANGE_SELECTION_STORAGE_KEY = 'bitcoinMobileSelectedRange';
+    const MOBILE_CURRENCY_SELECTION_STORAGE_KEY = 'bitcoinMobileSelectedCurrency';
+    const MOBILE_PRICE_CURRENCIES = ['USD', 'EUR'];
+    let mobileSelectedRange = 'day';
+    let mobileSelectedCurrency = 'USD';
+    const mobileLatestPrices = {
+        USD: null,
+        EUR: null
+    };
+    const mobileLatestSats = {
+        USD: null,
+        EUR: null
+    };
+    const MOBILE_RANGE_DAY_COUNTS = {
+        day: 1,
+        week: 7,
+        month: 30,
+        year: 365
+    };
+    const MOBILE_RANGE_LABELS = {
+        day: '24h',
+        week: '7d',
+        month: '30d',
+        year: '1y'
+    };
+    mobileSelectedRange = getSavedMobileSelectedRange();
+    mobileSelectedCurrency = getSavedMobileSelectedCurrency();
+
+    function isValidMobileRange(value) {
+        return Object.prototype.hasOwnProperty.call(MOBILE_RANGE_LABELS, value);
+    }
+
+    function getSavedMobileSelectedRange() {
+        try {
+            const savedRange = localStorage.getItem(getLocalStorageKey(MOBILE_RANGE_SELECTION_STORAGE_KEY));
+            return isValidMobileRange(savedRange) ? savedRange : 'day';
+        } catch (error) {
+            console.warn('Failed to restore mobile range selection.', error);
+            return 'day';
+        }
+    }
+
+    function saveMobileSelectedRange(range) {
+        if (!isValidMobileRange(range)) {
+            return;
+        }
+
+        try {
+            localStorage.setItem(getLocalStorageKey(MOBILE_RANGE_SELECTION_STORAGE_KEY), range);
+        } catch (error) {
+            console.warn('Failed to save mobile range selection.', error);
+        }
+    }
+
+    function isValidMobileCurrency(value) {
+        return MOBILE_PRICE_CURRENCIES.includes(value);
+    }
+
+    function getOtherMobileCurrency(currencyCode = mobileSelectedCurrency) {
+        return currencyCode === 'EUR' ? 'USD' : 'EUR';
+    }
+
+    function getSavedMobileSelectedCurrency() {
+        try {
+            const savedCurrency = localStorage.getItem(getLocalStorageKey(MOBILE_CURRENCY_SELECTION_STORAGE_KEY));
+            return isValidMobileCurrency(savedCurrency) ? savedCurrency : 'USD';
+        } catch (error) {
+            console.warn('Failed to restore mobile currency selection.', error);
+            return 'USD';
+        }
+    }
+
+    function saveMobileSelectedCurrency(currencyCode) {
+        if (!isValidMobileCurrency(currencyCode)) {
+            return;
+        }
+
+        try {
+            localStorage.setItem(getLocalStorageKey(MOBILE_CURRENCY_SELECTION_STORAGE_KEY), currencyCode);
+        } catch (error) {
+            console.warn('Failed to save mobile currency selection.', error);
+        }
+    }
+
+    function getTodayDate() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function shiftDate(dateString, dayOffset) {
+        const date = new Date(`${dateString}T00:00:00Z`);
+        date.setUTCDate(date.getUTCDate() + dayOffset);
+        return date.toISOString().slice(0, 10);
+    }
+
+    function getHistoryWindow(today = getTodayDate()) {
+        return {
+            startDate: shiftDate(today, -(HISTORY_WINDOW_DAYS - 1)),
+            endDate: today
+        };
+    }
+
+    function buildDateRange(startDate, endDate) {
+        const dates = [];
+
+        for (let cursor = startDate; cursor <= endDate; cursor = shiftDate(cursor, 1)) {
+            dates.push(cursor);
+        }
+
+        return dates;
+    }
+
+    function mapCoinGeckoPrices(prices) {
+        const valuesByDate = {};
+
+        (prices || []).forEach(([timestamp, price]) => {
+            const date = new Date(timestamp).toISOString().slice(0, 10);
+            valuesByDate[date] = price;
+        });
+
+        return valuesByDate;
+    }
+
+    function mapHashRateValues(values) {
+        const valuesByDate = {};
+
+        (values || []).forEach(entry => {
+            const date = new Date(entry.x * 1000).toISOString().slice(0, 10);
+            valuesByDate[date] = entry.y;
+        });
+
+        return valuesByDate;
+    }
+
+    function forwardFillDailySeries(dateRange, rawValues) {
+        const normalizedValues = {};
+        let lastKnownValue = null;
+
+        dateRange.forEach(date => {
+            if (rawValues[date] != null) {
+                lastKnownValue = rawValues[date];
+            }
+
+            if (lastKnownValue != null) {
+                normalizedValues[date] = lastKnownValue;
+            }
+        });
+
+        return normalizedValues;
+    }
+
+    function getIncompleteHistoryDates(priceHistory, startDate, endDate, includeEndDate = true) {
+        const effectiveEndDate = includeEndDate ? endDate : shiftDate(endDate, -1);
+
+        if (effectiveEndDate < startDate) {
+            return [];
+        }
+
+        return buildDateRange(startDate, effectiveEndDate).filter(date => {
+            const entry = priceHistory[date];
+            return entry?.USD == null ||
+                entry?.EUR == null ||
+                entry?.HashRate == null;
+        });
+    }
+
+    function getRangeDurationDays(startDate, endDate) {
+        const start = new Date(`${startDate}T00:00:00Z`).getTime();
+        const end = new Date(`${endDate}T00:00:00Z`).getTime();
+        return Math.max(1, Math.round((end - start) / 86400000) + 1);
+    }
+
+    function toUnixTimestamp(dateString, endOfDay = false) {
+        const isoTime = endOfDay ? '23:59:59' : '00:00:00';
+        return Math.floor(new Date(`${dateString}T${isoTime}Z`).getTime() / 1000);
+    }
+
+    async function refreshHistoricalPriceHistory(today) {
+        const { startDate, endDate } = getHistoryWindow(today);
+        const existingHistory = await getPriceHistory();
+        const incompleteDates = getIncompleteHistoryDates(existingHistory, startDate, endDate, false);
+
+        if (incompleteDates.length === 0) {
+            return existingHistory;
+        }
+
+        const refreshStartDate = incompleteDates[0] > startDate
+            ? shiftDate(incompleteDates[0], -1)
+            : startDate;
+        const refreshDateRange = buildDateRange(refreshStartDate, endDate);
+        const fullDateRange = buildDateRange(startDate, endDate);
+        const historyDays = getRangeDurationDays(refreshStartDate, endDate);
+        const rangeFrom = toUnixTimestamp(refreshStartDate);
+        const rangeTo = toUnixTimestamp(endDate, true);
+
+        const [usdHistoryResponse, eurHistoryResponse, hashRateHistoryResponse] = await Promise.all([
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`),
+            fetch(`https://api.blockchain.info/charts/hash-rate?timespan=${historyDays}days&format=json&cors=true`)
+        ]);
+
+        const responses = [
+            usdHistoryResponse,
+            eurHistoryResponse,
+            hashRateHistoryResponse
+        ];
+
+        responses.forEach(response => {
+            if (!response.ok) {
+                throw new Error(`Historical data request failed with status ${response.status}`);
+            }
+        });
+
+        const [usdHistoryData, eurHistoryData, hashRateHistoryData] = await Promise.all(
+            responses.map(response => response.json())
+        );
+
+        const usdSeries = forwardFillDailySeries(refreshDateRange, mapCoinGeckoPrices(usdHistoryData.prices));
+        const eurSeries = forwardFillDailySeries(refreshDateRange, mapCoinGeckoPrices(eurHistoryData.prices));
+        const hashRateSeries = forwardFillDailySeries(refreshDateRange, mapHashRateValues(hashRateHistoryData.values));
+
+        const latestHistory = await getPriceHistory();
+        const nextHistory = {};
+
+        fullDateRange.forEach(date => {
+            const usdPrice = usdSeries[date] ?? latestHistory[date]?.USD ?? existingHistory[date]?.USD ?? null;
+            const eurPrice = eurSeries[date] ?? latestHistory[date]?.EUR ?? existingHistory[date]?.EUR ?? null;
+            const hashRate = hashRateSeries[date] ?? latestHistory[date]?.HashRate ?? existingHistory[date]?.HashRate ?? null;
+
+            nextHistory[date] = {
+                USD: usdPrice,
+                EUR: eurPrice,
+                HashRate: hashRate
+            };
+        });
+
+        await setStoredData('bitcoinPriceHistory', nextHistory);
+        return nextHistory;
+    }
+
+    function queueHistoricalPriceHistoryRefresh(today) {
+        if (!historyRefreshPromise) {
+            historyRefreshPromise = refreshHistoricalPriceHistory(today)
+                .catch(error => {
+                    console.error('Refreshing historical market data failed:', error);
+                    throw error;
+                })
+                .finally(() => {
+                    historyRefreshPromise = null;
+                });
+        }
+
+        return historyRefreshPromise;
+    }
+
+    function createEmptyIntradayHistory() {
+        return {
+            updatedAt: 0,
+            USD: {},
+            EUR: {}
+        };
+    }
+
+    function getIntradayWindow(nowMs = Date.now()) {
+        return {
+            startMs: nowMs - INTRADAY_WINDOW_MS,
+            endMs: nowMs
+        };
+    }
+
+    function floorToIntradayBucket(timestampMs) {
+        return Math.floor(timestampMs / INTRADAY_BUCKET_MS) * INTRADAY_BUCKET_MS;
+    }
+
+    function trimIntradaySeries(series, nowMs = Date.now()) {
+        const { startMs, endMs } = getIntradayWindow(nowMs);
+        const trimmedSeries = {};
+
+        Object.entries(series || {}).forEach(([timestamp, value]) => {
+            const normalizedTimestamp = Number(timestamp);
+            const normalizedValue = Number(value);
+
+            if (!Number.isFinite(normalizedTimestamp) || !Number.isFinite(normalizedValue)) {
+                return;
+            }
+
+            if (normalizedTimestamp < startMs || normalizedTimestamp > endMs) {
+                return;
+            }
+
+            trimmedSeries[String(normalizedTimestamp)] = normalizedValue;
+        });
+
+        return trimmedSeries;
+    }
+
+    function normalizeIntradayHistory(rawHistory, nowMs = Date.now()) {
+        const baseHistory = createEmptyIntradayHistory();
+        const updatedAt = Number(rawHistory?.updatedAt);
+
+        baseHistory.updatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0;
+        baseHistory.USD = trimIntradaySeries(rawHistory?.USD, nowMs);
+        baseHistory.EUR = trimIntradaySeries(rawHistory?.EUR, nowMs);
+
+        return baseHistory;
+    }
+
+    async function getIntradayHistory(nowMs = Date.now()) {
+        const rawHistory = await getStoredData(INTRADAY_STORAGE_KEY);
+        return normalizeIntradayHistory(rawHistory, nowMs);
+    }
+
+    async function setIntradayHistory(history, nowMs = Date.now()) {
+        const normalizedHistory = normalizeIntradayHistory(history, nowMs);
+        await setStoredData(INTRADAY_STORAGE_KEY, normalizedHistory);
+        return normalizedHistory;
+    }
+
+    function bucketIntradayPrices(prices) {
+        const series = {};
+
+        (prices || []).forEach(([timestamp, price]) => {
+            const normalizedPrice = Number(price);
+            const bucketTimestamp = floorToIntradayBucket(Number(timestamp));
+
+            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedPrice)) {
+                return;
+            }
+
+            series[String(bucketTimestamp)] = normalizedPrice;
+        });
+
+        return series;
+    }
+
+    function shouldRefreshIntradayHistory(history, nowMs = Date.now()) {
+        if (!history.updatedAt) {
+            return true;
+        }
+
+        if (nowMs - history.updatedAt >= INTRADAY_REFRESH_INTERVAL_MS) {
+            return true;
+        }
+
+        return Object.keys(history.USD).length < 2 || Object.keys(history.EUR).length < 2;
+    }
+
+    async function refreshIntradayHistory(nowMs = Date.now()) {
+        const { startMs, endMs } = getIntradayWindow(nowMs);
+        const rangeFrom = Math.floor(startMs / 1000);
+        const rangeTo = Math.floor(endMs / 1000);
+        const [usdResponse, eurResponse] = await Promise.all([
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`)
+        ]);
+
+        [usdResponse, eurResponse].forEach(response => {
+            if (!response.ok) {
+                throw new Error(`Intraday market data request failed with status ${response.status}`);
+            }
+        });
+
+        const [usdData, eurData] = await Promise.all([
+            usdResponse.json(),
+            eurResponse.json()
+        ]);
+
+        return await setIntradayHistory({
+            updatedAt: nowMs,
+            USD: bucketIntradayPrices(usdData.prices),
+            EUR: bucketIntradayPrices(eurData.prices)
+        }, nowMs);
+    }
+
+    function queueIntradayHistoryRefresh(nowMs = Date.now()) {
+        if (!intradayHistoryRefreshPromise) {
+            intradayHistoryRefreshPromise = refreshIntradayHistory(nowMs)
+                .catch(error => {
+                    console.error('Refreshing intraday market data failed:', error);
+                    throw error;
+                })
+                .finally(() => {
+                    intradayHistoryRefreshPromise = null;
+                });
+        }
+
+        return intradayHistoryRefreshPromise;
+    }
+
+    async function patchIntradayHistory(nowMs, usdPrice, eurPrice) {
+        const history = await getIntradayHistory(nowMs);
+        const bucketTimestamp = String(floorToIntradayBucket(nowMs));
+        const nextHistory = {
+            updatedAt: history.updatedAt,
+            USD: trimIntradaySeries({
+                ...history.USD,
+                [bucketTimestamp]: Number(usdPrice)
+            }, nowMs),
+            EUR: trimIntradaySeries({
+                ...history.EUR,
+                [bucketTimestamp]: Number(eurPrice)
+            }, nowMs)
+        };
+
+        return await setIntradayHistory(nextHistory, nowMs);
+    }
+
+    function createEmptyMobileWeeklyHistory() {
+        return {
+            updatedAt: 0,
+            USD: {},
+            EUR: {}
+        };
+    }
+
+    function getMobileWeeklyWindow(nowMs = Date.now()) {
+        return {
+            startMs: nowMs - MOBILE_WEEKLY_WINDOW_MS,
+            endMs: nowMs
+        };
+    }
+
+    function floorToMobileWeeklyBucket(timestampMs) {
+        return Math.floor(timestampMs / MOBILE_WEEKLY_BUCKET_MS) * MOBILE_WEEKLY_BUCKET_MS;
+    }
+
+    function trimMobileWeeklySeries(series, nowMs = Date.now()) {
+        const { startMs, endMs } = getMobileWeeklyWindow(nowMs);
+        const trimmedSeries = {};
+
+        Object.entries(series || {}).forEach(([timestamp, value]) => {
+            const normalizedTimestamp = Number(timestamp);
+            const normalizedValue = Number(value);
+            const bucketTimestamp = floorToMobileWeeklyBucket(normalizedTimestamp);
+
+            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedValue)) {
+                return;
+            }
+
+            if (bucketTimestamp < startMs || bucketTimestamp > endMs) {
+                return;
+            }
+
+            trimmedSeries[String(bucketTimestamp)] = normalizedValue;
+        });
+
+        return trimmedSeries;
+    }
+
+    function normalizeMobileWeeklyHistory(rawHistory, nowMs = Date.now()) {
+        const baseHistory = createEmptyMobileWeeklyHistory();
+        const updatedAt = Number(rawHistory?.updatedAt);
+
+        baseHistory.updatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0;
+        baseHistory.USD = trimMobileWeeklySeries(rawHistory?.USD, nowMs);
+        baseHistory.EUR = trimMobileWeeklySeries(rawHistory?.EUR, nowMs);
+
+        return baseHistory;
+    }
+
+    async function getMobileWeeklyHistory(nowMs = Date.now()) {
+        const rawHistory = await getStoredData(MOBILE_WEEKLY_STORAGE_KEY);
+        return normalizeMobileWeeklyHistory(rawHistory, nowMs);
+    }
+
+    async function setMobileWeeklyHistory(history, nowMs = Date.now()) {
+        const normalizedHistory = normalizeMobileWeeklyHistory(history, nowMs);
+        await setStoredData(MOBILE_WEEKLY_STORAGE_KEY, normalizedHistory);
+        return normalizedHistory;
+    }
+
+    function bucketMobileWeeklyPrices(prices) {
+        const series = {};
+
+        (prices || []).forEach(([timestamp, price]) => {
+            const normalizedPrice = Number(price);
+            const bucketTimestamp = floorToMobileWeeklyBucket(Number(timestamp));
+
+            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedPrice)) {
+                return;
+            }
+
+            series[String(bucketTimestamp)] = normalizedPrice;
+        });
+
+        return series;
+    }
+
+    function shouldRefreshMobileWeeklyHistory(history, nowMs = Date.now()) {
+        if (!history.updatedAt) {
+            return true;
+        }
+
+        if (nowMs - history.updatedAt >= MOBILE_WEEKLY_REFRESH_INTERVAL_MS) {
+            return true;
+        }
+
+        return Object.keys(history.USD).length < 24 || Object.keys(history.EUR).length < 24;
+    }
+
+    async function refreshMobileWeeklyHistory(nowMs = Date.now()) {
+        const { startMs, endMs } = getMobileWeeklyWindow(nowMs);
+        const rangeFrom = Math.floor(startMs / 1000);
+        const rangeTo = Math.floor(endMs / 1000);
+        const [usdResponse, eurResponse] = await Promise.all([
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`)
+        ]);
+
+        [usdResponse, eurResponse].forEach(response => {
+            if (!response.ok) {
+                throw new Error(`Mobile weekly market data request failed with status ${response.status}`);
+            }
+        });
+
+        const [usdData, eurData] = await Promise.all([
+            usdResponse.json(),
+            eurResponse.json()
+        ]);
+
+        return await setMobileWeeklyHistory({
+            updatedAt: nowMs,
+            USD: bucketMobileWeeklyPrices(usdData.prices),
+            EUR: bucketMobileWeeklyPrices(eurData.prices)
+        }, nowMs);
+    }
+
+    function queueMobileWeeklyHistoryRefresh(nowMs = Date.now()) {
+        if (!mobileWeeklyHistoryRefreshPromise) {
+            mobileWeeklyHistoryRefreshPromise = refreshMobileWeeklyHistory(nowMs)
+                .catch(error => {
+                    console.error('Refreshing mobile weekly market data failed:', error);
+                    throw error;
+                })
+                .finally(() => {
+                    mobileWeeklyHistoryRefreshPromise = null;
+                });
+        }
+
+        return mobileWeeklyHistoryRefreshPromise;
+    }
+
+    async function patchMobileWeeklyHistory(nowMs, usdPrice, eurPrice) {
+        const history = await getMobileWeeklyHistory(nowMs);
+        const bucketTimestamp = String(floorToMobileWeeklyBucket(nowMs));
+        const nextHistory = {
+            updatedAt: history.updatedAt,
+            USD: trimMobileWeeklySeries({
+                ...history.USD,
+                [bucketTimestamp]: Number(usdPrice)
+            }, nowMs),
+            EUR: trimMobileWeeklySeries({
+                ...history.EUR,
+                [bucketTimestamp]: Number(eurPrice)
+            }, nowMs)
+        };
+
+        return await setMobileWeeklyHistory(nextHistory, nowMs);
+    }
+
+    async function getMobileWeeklyChartData(currencyCode = 'USD', nowMs = Date.now()) {
+        const history = await getMobileWeeklyHistory(nowMs);
+        const series = isValidMobileCurrency(currencyCode) ? history[currencyCode] : history.USD;
+
+        return Object.entries(series || {})
+            .map(([timestamp, price]) => ({
+                x: Number(timestamp),
+                y: Number(price)
+            }))
+            .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y))
+            .sort((left, right) => left.x - right.x);
+    }
+
+    function createEmptyMobileMonthlyHistory() {
+        return {
+            updatedAt: 0,
+            USD: {},
+            EUR: {}
+        };
+    }
+
+    function getMobileMonthlyWindow(nowMs = Date.now()) {
+        return {
+            startMs: nowMs - MOBILE_MONTHLY_WINDOW_MS,
+            endMs: nowMs
+        };
+    }
+
+    function floorToMobileMonthlyBucket(timestampMs) {
+        return Math.floor(timestampMs / MOBILE_MONTHLY_BUCKET_MS) * MOBILE_MONTHLY_BUCKET_MS;
+    }
+
+    function trimMobileMonthlySeries(series, nowMs = Date.now()) {
+        const { startMs, endMs } = getMobileMonthlyWindow(nowMs);
+        const trimmedSeries = {};
+
+        Object.entries(series || {}).forEach(([timestamp, value]) => {
+            const normalizedTimestamp = Number(timestamp);
+            const normalizedValue = Number(value);
+            const bucketTimestamp = floorToMobileMonthlyBucket(normalizedTimestamp);
+
+            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedValue)) {
+                return;
+            }
+
+            if (bucketTimestamp < startMs || bucketTimestamp > endMs) {
+                return;
+            }
+
+            trimmedSeries[String(bucketTimestamp)] = normalizedValue;
+        });
+
+        return trimmedSeries;
+    }
+
+    function normalizeMobileMonthlyHistory(rawHistory, nowMs = Date.now()) {
+        const baseHistory = createEmptyMobileMonthlyHistory();
+        const updatedAt = Number(rawHistory?.updatedAt);
+
+        baseHistory.updatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0;
+        baseHistory.USD = trimMobileMonthlySeries(rawHistory?.USD, nowMs);
+        baseHistory.EUR = trimMobileMonthlySeries(rawHistory?.EUR, nowMs);
+
+        return baseHistory;
+    }
+
+    async function getMobileMonthlyHistory(nowMs = Date.now()) {
+        const rawHistory = await getStoredData(MOBILE_MONTHLY_STORAGE_KEY);
+        return normalizeMobileMonthlyHistory(rawHistory, nowMs);
+    }
+
+    async function setMobileMonthlyHistory(history, nowMs = Date.now()) {
+        const normalizedHistory = normalizeMobileMonthlyHistory(history, nowMs);
+        await setStoredData(MOBILE_MONTHLY_STORAGE_KEY, normalizedHistory);
+        return normalizedHistory;
+    }
+
+    function bucketMobileMonthlyPrices(prices) {
+        const series = {};
+
+        (prices || []).forEach(([timestamp, price]) => {
+            const normalizedPrice = Number(price);
+            const bucketTimestamp = floorToMobileMonthlyBucket(Number(timestamp));
+
+            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedPrice)) {
+                return;
+            }
+
+            series[String(bucketTimestamp)] = normalizedPrice;
+        });
+
+        return series;
+    }
+
+    function shouldRefreshMobileMonthlyHistory(history, nowMs = Date.now()) {
+        if (!history.updatedAt) {
+            return true;
+        }
+
+        if (nowMs - history.updatedAt >= MOBILE_MONTHLY_REFRESH_INTERVAL_MS) {
+            return true;
+        }
+
+        return Object.keys(history.USD).length < 40 || Object.keys(history.EUR).length < 40;
+    }
+
+    async function refreshMobileMonthlyHistory(nowMs = Date.now()) {
+        const { startMs, endMs } = getMobileMonthlyWindow(nowMs);
+        const rangeFrom = Math.floor(startMs / 1000);
+        const rangeTo = Math.floor(endMs / 1000);
+        const [usdResponse, eurResponse] = await Promise.all([
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
+            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`)
+        ]);
+
+        [usdResponse, eurResponse].forEach(response => {
+            if (!response.ok) {
+                throw new Error(`Mobile monthly market data request failed with status ${response.status}`);
+            }
+        });
+
+        const [usdData, eurData] = await Promise.all([
+            usdResponse.json(),
+            eurResponse.json()
+        ]);
+
+        return await setMobileMonthlyHistory({
+            updatedAt: nowMs,
+            USD: bucketMobileMonthlyPrices(usdData.prices),
+            EUR: bucketMobileMonthlyPrices(eurData.prices)
+        }, nowMs);
+    }
+
+    function queueMobileMonthlyHistoryRefresh(nowMs = Date.now()) {
+        if (!mobileMonthlyHistoryRefreshPromise) {
+            mobileMonthlyHistoryRefreshPromise = refreshMobileMonthlyHistory(nowMs)
+                .catch(error => {
+                    console.error('Refreshing mobile monthly market data failed:', error);
+                    throw error;
+                })
+                .finally(() => {
+                    mobileMonthlyHistoryRefreshPromise = null;
+                });
+        }
+
+        return mobileMonthlyHistoryRefreshPromise;
+    }
+
+    async function patchMobileMonthlyHistory(nowMs, usdPrice, eurPrice) {
+        const history = await getMobileMonthlyHistory(nowMs);
+        const bucketTimestamp = String(floorToMobileMonthlyBucket(nowMs));
+        const nextHistory = {
+            updatedAt: history.updatedAt,
+            USD: trimMobileMonthlySeries({
+                ...history.USD,
+                [bucketTimestamp]: Number(usdPrice)
+            }, nowMs),
+            EUR: trimMobileMonthlySeries({
+                ...history.EUR,
+                [bucketTimestamp]: Number(eurPrice)
+            }, nowMs)
+        };
+
+        return await setMobileMonthlyHistory(nextHistory, nowMs);
+    }
+
+    async function getMobileMonthlyChartData(currencyCode = 'USD', nowMs = Date.now()) {
+        const history = await getMobileMonthlyHistory(nowMs);
+        const series = isValidMobileCurrency(currencyCode) ? history[currencyCode] : history.USD;
+
+        return Object.entries(series || {})
+            .map(([timestamp, price]) => ({
+                x: Number(timestamp),
+                y: Number(price)
+            }))
+            .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y))
+            .sort((left, right) => left.x - right.x);
+    }
+
+    function getLatestHashRate(priceHistory, preferredDate = getTodayDate()) {
+        if (priceHistory[preferredDate]?.HashRate != null) {
+            return priceHistory[preferredDate].HashRate;
+        }
+
+        const latestDate = Object.keys(priceHistory)
+            .sort()
+            .reverse()
+            .find(date => priceHistory[date]?.HashRate != null);
+
+        return latestDate ? priceHistory[latestDate].HashRate : null;
+    }
+
+    async function fetchCurrentHashRate() {
+        const response = await fetch('https://api.blockchain.info/charts/hash-rate?timespan=30days&format=json&cors=true');
+        if (!response.ok) {
+            throw new Error(`Current hash rate request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const latestEntry = (data.values || [])
+            .slice()
+            .reverse()
+            .find(entry => entry?.y != null);
+
+        return latestEntry ? latestEntry.y : null;
+    }
+
+    function formatCompactMetricNumber(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return 'Unavailable';
+        }
+
+        const suffixes = ['', 'K', 'M', 'B', 'T', 'Q'];
+        let scaledValue = numericValue;
+        let suffixIndex = 0;
+
+        while (Math.abs(scaledValue) >= 1000 && suffixIndex < suffixes.length - 1) {
+            scaledValue /= 1000;
+            suffixIndex++;
+        }
+
+        return `${formatLocaleNumber(scaledValue, {
+            maximumFractionDigits: suffixIndex === 0 ? 0 : 2
+        })}${suffixes[suffixIndex]}`;
+    }
+
+    function formatDifficulty(value) {
+        return formatCompactMetricNumber(value);
+    }
+
+    function formatFeeRate(value) {
+        const feeRate = Number(value);
+        if (!Number.isFinite(feeRate)) {
+            return 'Unavailable';
+        }
+
+        return `${formatLocaleNumber(feeRate, {
+            maximumFractionDigits: feeRate < 10 && !Number.isInteger(feeRate) ? 1 : 0
+        })} sat/vB`;
+    }
+
+    function formatDifficultyRetarget(adjustmentData) {
+        const difficultyChange = Number(adjustmentData?.difficultyChange);
+        const remainingBlocks = Number(adjustmentData?.remainingBlocks);
+        const changeText = Number.isFinite(difficultyChange)
+            ? formatSignedPercent(difficultyChange)
+            : null;
+        const remainingBlocksText = Number.isFinite(remainingBlocks)
+            ? `${formatLocaleNumber(remainingBlocks, { maximumFractionDigits: 0 })} blk`
+            : null;
+
+        if (changeText && remainingBlocksText) {
+            return `${changeText} / ${remainingBlocksText}`;
+        }
+
+        if (changeText) {
+            return `${changeText} est.`;
+        }
+
+        if (remainingBlocksText) {
+            return `${remainingBlocksText} left`;
+        }
+
+        return 'Unavailable';
+    }
+
+    async function fetchJsonMetric(url, errorLabel) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`${errorLabel} request failed with status ${response.status}`);
+        }
+
+        return await response.json();
+    }
+
+    async function fetchTextMetric(url, errorLabel) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`${errorLabel} request failed with status ${response.status}`);
+        }
+
+        return await response.text();
+    }
+
+    async function updateMobileNetworkPressure() {
+        const [difficultyResult, adjustmentResult, feeResult] = await Promise.allSettled([
+            fetchTextMetric('https://blockchain.info/q/getdifficulty', 'Difficulty'),
+            fetchJsonMetric('https://mempool.space/api/v1/difficulty-adjustment', 'Difficulty retarget'),
+            fetchJsonMetric('https://mempool.space/api/v1/fees/recommended', 'Mempool fee')
+        ]);
+
+        if (difficultyResult.status === 'fulfilled') {
+            setMetricText('mobileDifficulty', formatDifficulty(difficultyResult.value));
+        } else {
+            console.warn('Updating mobile difficulty failed:', difficultyResult.reason);
+            setMetricText('mobileDifficulty', 'Unavailable');
+        }
+
+        if (adjustmentResult.status === 'fulfilled') {
+            setMetricText('mobileAdjustment', formatDifficultyRetarget(adjustmentResult.value));
+        } else {
+            console.warn('Updating mobile difficulty retarget failed:', adjustmentResult.reason);
+            setMetricText('mobileAdjustment', 'Unavailable');
+        }
+
+        if (feeResult.status === 'fulfilled') {
+            const recommendedFeeRate = feeResult.value?.halfHourFee
+                ?? feeResult.value?.fastestFee
+                ?? feeResult.value?.hourFee
+                ?? feeResult.value?.economyFee;
+            setMetricText('mobileMempoolFee', formatFeeRate(recommendedFeeRate));
+        } else {
+            console.warn('Updating mobile mempool fee failed:', feeResult.reason);
+            setMetricText('mobileMempoolFee', 'Unavailable');
+        }
+    }
+
+    function setHashRateMetrics(hashRateTh) {
+        const hashRateText = hashRateTh != null
+            ? formatHashRate(hashRateTh, 'TH/s')
+            : 'Unavailable';
+
+        setMetricText('hashRate', hashRateText);
+        setMetricText('mobileHashRate', hashRateText);
+        setMetricText('mobileHashRateSummary', hashRateText);
+    }
+
+    async function updateHashRateMetrics(priceHistory, today) {
+        let hashRateTh = getLatestHashRate(priceHistory, today);
+        if (hashRateTh == null) {
+            hashRateTh = await fetchCurrentHashRate();
+        }
+
+        setHashRateMetrics(hashRateTh);
+        return hashRateTh;
+    }
+
+    function syncMobileRangeButtons() {
+        document.querySelectorAll('[data-mobile-range]').forEach(button => {
+            const isSelected = button.dataset.mobileRange === mobileSelectedRange;
+            button.setAttribute('aria-selected', String(isSelected));
+        });
+    }
+
+    function updateMobilePriceDisplay() {
+        const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
+        const otherCurrency = getOtherMobileCurrency(selectedCurrency);
+        const selectedPrice = mobileLatestPrices[selectedCurrency];
+        const otherPrice = mobileLatestPrices[otherCurrency];
+        const selectedSats = mobileLatestSats[selectedCurrency];
+        const nextCurrencyLabel = getOtherMobileCurrency(selectedCurrency);
+
+        setElementText('mobileSelectedCurrencyPill', selectedCurrency);
+        setElementText('mobilePriceLabel', 'BTC price');
+        setElementText('mobileBitcoinPriceUSD', selectedPrice != null
+            ? formatCurrencyValue(selectedPrice, selectedCurrency)
+            : 'Loading...');
+        setElementText('mobileAlternatePrice', otherPrice != null
+            ? `~ ${formatCurrencyValue(otherPrice, otherCurrency)}`
+            : `${otherCurrency} loading...`);
+        setElementText('mobileSatsLabel', `Sats / ${selectedCurrency}`);
+        setMetricText('mobileSatsPerDollar', selectedSats != null
+            ? `${numberWithCommas(Number(selectedSats).toFixed(0))}`
+            : 'Loading...');
+
+        document.querySelectorAll('[data-mobile-currency-toggle]').forEach(button => {
+            button.setAttribute('aria-label', `Switch BTC price to ${nextCurrencyLabel}`);
+        });
+    }
+
+    function setMobileChangeText(id, text, isNegative) {
+        const element = document.getElementById(id);
+        if (!element) {
+            return;
+        }
+
+        setElementText(id, text);
+        element.classList.toggle('is-negative', isNegative);
+    }
+
+    function sortChartData(data) {
+        return (data || [])
+            .map(point => ({
+                ...point,
+                y: Number(point.y),
+                timeMs: getChartTimeValue(point.x)
+            }))
+            .filter(point => Number.isFinite(point.timeMs) && Number.isFinite(point.y))
+            .sort((left, right) => left.timeMs - right.timeMs);
+    }
+
+    function filterRecentChartData(data, dayCount) {
+        const sortedData = sortChartData(data);
+        if (sortedData.length === 0 || !Number.isFinite(dayCount) || dayCount >= HISTORY_WINDOW_DAYS) {
+            return sortedData;
+        }
+
+        const endTime = sortedData[sortedData.length - 1].timeMs;
+        const startTime = endTime - ((dayCount - 1) * 24 * 60 * 60 * 1000);
+        return sortedData.filter(point => point.timeMs >= startTime);
+    }
+
+    function getMobilePriceRangeData(chartData) {
+        const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
+        const dailyData = selectedCurrency === 'EUR' ? chartData.eur : chartData.usd;
+
+        if (mobileSelectedRange === 'day') {
+            return sortChartData(selectedCurrency === 'EUR' ? chartData.intradayEUR : chartData.intradayUSD);
+        }
+
+        const weeklyData = selectedCurrency === 'EUR' ? chartData.weeklyEUR : chartData.weeklyUSD;
+        if (mobileSelectedRange === 'week' && weeklyData?.length > 1) {
+            return sortChartData(weeklyData);
+        }
+
+        const monthlyData = selectedCurrency === 'EUR' ? chartData.monthlyEUR : chartData.monthlyUSD;
+        if (mobileSelectedRange === 'month' && monthlyData?.length > 1) {
+            return sortChartData(monthlyData);
+        }
+
+        return filterRecentChartData(dailyData, MOBILE_RANGE_DAY_COUNTS[mobileSelectedRange]);
+    }
+
+    function formatCompactPrice(value, currencyCode = mobileSelectedCurrency) {
+        return formatCurrencyValue(value, currencyCode);
+    }
+
+    function formatSignedPercent(value) {
+        if (!Number.isFinite(value)) {
+            return 'Pending';
+        }
+
+        const sign = value > 0 ? '+' : '';
+        return `${sign}${value.toFixed(1)}%`;
+    }
+
+    function updateMobileRangeStats(data) {
+        const sortedData = sortChartData(data);
+        const rangeLabel = MOBILE_RANGE_LABELS[mobileSelectedRange] || '24h';
+
+        setElementText('mobileHighLabel', `${rangeLabel} High`);
+        setElementText('mobileLowLabel', `${rangeLabel} Low`);
+
+        if (sortedData.length === 0) {
+            [
+                'mobileRangeHigh',
+                'mobileRangeLow'
+            ].forEach(id => setElementText(id, 'Loading...'));
+            setMobileChangeText('mobileRangeChange', 'Pending', false);
+            return;
+        }
+
+        const firstPoint = sortedData[0];
+        const lastPoint = sortedData[sortedData.length - 1];
+        const values = sortedData.map(point => point.y);
+        const high = Math.max(...values);
+        const low = Math.min(...values);
+        const change = lastPoint.y - firstPoint.y;
+        const changePercent = firstPoint.y > 0 ? (change / firstPoint.y) * 100 : 0;
+        const isNegative = change < 0;
+
+        setElementText('mobileRangeHigh', formatCompactPrice(high));
+        setElementText('mobileRangeLow', formatCompactPrice(low));
+        setMobileChangeText('mobileRangeChange', formatSignedPercent(changePercent), isNegative);
+    }
+
+    function renderMobileCharts(chartData) {
+        syncMobileRangeButtons();
+
+        const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
+        const priceRangeData = getMobilePriceRangeData(chartData);
+        updateMobileRangeStats(priceRangeData);
+
+        [
+            {
+                data: priceRangeData,
+                containerId: 'mobilePrimaryChart',
+                seriesLabel: `BTC / ${selectedCurrency}`,
+                valueFormatter: value => formatCurrencyValue(value, selectedCurrency),
+                interactive: true,
+                touchInteractive: true,
+                showTooltip: false,
+                scrubValueElementId: 'mobileBitcoinPriceUSD',
+                scrubMetaElementId: 'mobileAlternatePrice',
+                scrubStatusElementId: 'mobileRangeChange',
+                scrubMetaFormatter: point => `Selected ${formatMobileScrubDate(point.x)}`,
+                color: 'rgba(255, 179, 58, 0.92)'
+            },
+            {
+                data: chartData.hash,
+                containerId: 'mobileHashChart',
+                seriesLabel: 'Hash Rate',
+                valueFormatter: value => formatHashRate(value, 'TH/s'),
+                interactive: false,
+                color: 'rgba(158, 225, 105, 0.9)'
+            },
+            {
+                data: chartData.eurUsd,
+                containerId: 'mobileFxChart',
+                seriesLabel: 'EUR / USD',
+                valueFormatter: formatEurUsdValue,
+                interactive: false,
+                color: 'rgba(153, 203, 255, 0.9)'
+            }
+        ].forEach(chart => {
+            drawChart(chart.data, chart);
+        });
+    }
+
+    function renderTrendCharts(chartData) {
+        [
+            {
+                data: chartData.usd,
+                containerId: 'trendPriceUSD',
+                seriesLabel: 'BTC / USD',
+                valueFormatter: value => formatCurrencyValue(value, 'USD'),
+                interactive: true,
+                color: 'rgba(255, 179, 58, 0.92)'
+            },
+            {
+                data: chartData.eur,
+                containerId: 'trendPriceEUR',
+                seriesLabel: 'BTC / EUR',
+                valueFormatter: value => formatCurrencyValue(value, 'EUR'),
+                interactive: true,
+                color: 'rgba(255, 179, 58, 0.82)'
+            },
+            {
+                data: chartData.eurUsd,
+                containerId: 'trendEurUsd',
+                seriesLabel: 'EUR / USD',
+                valueFormatter: formatEurUsdValue,
+                interactive: true,
+                color: 'rgba(153, 203, 255, 0.9)'
+            },
+            {
+                data: chartData.hash,
+                containerId: 'trendHashRate',
+                seriesLabel: 'Hash Rate',
+                valueFormatter: value => formatHashRate(value, 'TH/s'),
+                interactive: false,
+                color: 'rgba(158, 225, 105, 0.9)'
+            }
+        ].forEach(chart => {
+            drawChart(chart.data, chart);
+        });
+    }
+
+    function renderMetricTileCharts(chartData) {
+        [
+            {
+                data: chartData.intradayUSD,
+                containerId: 'metricPriceUSDChart',
+                cornerValueId: 'bitcoinPriceUSDCorner',
+                color: 'rgba(255, 179, 58, 0.88)',
+                valueFormatter: value => formatCurrencyValue(value, 'USD')
+            },
+            {
+                data: chartData.intradayEUR,
+                containerId: 'metricPriceEURChart',
+                cornerValueId: 'bitcoinPriceEURCorner',
+                color: 'rgba(255, 198, 94, 0.8)',
+                valueFormatter: value => formatCurrencyValue(value, 'EUR')
+            }
+        ].forEach(chart => {
+            drawMetricTileChart(chart.data, chart);
+        });
+    }
+
+    async function redrawAllCharts() {
+        const chartData = {
+            usd: await getDataForChart('USD'),
+            eur: await getDataForChart('EUR'),
+            eurUsd: await getDataForChart('EURUSD'),
+            hash: await getDataForChart('HashRate'),
+            intradayUSD: await getMetricTileChartData('USD'),
+            intradayEUR: await getMetricTileChartData('EUR'),
+            weeklyUSD: await getMobileWeeklyChartData(),
+            weeklyEUR: await getMobileWeeklyChartData('EUR'),
+            monthlyUSD: await getMobileMonthlyChartData(),
+            monthlyEUR: await getMobileMonthlyChartData('EUR')
+        };
+
+        for (let pass = 0; pass < 3; pass++) {
+            applyResponsiveLayout();
+            const layoutBeforeDraw = getResponsiveLayoutSignature();
+
+            renderTrendCharts(chartData);
+            renderMetricTileCharts(chartData);
+            renderMobileCharts(chartData);
+
+            applyResponsiveLayout();
+            const layoutAfterDraw = getResponsiveLayoutSignature();
+
+            if (layoutAfterDraw === layoutBeforeDraw) {
+                return;
+            }
+        }
+
+        applyResponsiveLayout();
+        renderTrendCharts(chartData);
+        renderMetricTileCharts(chartData);
+        renderMobileCharts(chartData);
+    }
+
+    async function fetchBitcoinInfo() {
+        const today = getTodayDate();
+        let mobileNetworkPressurePromise = null;
+        let hashRateUpdatePromise = null;
+
+        try {
+            let priceHistory = await getPriceHistory();
+            mobileNetworkPressurePromise = updateMobileNetworkPressure();
+            hashRateUpdatePromise = updateHashRateMetrics(priceHistory, today)
+                .catch(hashRateError => {
+                    console.error('Updating hash rate failed:', hashRateError);
+                    setHashRateMetrics(null);
+                    return null;
+                });
+            const { startDate, endDate } = getHistoryWindow(today);
+            const historyNeedsRefresh = getIncompleteHistoryDates(priceHistory, startDate, endDate, false).length > 0;
+            const backgroundHistoryRefresh = historyNeedsRefresh
+                ? queueHistoricalPriceHistoryRefresh(today).catch(() => null)
+                : null;
+            const intradayHistory = await getIntradayHistory();
+            const intradayNeedsRefresh = shouldRefreshIntradayHistory(intradayHistory);
+            const backgroundIntradayRefresh = intradayNeedsRefresh
+                ? queueIntradayHistoryRefresh().catch(() => null)
+                : null;
+            const mobileWeeklyHistory = await getMobileWeeklyHistory();
+            const mobileWeeklyNeedsRefresh = shouldRefreshMobileWeeklyHistory(mobileWeeklyHistory);
+            const backgroundMobileWeeklyRefresh = mobileWeeklyNeedsRefresh
+                ? queueMobileWeeklyHistoryRefresh().catch(() => null)
+                : null;
+            const mobileMonthlyHistory = await getMobileMonthlyHistory();
+            const mobileMonthlyNeedsRefresh = shouldRefreshMobileMonthlyHistory(mobileMonthlyHistory);
+            const backgroundMobileMonthlyRefresh = mobileMonthlyNeedsRefresh
+                ? queueMobileMonthlyHistoryRefresh().catch(() => null)
+                : null;
+
+            if (historyNeedsRefresh) {
+                console.warn('Historical market cache has gaps. Refreshing only the missing trailing range in the background.');
+            }
+
+            if (intradayNeedsRefresh) {
+                console.warn('Intraday market cache is stale. Refreshing the trailing 24h range in the background.');
+            }
+
+            if (mobileWeeklyNeedsRefresh) {
+                console.warn('Mobile weekly market cache is stale. Refreshing the trailing 7d range in the background.');
+            }
+
+            if (mobileMonthlyNeedsRefresh) {
+                console.warn('Mobile monthly market cache is stale. Refreshing the trailing 30d range in the background.');
+            }
+
+            const priceResponse = await fetch('https://blockchain.info/ticker');
+            if (!priceResponse.ok) {
+                throw new Error(`Current price request failed with status ${priceResponse.status}`);
+            }
+
+            const priceData = await priceResponse.json();
+            const btcUSD = priceData.USD.last;
+            const btcEUR = priceData.EUR.last;
+            const usdMetricText = formatCurrencyValue(btcUSD, 'USD');
+            const eurMetricText = formatCurrencyValue(btcEUR, 'EUR');
+
+            setMetricText('bitcoinPriceUSD', usdMetricText);
+            setMetricText('bitcoinPriceEUR', eurMetricText);
+            setElementText('bitcoinPriceUSDCorner', usdMetricText);
+            setElementText('bitcoinPriceEURCorner', eurMetricText);
+            setMetricTileLiveValue('metricPriceUSDChart', usdMetricText);
+            setMetricTileLiveValue('metricPriceEURChart', eurMetricText);
+            setMetricText('mobileBitcoinPriceEUR', eurMetricText);
+
+            const satsPerDollar = (1 / btcUSD) * 100000000;
+            setMetricText('satsPerDollar', `${numberWithCommas(satsPerDollar.toFixed(0))}`);
+
+            const satsPerEuro = (1 / btcEUR) * 100000000;
+            setMetricText('satsPerEuro', `${numberWithCommas(satsPerEuro.toFixed(0))}`);
+            setMetricText('mobileSatsPerEuro', `${numberWithCommas(satsPerEuro.toFixed(0))}`);
+
+            mobileLatestPrices.USD = btcUSD;
+            mobileLatestPrices.EUR = btcEUR;
+            mobileLatestSats.USD = satsPerDollar;
+            mobileLatestSats.EUR = satsPerEuro;
+            updateMobilePriceDisplay();
+
+            const eurUsdRate = Number(btcUSD) / Number(btcEUR);
+            if (Number.isFinite(eurUsdRate)) {
+                setMetricText('mobileEurUsd', eurUsdRate.toFixed(4));
+                setMetricText('mobileUsdEur', (1 / eurUsdRate).toFixed(4));
+            }
+
+            const blockResponse = await fetch('https://blockchain.info/q/getblockcount');
+            if (!blockResponse.ok) {
+                throw new Error(`Block count request failed with status ${blockResponse.status}`);
+            }
+
+            const blockCount = await blockResponse.text();
+            setMetricText('blockCounter', `${numberWithCommas(blockCount)}`);
+            setMetricText('mobileBlockCounter', `${numberWithCommas(blockCount)}`);
+            setMetricText('mobileNetworkBlockCounter', `${numberWithCommas(blockCount)}`);
+            calculateTimeToNextHalving(blockCount);
+
+            const hashRateTh = await hashRateUpdatePromise;
+            updateLastUpdated();
+
+            await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
+            await patchMobileWeeklyHistory(Date.now(), btcUSD, btcEUR);
+            await patchMobileMonthlyHistory(Date.now(), btcUSD, btcEUR);
+            await updatePriceHistory(today, btcUSD, btcEUR, hashRateTh);
+            await purgeOldPrices();
+
+            await redrawAllCharts();
+
+            if (backgroundHistoryRefresh) {
+                const refreshedHistory = await backgroundHistoryRefresh;
+
+                if (refreshedHistory) {
+                    const refreshedHashRate = getLatestHashRate(refreshedHistory, today);
+                    setHashRateMetrics(refreshedHashRate);
+
+                    await redrawAllCharts();
+                }
+            }
+
+            if (backgroundIntradayRefresh) {
+                const refreshedIntradayHistory = await backgroundIntradayRefresh;
+
+                if (refreshedIntradayHistory) {
+                    await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
+                    await redrawAllCharts();
+                }
+            }
+
+            if (backgroundMobileWeeklyRefresh) {
+                const refreshedMobileWeeklyHistory = await backgroundMobileWeeklyRefresh;
+
+                if (refreshedMobileWeeklyHistory) {
+                    await patchMobileWeeklyHistory(Date.now(), btcUSD, btcEUR);
+                    await redrawAllCharts();
+                }
+            }
+
+            if (backgroundMobileMonthlyRefresh) {
+                const refreshedMobileMonthlyHistory = await backgroundMobileMonthlyRefresh;
+
+                if (refreshedMobileMonthlyHistory) {
+                    await patchMobileMonthlyHistory(Date.now(), btcUSD, btcEUR);
+                    await redrawAllCharts();
+                }
+            }
+        } catch (error) {
+            console.error('Updating Bitcoin info failed:', error);
+        } finally {
+            await Promise.allSettled([
+                mobileNetworkPressurePromise,
+                hashRateUpdatePromise
+            ].filter(Boolean));
+        }
+    }
+
+    const currencyFormatterCache = {};
+    const localeNumberFormatterCache = {};
+
+    function formatLocaleNumber(value, options = {}) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return String(value);
+        }
+
+        const formatterKey = JSON.stringify(options);
+        if (!localeNumberFormatterCache[formatterKey]) {
+            localeNumberFormatterCache[formatterKey] = new Intl.NumberFormat(undefined, options);
+        }
+
+        return localeNumberFormatterCache[formatterKey].format(numericValue);
+    }
+
+    function numberWithCommas(x) {
+        const stringValue = String(x);
+        const fractionDigits = stringValue.includes('.')
+            ? stringValue.split('.')[1].length
+            : 0;
+
+        return formatLocaleNumber(x, {
+            minimumFractionDigits: fractionDigits,
+            maximumFractionDigits: fractionDigits
+        });
+    }
+
+    const chartDateFormatter = new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+    const chartDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+
+    function getChartTimeValue(value) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+        }
+
+        if (value instanceof Date) {
+            return value.getTime();
+        }
+
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return new Date(`${value}T12:00:00`).getTime();
+        }
+
+        return new Date(value).getTime();
+    }
+
+    function parseChartDate(dateString) {
+        return new Date(getChartTimeValue(dateString));
+    }
+
+    function formatChartDate(dateString) {
+        return chartDateFormatter.format(parseChartDate(dateString));
+    }
+
+    function formatMobileScrubDate(dateString) {
+        const formatter = mobileSelectedRange === 'day'
+            ? chartDateTimeFormatter
+            : chartDateFormatter;
+        return formatter.format(parseChartDate(dateString));
+    }
+
+    function formatCurrencyValue(value, currencyCode) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return String(value);
+        }
+
+        if (!currencyFormatterCache[currencyCode]) {
+            currencyFormatterCache[currencyCode] = new Intl.NumberFormat(undefined, {
+                style: 'currency',
+                currency: currencyCode,
+                currencyDisplay: 'narrowSymbol',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        return currencyFormatterCache[currencyCode].format(numericValue);
+    }
+
+    function formatEurUsdValue(value) {
+        return `${formatLocaleNumber(value, {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        })} USD per EUR`;
+    }
+
+    function supportsChartHover() {
+        return typeof window.matchMedia !== 'function'
+            || window.matchMedia('(any-hover: hover) and (pointer: fine)').matches;
+    }
+
+    function supportsChartTouch() {
+        return typeof window.PointerEvent === 'function'
+            || 'ontouchstart' in window
+            || Number(navigator.maxTouchPoints) > 0;
+    }
+
+    function findNearestChartPoint(points, targetX) {
+        let nearestPoint = points[0];
+        let smallestDistance = Math.abs(points[0].pixelX - targetX);
+
+        for (let i = 1; i < points.length; i++) {
+            const distance = Math.abs(points[i].pixelX - targetX);
+            if (distance < smallestDistance) {
+                nearestPoint = points[i];
+                smallestDistance = distance;
+            }
+        }
+
+        return nearestPoint;
+    }
+
+    function interpolateChartPoint(points, targetX) {
+        if (!Array.isArray(points) || points.length === 0) {
+            return null;
+        }
+
+        if (points.length === 1 || targetX <= points[0].pixelX) {
+            return {
+                ...points[0],
+                pixelX: points[0].pixelX,
+                pixelY: points[0].pixelY
+            };
+        }
+
+        const lastPoint = points[points.length - 1];
+        if (targetX >= lastPoint.pixelX) {
+            return {
+                ...lastPoint,
+                pixelX: lastPoint.pixelX,
+                pixelY: lastPoint.pixelY
+            };
+        }
+
+        for (let i = 1; i < points.length; i++) {
+            const leftPoint = points[i - 1];
+            const rightPoint = points[i];
+            if (targetX > rightPoint.pixelX) {
+                continue;
+            }
+
+            const xSpan = rightPoint.pixelX - leftPoint.pixelX;
+            const ratio = xSpan <= 0 ? 0 : (targetX - leftPoint.pixelX) / xSpan;
+            return {
+                x: leftPoint.timeMs + ((rightPoint.timeMs - leftPoint.timeMs) * ratio),
+                y: leftPoint.y + ((rightPoint.y - leftPoint.y) * ratio),
+                timeMs: leftPoint.timeMs + ((rightPoint.timeMs - leftPoint.timeMs) * ratio),
+                pixelX: targetX,
+                pixelY: leftPoint.pixelY + ((rightPoint.pixelY - leftPoint.pixelY) * ratio)
+            };
+        }
+
+        return {
+            ...lastPoint,
+            pixelX: lastPoint.pixelX,
+            pixelY: lastPoint.pixelY
+        };
+    }
+
+    function downsampleLineData(data, maxPoints) {
+        if (!Number.isFinite(maxPoints) || maxPoints < 2 || data.length <= maxPoints) {
+            return data.map(point => ({ ...point }));
+        }
+
+        const sampledPoints = [];
+        const usedIndexes = new Set();
+        const step = (data.length - 1) / (maxPoints - 1);
+
+        for (let i = 0; i < maxPoints; i++) {
+            const index = Math.round(i * step);
+            if (usedIndexes.has(index)) {
+                continue;
+            }
+
+            usedIndexes.add(index);
+            sampledPoints.push({ ...data[index] });
+        }
+
+        const lastIndex = data.length - 1;
+        if (!usedIndexes.has(lastIndex)) {
+            sampledPoints.push({ ...data[lastIndex] });
+        }
+
+        return sampledPoints;
+    }
+
+    function buildChartGeometry(data, {
+        svgWidth,
+        svgHeight,
+        singlePointSpanMs = 86400000
+    }) {
+        const sourceData = data
+            .map(point => ({
+                ...point,
+                y: Number(point.y),
+                timeMs: getChartTimeValue(point.x)
+            }))
+            .filter(point => Number.isFinite(point.timeMs) && Number.isFinite(point.y))
+            .sort((left, right) => left.timeMs - right.timeMs);
+
+        if (sourceData.length === 0) {
+            return null;
+        }
+
+        const renderData = sourceData.map(point => ({ ...point }));
+        if (renderData.length === 1) {
+            renderData.push({
+                ...renderData[0],
+                timeMs: renderData[0].timeMs + singlePointSpanMs
+            });
+        }
+
+        const maxVal = Math.max(...renderData.map(point => point.y));
+        const minVal = Math.min(...renderData.map(point => point.y));
+        const minTime = renderData[0].timeMs;
+        const maxTime = renderData[renderData.length - 1].timeMs;
+        const timeSpan = Math.max(maxTime - minTime, 1);
+        const xScale = timeMs => ((timeMs - minTime) / timeSpan) * svgWidth;
+        const yScale = value => {
+            if (maxVal === minVal) {
+                return svgHeight / 2;
+            }
+
+            return ((maxVal - value) / (maxVal - minVal)) * svgHeight;
+        };
+
+        return {
+            renderedPoints: renderData.map(point => ({
+                ...point,
+                pixelX: xScale(point.timeMs),
+                pixelY: yScale(point.y)
+            })),
+            hoverPoints: sourceData.map(point => ({
+                ...point,
+                pixelX: xScale(point.timeMs),
+                pixelY: yScale(point.y)
+            }))
+        };
+    }
+
+    function buildLinePathData(points) {
+        return points.map((point, index) => {
+            const prefix = index === 0 ? 'M' : 'L';
+            return `${prefix} ${point.pixelX} ${point.pixelY}`;
+        }).join(' ');
+    }
+
+    function buildAreaPathData(points, chartHeight) {
+        const linePathData = buildLinePathData(points);
+        const firstPoint = points[0];
+        const lastPoint = points[points.length - 1];
+
+        return `${linePathData} L ${lastPoint.pixelX} ${chartHeight} L ${firstPoint.pixelX} ${chartHeight} Z`;
+    }
+
+    function positionChartTooltip(tooltip, pointX, pointY, chartWidth, chartHeight) {
+        const offset = 14;
+        const edgePadding = 8;
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+
+        let left = pointX + offset;
+        if (left + tooltipWidth > chartWidth - edgePadding) {
+            left = pointX - tooltipWidth - offset;
+        }
+        left = Math.max(edgePadding, Math.min(left, chartWidth - tooltipWidth - edgePadding));
+
+        let top = pointY - tooltipHeight - offset;
+        if (top < edgePadding) {
+            top = pointY + offset;
+        }
+        top = Math.max(edgePadding, Math.min(top, chartHeight - tooltipHeight - edgePadding));
+
+        tooltip.style.transform = `translate(${left}px, ${top}px)`;
+    }
+
+    function formatHashRate(hashRate, startingUnit = 'GH/s') {
+        const units = ["GH/s", "TH/s", "PH/s", "EH/s", "ZH/s", "YH/s"];
+        let index = Math.max(units.indexOf(startingUnit), 0);
+        let rate = parseFloat(hashRate);
+
+        while (rate >= 1000 && index < units.length - 1) {
+            rate /= 1000;
+            index++;
+        }
+
+        return `${numberWithCommas(rate.toFixed(2))} ${units[index]}`;
+    }
+
+    function calculateTimeToNextHalving(currentBlockCount) {
+        const blocksPerHalving = 210000;
+        const blockTimeMinutes = 10;
+        const currentHalvingIndex = Math.floor(currentBlockCount / blocksPerHalving);
+        const nextHalvingBlock = (currentHalvingIndex + 1) * blocksPerHalving;
+        const blocksUntilNextHalving = nextHalvingBlock - currentBlockCount;
+        const minutesUntilNextHalving = blocksUntilNextHalving * blockTimeMinutes;
+        const days = Math.floor(minutesUntilNextHalving / (60 * 24));
+        const hours = Math.floor((minutesUntilNextHalving % (60 * 24)) / 60);
+        const minutes = minutesUntilNextHalving % 60;
+
+        const halvingText = days > 0
+            ? `${days} days`
+            : `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        setMetricText('nextHalving', halvingText);
+        setMetricText('mobileNextHalving', halvingText);
+
+        const progressElement = document.getElementById('halvingProgress');
+        const totalBlocks = blocksPerHalving;
+        const progressPercentage = (blocksUntilNextHalving / totalBlocks) * 100;
+        progressElement.style.width = `${progressPercentage}%`;
+
+        const completedPercentage = Math.max(0, Math.min(100, 100 - progressPercentage));
+        const mobileProgressElement = document.getElementById('mobileHalvingProgressFill');
+        if (mobileProgressElement) {
+            mobileProgressElement.style.width = `${completedPercentage}%`;
+        }
+        setMetricText('mobileHalvingPercent', `${completedPercentage.toFixed(1)}%`);
+    }
+
+    let enterKeyPressStart;
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === "Enter" && !enterKeyPressStart) {
+            enterKeyPressStart = event.timeStamp;
+        }
+    });
+
+    document.addEventListener('keyup', function(event) {
+        if (event.key === "Enter" && enterKeyPressStart) {
+            const duration = event.timeStamp - enterKeyPressStart;
+            if (duration >= 400) {
+                if (window.Android && typeof window.Android.openScreensaverSettings === 'function') {
+                    Android.openScreensaverSettings();
+                }
+                fetchBitcoinInfo();
+            }
+            enterKeyPressStart = null;
+        }
+    });
+
+    document.addEventListener('click', event => {
+        const currencyToggle = event.target.closest('[data-mobile-currency-toggle]');
+        if (currencyToggle) {
+            mobileSelectedCurrency = getOtherMobileCurrency(mobileSelectedCurrency);
+            saveMobileSelectedCurrency(mobileSelectedCurrency);
+            updateMobilePriceDisplay();
+            redrawAllCharts().catch(error => console.error('Redrawing mobile currency failed:', error));
+            return;
+        }
+
+        const rangeButton = event.target.closest('[data-mobile-range]');
+        if (!rangeButton) {
+            return;
+        }
+
+        const nextMobileRange = rangeButton.dataset.mobileRange || 'day';
+        if (!isValidMobileRange(nextMobileRange)) {
+            return;
+        }
+
+        mobileSelectedRange = nextMobileRange;
+        saveMobileSelectedRange(mobileSelectedRange);
+        syncMobileRangeButtons();
+        redrawAllCharts().catch(error => console.error('Redrawing mobile range failed:', error));
+    });
+
+    let resizeRedrawTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeRedrawTimeout);
+        resizeRedrawTimeout = setTimeout(() => {
+            redrawAllCharts().catch(error => console.error('Redrawing charts failed:', error));
+        }, 150);
+    });
+
+    function replaceElementChildren(container, ...nodes) {
+        if (typeof container.replaceChildren === 'function') {
+            container.replaceChildren(...nodes);
+            return;
+        }
+
+        container.textContent = '';
+        nodes.forEach(node => container.appendChild(node));
+    }
+
+    function drawChart(data, {
+        containerId,
+        isSats = false,
+        color = null,
+        interactive = false,
+        touchInteractive = false,
+        showTooltip = true,
+        seriesLabel = '',
+        valueFormatter = value => numberWithCommas(Number(value).toFixed(0)),
+        scrubValueElementId = null,
+        scrubMetaElementId = null,
+        scrubStatusElementId = null,
+        scrubMetaFormatter = point => formatChartDate(point.x),
+        scrubStatusText = 'Inspecting'
+    }) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            return;
+        }
+        const svgWidth = container.clientWidth;
+        const svgHeight = container.clientHeight;
+        const shouldAnimate = !container.dataset.chartRendered;
+        container.dataset.interactive = 'false';
+        container.dataset.scrubActive = 'false';
+
+        if (svgWidth <= 0 || svgHeight <= 0) {
+            return;
+        }
+
+        const geometry = buildChartGeometry(data, {
+            svgWidth,
+            svgHeight
+        });
+
+        if (!geometry) {
+            replaceElementChildren(container);
+            return;
+        }
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", shouldAnimate ? "chart-svg chart-shell" : "chart-svg");
+        svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+        svg.setAttribute("preserveAspectRatio", "none");
+        svg.setAttribute("width", "100%");
+        svg.setAttribute("height", "100%");
+
+        const { renderedPoints, hoverPoints } = geometry;
+
+        let trendColor = color;
+        if (!color) {
+            const firstLastIncrease = renderedPoints[renderedPoints.length - 1].y >= renderedPoints[0].y;
+            trendColor = (isSats ? !firstLastIncrease : firstLastIncrease)
+                ? 'rgba(0, 180, 0, 0.75)'
+                : 'rgba(255, 0, 0, 0.75)';
+        }
+
+        const areaPath = document.createElementNS(svgNS, "path");
+        areaPath.setAttribute("d", buildAreaPathData(renderedPoints, svgHeight));
+        areaPath.setAttribute("fill", trendColor);
+        areaPath.setAttribute("fill-opacity", "0.16");
+        svg.appendChild(areaPath);
+
+        const linePath = document.createElementNS(svgNS, "path");
+        linePath.setAttribute("d", buildLinePathData(renderedPoints));
+        linePath.setAttribute("fill", "none");
+        linePath.setAttribute("stroke", trendColor);
+        linePath.setAttribute("stroke-opacity", "0.95");
+        linePath.setAttribute("stroke-width", "2.8");
+        linePath.setAttribute("stroke-linecap", "round");
+        linePath.setAttribute("stroke-linejoin", "round");
+        svg.appendChild(linePath);
+
+        const nextNodes = [svg];
+
+        // Hover-only clients use mouse movement; the mobile price chart opts into touch scrubbing.
+        const hoverCapable = interactive && supportsChartHover();
+        const touchCapable = interactive && touchInteractive && supportsChartTouch();
+        if ((!hoverCapable && !touchCapable) || hoverPoints.length === 0) {
+            replaceElementChildren(container, ...nextNodes);
+            container.dataset.chartRendered = 'true';
+            return;
+        }
+
+        container.dataset.interactive = 'true';
+        container.dataset.scrubActive = 'false';
+        if (touchCapable) {
+            container.style.touchAction = 'pan-y';
+            svg.style.touchAction = 'pan-y';
+        }
+
+        const hoverGuide = document.createElementNS(svgNS, "line");
+        hoverGuide.setAttribute("stroke", "rgba(255, 255, 255, 0.38)");
+        hoverGuide.setAttribute("stroke-width", "1");
+        hoverGuide.setAttribute("stroke-dasharray", "3 5");
+        hoverGuide.setAttribute("vector-effect", "non-scaling-stroke");
+        hoverGuide.style.opacity = '0';
+        svg.appendChild(hoverGuide);
+
+        const hoverPoint = document.createElementNS(svgNS, "circle");
+        hoverPoint.setAttribute("r", "4.5");
+        hoverPoint.setAttribute("fill", trendColor);
+        hoverPoint.setAttribute("stroke", "rgba(6, 14, 20, 0.92)");
+        hoverPoint.setAttribute("stroke-width", "2");
+        hoverPoint.style.opacity = '0';
+        svg.appendChild(hoverPoint);
+
+        const hitArea = document.createElementNS(svgNS, "rect");
+        hitArea.setAttribute("x", "0");
+        hitArea.setAttribute("y", "0");
+        hitArea.setAttribute("width", String(svgWidth));
+        hitArea.setAttribute("height", String(svgHeight));
+        hitArea.setAttribute("fill", "transparent");
+        hitArea.setAttribute("pointer-events", "all");
+        if (touchCapable) {
+            hitArea.style.touchAction = 'pan-y';
+        }
+        svg.appendChild(hitArea);
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'chart-tooltip';
+
+        const tooltipDate = document.createElement('div');
+        tooltipDate.className = 'chart-tooltip-date';
+
+        const tooltipValue = document.createElement('div');
+        tooltipValue.className = 'chart-tooltip-value';
+
+        const tooltipSeries = document.createElement('div');
+        tooltipSeries.className = 'chart-tooltip-series';
+        tooltipSeries.textContent = seriesLabel;
+        tooltipSeries.hidden = !seriesLabel;
+
+        tooltip.appendChild(tooltipDate);
+        tooltip.appendChild(tooltipValue);
+        tooltip.appendChild(tooltipSeries);
+        if (showTooltip) {
+            nextNodes.push(tooltip);
+        }
+
+        let scrubOriginals = null;
+        let touchHideTimeout = null;
+
+        const getScrubElement = id => id ? document.getElementById(id) : null;
+
+        const captureScrubOriginals = () => {
+            if (scrubOriginals) {
+                return;
+            }
+
+            const valueElement = getScrubElement(scrubValueElementId);
+            const metaElement = getScrubElement(scrubMetaElementId);
+            const statusElement = getScrubElement(scrubStatusElementId);
+            scrubOriginals = {
+                valueText: valueElement?.textContent || '',
+                metaText: metaElement?.textContent || '',
+                statusText: statusElement?.textContent || '',
+                statusClassName: statusElement?.className || ''
+            };
+        };
+
+        const applyScrubReadout = activePoint => {
+            const valueElement = getScrubElement(scrubValueElementId);
+            const metaElement = getScrubElement(scrubMetaElementId);
+            const statusElement = getScrubElement(scrubStatusElementId);
+            if (!valueElement && !metaElement && !statusElement) {
+                return;
+            }
+
+            captureScrubOriginals();
+            if (valueElement) {
+                valueElement.textContent = valueFormatter(activePoint.y);
+            }
+            if (metaElement) {
+                metaElement.textContent = scrubMetaFormatter(activePoint);
+            }
+            if (statusElement) {
+                statusElement.textContent = scrubStatusText;
+                statusElement.classList.remove('is-negative');
+            }
+        };
+
+        const restoreScrubReadout = () => {
+            if (!scrubOriginals) {
+                return;
+            }
+
+            const valueElement = getScrubElement(scrubValueElementId);
+            const metaElement = getScrubElement(scrubMetaElementId);
+            const statusElement = getScrubElement(scrubStatusElementId);
+            if (valueElement) {
+                valueElement.textContent = scrubOriginals.valueText;
+            }
+            if (metaElement) {
+                metaElement.textContent = scrubOriginals.metaText;
+            }
+            if (statusElement) {
+                statusElement.textContent = scrubOriginals.statusText;
+                statusElement.className = scrubOriginals.statusClassName;
+            }
+            scrubOriginals = null;
+        };
+
+        const clearTouchHideTimeout = () => {
+            if (!touchHideTimeout) {
+                return;
+            }
+
+            clearTimeout(touchHideTimeout);
+            touchHideTimeout = null;
+        };
+
+        const hideHover = () => {
+            clearTouchHideTimeout();
+            hoverGuide.style.opacity = '0';
+            hoverPoint.style.opacity = '0';
+            if (showTooltip) {
+                tooltip.classList.remove('is-visible');
+                tooltip.style.transform = '';
+            }
+            container.dataset.scrubActive = 'false';
+            restoreScrubReadout();
+        };
+
+        const scheduleTouchHide = () => {
+            clearTouchHideTimeout();
+            touchHideTimeout = setTimeout(hideHover, 1000);
+        };
+
+        const getEventClientX = event => {
+            if (Number.isFinite(event.clientX)) {
+                return event.clientX;
+            }
+
+            const touch = event.touches?.[0] || event.changedTouches?.[0];
+            return touch ? touch.clientX : NaN;
+        };
+
+        const updateHover = event => {
+            const rect = svg.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) {
+                return;
+            }
+
+            const clientX = getEventClientX(event);
+            if (!Number.isFinite(clientX)) {
+                return;
+            }
+
+            const relativeX = ((clientX - rect.left) / rect.width) * svgWidth;
+            const activePoint = findNearestChartPoint(hoverPoints, relativeX);
+            const pointX = (activePoint.pixelX / svgWidth) * container.clientWidth;
+            const pointY = (activePoint.pixelY / svgHeight) * container.clientHeight;
+
+            hoverGuide.setAttribute("x1", String(activePoint.pixelX));
+            hoverGuide.setAttribute("x2", String(activePoint.pixelX));
+            hoverGuide.setAttribute("y1", "0");
+            hoverGuide.setAttribute("y2", String(svgHeight));
+            hoverGuide.style.opacity = hoverPoints.length > 1 ? '1' : '0';
+
+            hoverPoint.setAttribute("cx", String(activePoint.pixelX));
+            hoverPoint.setAttribute("cy", String(activePoint.pixelY));
+            hoverPoint.style.opacity = '1';
+
+            if (showTooltip) {
+                tooltipDate.textContent = touchInteractive && scrubMetaElementId
+                    ? scrubMetaFormatter(activePoint).replace(/^Selected\s+/, '')
+                    : formatChartDate(activePoint.x);
+                tooltipValue.textContent = valueFormatter(activePoint.y);
+                tooltip.classList.add('is-visible');
+                positionChartTooltip(tooltip, pointX, pointY, container.clientWidth, container.clientHeight);
+            }
+            applyScrubReadout(activePoint);
+        };
+
+        if (hoverCapable) {
+            hitArea.addEventListener('mouseenter', updateHover);
+            hitArea.addEventListener('mousemove', updateHover);
+            hitArea.addEventListener('mouseleave', hideHover);
+        }
+
+        if (touchCapable && typeof window.PointerEvent === 'function') {
+            let activePointerId = null;
+
+            const startTouchScrub = event => {
+                if (event.pointerType && event.pointerType !== 'touch' && event.pointerType !== 'pen') {
+                    return;
+                }
+
+                clearTouchHideTimeout();
+                activePointerId = event.pointerId;
+                container.dataset.scrubActive = 'true';
+                if (typeof hitArea.setPointerCapture === 'function') {
+                    try {
+                        hitArea.setPointerCapture(event.pointerId);
+                    } catch (error) {
+                        // Some WebViews decline capture if the pointer has already ended.
+                    }
+                }
+                updateHover(event);
+            };
+
+            const moveTouchScrub = event => {
+                if (activePointerId !== event.pointerId) {
+                    return;
+                }
+
+                updateHover(event);
+            };
+
+            const endTouchScrub = event => {
+                if (activePointerId !== event.pointerId) {
+                    return;
+                }
+
+                activePointerId = null;
+                container.dataset.scrubActive = 'false';
+                if (typeof hitArea.releasePointerCapture === 'function') {
+                    try {
+                        hitArea.releasePointerCapture(event.pointerId);
+                    } catch (error) {
+                        // Pointer capture may already be gone after cancellation.
+                    }
+                }
+                scheduleTouchHide();
+            };
+
+            hitArea.addEventListener('pointerdown', startTouchScrub);
+            hitArea.addEventListener('pointermove', moveTouchScrub);
+            hitArea.addEventListener('pointerup', endTouchScrub);
+            hitArea.addEventListener('pointercancel', endTouchScrub);
+        } else if (touchCapable) {
+            hitArea.addEventListener('touchstart', event => {
+                clearTouchHideTimeout();
+                container.dataset.scrubActive = 'true';
+                updateHover(event);
+            }, { passive: true });
+            hitArea.addEventListener('touchmove', updateHover, { passive: true });
+            hitArea.addEventListener('touchend', scheduleTouchHide, { passive: true });
+            hitArea.addEventListener('touchcancel', scheduleTouchHide, { passive: true });
+        }
+
+        replaceElementChildren(container, ...nextNodes);
+        container.dataset.chartRendered = 'true';
+    }
+
+    function drawMetricTileChart(data, {
+        containerId,
+        color,
+        cornerValueId,
+        valueFormatter = value => numberWithCommas(Number(value).toFixed(0))
+    }) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            return;
+        }
+
+        const tile = container.closest('.metric-live-chart');
+        if (tile && typeof tile.__metricTileHoverCleanup === 'function') {
+            tile.__metricTileHoverCleanup();
+            tile.__metricTileHoverCleanup = null;
+        }
+
+        if (tile) {
+            tile.dataset.chartAvailable = 'false';
+            tile.dataset.hoverReady = 'false';
+            tile.dataset.hoverActive = 'false';
+        }
+
+        const svgWidth = container.clientWidth;
+        const svgHeight = container.clientHeight;
+        if (svgWidth <= 0 || svgHeight <= 0) {
+            return;
+        }
+
+        const geometry = buildChartGeometry(
+            downsampleLineData(data, Math.max(36, Math.floor(svgWidth / 4))),
+            {
+                svgWidth,
+                svgHeight,
+                singlePointSpanMs: INTRADAY_BUCKET_MS
+            }
+        );
+
+        if (!geometry) {
+            replaceElementChildren(container);
+            return;
+        }
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "metric-chart-svg");
+        svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+        svg.setAttribute("preserveAspectRatio", "none");
+        svg.setAttribute("width", "100%");
+        svg.setAttribute("height", "100%");
+
+        const areaPath = document.createElementNS(svgNS, "path");
+        areaPath.setAttribute("class", "metric-chart-area");
+        areaPath.setAttribute("d", buildAreaPathData(geometry.renderedPoints, svgHeight));
+        areaPath.setAttribute("fill", color);
+        areaPath.setAttribute("pointer-events", "none");
+        svg.appendChild(areaPath);
+
+        const linePath = document.createElementNS(svgNS, "path");
+        linePath.setAttribute("class", "metric-chart-line");
+        linePath.setAttribute("d", buildLinePathData(geometry.renderedPoints));
+        linePath.setAttribute("fill", "none");
+        linePath.setAttribute("stroke", color);
+        linePath.setAttribute("stroke-width", "2.4");
+        linePath.setAttribute("stroke-linecap", "round");
+        linePath.setAttribute("stroke-linejoin", "round");
+        linePath.setAttribute("pointer-events", "none");
+        svg.appendChild(linePath);
+
+        const hoverGuide = document.createElementNS(svgNS, "line");
+        hoverGuide.setAttribute("class", "metric-chart-guide");
+        hoverGuide.setAttribute("stroke", "rgba(255, 255, 255, 0.38)");
+        hoverGuide.setAttribute("stroke-width", "1");
+        hoverGuide.setAttribute("stroke-dasharray", "3 5");
+        hoverGuide.setAttribute("vector-effect", "non-scaling-stroke");
+        hoverGuide.setAttribute("pointer-events", "none");
+        svg.appendChild(hoverGuide);
+
+        const hoverPoint = document.createElementNS(svgNS, "circle");
+        hoverPoint.setAttribute("class", "metric-chart-dot");
+        hoverPoint.setAttribute("r", "4.2");
+        hoverPoint.setAttribute("fill", color);
+        hoverPoint.setAttribute("stroke", "rgba(6, 14, 20, 0.92)");
+        hoverPoint.setAttribute("stroke-width", "2");
+        hoverPoint.setAttribute("pointer-events", "none");
+        svg.appendChild(hoverPoint);
+
+        const nextNodes = [svg];
+        const hoverCapable = supportsChartHover() && geometry.renderedPoints.length > 0;
+        if (!hoverCapable) {
+            replaceElementChildren(container, ...nextNodes);
+            container.dataset.chartRendered = 'true';
+
+            if (tile) {
+                tile.dataset.chartAvailable = 'true';
+                tile.dataset.hoverReady = 'false';
+                tile.dataset.hoverActive = 'false';
+            }
+            return;
+        }
+
+        const restoreCornerValue = () => {
+            if (!cornerValueId) {
+                return;
+            }
+
+            const fallbackValue = tile?.dataset.liveValue || document.getElementById(cornerValueId)?.textContent || '';
+            if (fallbackValue) {
+                setElementText(cornerValueId, fallbackValue);
+            }
+        };
+
+        const hideHover = () => {
+            hoverGuide.style.opacity = '0';
+            hoverPoint.style.opacity = '0';
+            if (tile) {
+                tile.dataset.hoverActive = 'false';
+            }
+            restoreCornerValue();
+        };
+
+        const hoverSurface = tile || container;
+        const updateHover = event => {
+            const rect = hoverSurface.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) {
+                return;
+            }
+
+            const relativeX = Math.min(
+                Math.max(((event.clientX - rect.left) / rect.width) * svgWidth, 0),
+                svgWidth
+            );
+            const activePoint = interpolateChartPoint(geometry.renderedPoints, relativeX);
+            if (!activePoint) {
+                hideHover();
+                return;
+            }
+
+            hoverGuide.setAttribute("x1", String(activePoint.pixelX));
+            hoverGuide.setAttribute("x2", String(activePoint.pixelX));
+            hoverGuide.setAttribute("y1", "0");
+            hoverGuide.setAttribute("y2", String(svgHeight));
+            hoverGuide.style.opacity = geometry.renderedPoints.length > 1 ? '1' : '0';
+
+            hoverPoint.setAttribute("cx", String(activePoint.pixelX));
+            hoverPoint.setAttribute("cy", String(activePoint.pixelY));
+            hoverPoint.style.opacity = '1';
+
+            if (tile) {
+                tile.dataset.hoverActive = 'true';
+            }
+            if (cornerValueId) {
+                setElementText(cornerValueId, valueFormatter(activePoint.y));
+            }
+        };
+
+        hoverSurface.addEventListener('mouseenter', updateHover);
+        hoverSurface.addEventListener('mousemove', updateHover);
+        hoverSurface.addEventListener('mouseleave', hideHover);
+        hoverSurface.__metricTileHoverCleanup = () => {
+            hoverSurface.removeEventListener('mouseenter', updateHover);
+            hoverSurface.removeEventListener('mousemove', updateHover);
+            hoverSurface.removeEventListener('mouseleave', hideHover);
+        };
+
+        replaceElementChildren(container, ...nextNodes);
+        container.dataset.chartRendered = 'true';
+
+        if (tile) {
+            tile.dataset.chartAvailable = 'true';
+            tile.dataset.hoverReady = 'true';
+            tile.dataset.hoverActive = 'false';
+        }
+        restoreCornerValue();
+    }
+
+    async function getMetricTileChartData(currencyCode) {
+        const intradayHistory = await getIntradayHistory();
+
+        return Object.keys(intradayHistory[currencyCode] || {})
+            .sort((left, right) => Number(left) - Number(right))
+            .map(timestamp => ({
+                x: Number(timestamp),
+                y: intradayHistory[currencyCode][timestamp]
+            }));
+    }
+
+    async function getDataForChart(type) {
+        const priceHistory = await getPriceHistory();
+        const { startDate, endDate } = getHistoryWindow();
+        const sortedDates = Object.keys(priceHistory)
+            .filter(date => date >= startDate && date <= endDate)
+            .sort();
+
+        let filteredData;
+
+        switch (type) {
+            case 'USD':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].USD != null)
+                    .map(date => ({ x: date, y: priceHistory[date].USD }));
+                break;
+            case 'EUR':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].EUR != null)
+                    .map(date => ({ x: date, y: priceHistory[date].EUR }));
+                break;
+            case 'EURUSD':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].USD != null && priceHistory[date].EUR != null)
+                    .map(date => ({
+                        x: date,
+                        y: Number(priceHistory[date].USD) / Number(priceHistory[date].EUR)
+                    }))
+                    .filter(point => Number.isFinite(point.y));
+                break;
+            case 'SatsUSD':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].USD != null)
+                    .map(date => ({ x: date, y: 1 / priceHistory[date].USD * 100000000 }));
+                break;
+            case 'SatsEUR':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].EUR != null)
+                    .map(date => ({ x: date, y: 1 / priceHistory[date].EUR * 100000000 }));
+                break;
+            case 'HashRate':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].HashRate != null)
+                    .map(date => ({ x: date, y: priceHistory[date].HashRate }));
+                break;
+            default:
+                filteredData = [];
+                break;
+        }
+
+        return filteredData;
+    }
+
+    syncMobileRangeButtons();
+    updateMobilePriceDisplay();
+
+    requestAnimationFrame(() => {
+        document.body.classList.add('loaded');
+        applyResponsiveLayout();
+    });
+
+    fetchBitcoinInfo();
+    setInterval(fetchBitcoinInfo, 60000);
+</script>
+</body>
+</html>

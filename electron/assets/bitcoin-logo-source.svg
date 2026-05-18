@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Bitcoin Block Clock transparent desktop icon">
+  <defs>
+    <linearGradient id="bitcoin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffc42f"/>
+      <stop offset="1" stop-color="#ee8400"/>
+    </linearGradient>
+    <filter id="shadow" x="-24%" y="-24%" width="160%" height="170%">
+      <feDropShadow dx="30" dy="44" stdDeviation="18" flood-color="#000" flood-opacity="0.56"/>
+    </filter>
+    <filter id="lineGlow" x="-18%" y="-50%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#ff9f1f" flood-opacity="0.46"/>
+      <feDropShadow dx="4" dy="8" stdDeviation="2" flood-color="#000" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+  <path d="M74 792L126 786L160 750L204 790L262 742L314 770L366 734L430 742L488 704L552 708L600 670L636 548L684 612L724 500L768 502L790 330L836 372L890 332L930 350" fill="none" stroke="#ffa92d" stroke-width="8.5" stroke-linejoin="round" stroke-linecap="round" filter="url(#lineGlow)"/>
+  <circle cx="930" cy="354" r="42" fill="#ffae2e" opacity="0.23"/>
+  <circle cx="930" cy="354" r="20" fill="#4f431e" opacity="0.82"/>
+  <circle cx="930" cy="354" r="11" fill="#ffb637"/>
+  <g transform="translate(198 144) rotate(-14 330 358) scale(14.55)" filter="url(#shadow)">
+    <path fill="url(#bitcoin)" stroke="#442200" stroke-opacity="0.32" stroke-width="0.14" d="m46.103,27.444c0.637-4.258-2.605-6.547-7.038-8.074l1.438-5.768-3.511-0.875-1.4,5.616c-0.923-0.23-1.871-0.447-2.813-0.662l1.41-5.653-3.509-0.875-1.439,5.766c-0.764-0.174-1.514-0.346-2.242-0.527l0.004-0.018-4.842-1.209-0.934,3.75s2.605,0.597,2.55,0.634c1.422,0.355,1.679,1.296,1.636,2.042l-1.638,6.571c0.098,0.025,0.225,0.061,0.365,0.117-0.117-0.029-0.242-0.061-0.371-0.092l-2.296,9.205c-0.174,0.432-0.615,1.08-1.609,0.834,0.035,0.051-2.552-0.637-2.552-0.637l-1.743,4.019,4.569,1.139c0.85,0.213,1.683,0.436,2.503,0.646l-1.453,5.834,3.507,0.875,1.439-5.772c0.958,0.26,1.888,0.5,2.798,0.726l-1.434,5.745,3.511,0.875,1.453-5.823c5.987,1.133,10.489,0.676,12.384-4.739,1.527-4.36-0.076-6.875-3.226-8.515,2.294-0.529,4.022-2.038,4.483-5.155zm-8.022,11.249c-1.085,4.36-8.426,2.003-10.806,1.412l1.928-7.729c2.38,0.594,10.012,1.77,8.878,6.317zm1.086-11.312c-0.99,3.966-7.1,1.951-9.082,1.457l1.748-7.01c1.982,0.494,8.365,1.416,7.334,5.553z"/>
+  </g>
+</svg>
