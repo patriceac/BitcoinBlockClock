@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.bitcoinblockclock"
+    namespace = "com.bitcoinblockclock"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.bitcoinblockclock"
+        applicationId = "com.bitcoinblockclock"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

@@ -9,7 +9,7 @@
     "pack:electron": "electron-builder --win dir"
   },
   "build": {
-    "appId": "com.example.bitcoinblockclock.desktop",
+    "appId": "com.bitcoinblockclock.desktop",
     "productName": "Bitcoin Block Clock",
     "asar": false,
     "directories": {

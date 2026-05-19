@@ -1,4 +1,4 @@
-package com.example.bitcoinblockclock.ui.theme
+package com.bitcoinblockclock.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -1,4 +1,4 @@
-package com.example.bitcoinblockclock
+package com.bitcoinblockclock
 
 import android.content.Intent
 import android.os.Build

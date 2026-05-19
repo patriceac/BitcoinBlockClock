@@ -108,7 +108,12 @@ async function serveAsset(requestPath, response) {
 
     try {
         const fileContents = await fs.readFile(normalizedPath);
-        response.writeHead(200, { 'Content-Type': getMimeType(normalizedPath) });
+        response.writeHead(200, {
+            'Content-Type': getMimeType(normalizedPath),
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
         response.end(fileContents);
     } catch (error) {
         if (error.code === 'ENOENT') {
@@ -150,7 +155,7 @@ function getClockUrl(server) {
         throw new Error('Static server did not expose a TCP port.');
     }
 
-    return `http://127.0.0.1:${address.port}/clock.html`;
+    return `http://127.0.0.1:${address.port}/clock.html?v=${Date.now()}`;
 }
 
 async function createMainWindow() {
@@ -248,7 +253,7 @@ async function closeStaticServer() {
     staticServer = null;
 }
 
-app.setAppUserModelId('com.example.bitcoinblockclock.desktop');
+app.setAppUserModelId('com.bitcoinblockclock.desktop');
 
 app.whenReady().then(async () => {
     await createMainWindow();

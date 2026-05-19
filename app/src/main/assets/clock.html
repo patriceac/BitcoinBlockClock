@@ -5,18 +5,18 @@
     <title>Bitcoin Block Clock</title>
     <style>
         :root {
-            --bg-ink: #07141b;
+            --bg-ink: #03080b;
             --frame-pad: clamp(16px, 2vw, 30px);
-            --panel: rgba(7, 15, 22, 0.7);
-            --panel-strong: rgba(6, 12, 18, 0.82);
-            --line: rgba(255, 255, 255, 0.08);
-            --text: #f2f6fa;
-            --muted: rgba(242, 246, 250, 0.7);
-            --soft: rgba(242, 246, 250, 0.44);
-            --accent: #f5a42d;
-            --cool: #99cbff;
-            --signal: #9ee169;
-            --shadow: 0 26px 80px rgba(0, 0, 0, 0.38);
+            --panel: rgba(6, 13, 18, 0.86);
+            --panel-strong: rgba(5, 10, 14, 0.94);
+            --line: rgba(150, 174, 188, 0.22);
+            --text: #f7f9fb;
+            --muted: rgba(230, 237, 242, 0.72);
+            --soft: rgba(197, 207, 214, 0.68);
+            --accent: #f6a21f;
+            --cool: #9cc9ff;
+            --signal: #9ee85f;
+            --shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
         }
 
         * {
@@ -67,1034 +67,64 @@
             z-index: 0;
         }
 
-        .dashboard {
-            position: relative;
-            z-index: 1;
-            width: min(1760px, 100%);
-            height: min(calc(100vh - (var(--frame-pad) * 2)), 980px);
-            display: grid;
-            grid-template-columns: minmax(340px, 0.92fr) minmax(720px, 1.28fr);
-            gap: clamp(16px, 2vw, 28px);
-            opacity: 0;
-            transform: translateY(22px) scale(0.985);
-            transition: opacity 820ms ease, transform 920ms cubic-bezier(0.2, 0.9, 0.2, 1);
-        }
-
-        body.loaded .dashboard {
-            opacity: 1;
-            transform: none;
-        }
-
-        body.layout-scroll {
-            overflow: auto;
-            align-items: flex-start;
-        }
-
-        body.layout-scroll .dashboard {
-            height: auto;
-            min-height: calc(100vh - (var(--frame-pad) * 2));
-        }
-
-        body.layout-scroll .panel {
-            overflow: visible;
-        }
-
-        body.layout-scroll .market-board {
-            grid-template-rows: auto auto auto;
-        }
-
-        .panel {
-            position: relative;
-            overflow: hidden;
-            border: 1px solid var(--line);
-            border-radius: 30px;
-            background: linear-gradient(180deg, rgba(7, 15, 22, 0.78), rgba(5, 11, 17, 0.56));
-            backdrop-filter: blur(24px);
-            box-shadow: var(--shadow);
-        }
-
-        .network-panel {
-            display: grid;
-            grid-template-rows: auto minmax(0, 1fr) auto;
-            gap: clamp(18px, 3vh, 36px);
-            padding: clamp(24px, 3.2vw, 48px);
-            isolation: isolate;
-        }
-
-        .network-panel::before {
-            content: '';
-            position: absolute;
-            inset: 18% -8% auto 12%;
-            height: 48%;
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(153, 203, 255, 0.18), transparent 70%);
-            filter: blur(28px);
-            z-index: -1;
-        }
-
-        .network-panel::after {
-            content: '';
-            position: absolute;
-            right: 10%;
-            bottom: 10%;
-            width: min(34vw, 360px);
-            aspect-ratio: 1;
-            border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            opacity: 0.34;
-            z-index: -1;
-        }
-
-        .network-header {
-            display: grid;
-            gap: 14px;
-            max-width: 26rem;
-        }
-
-        .brand-mark {
-            width: 56px;
-            height: 56px;
-            border-radius: 18px;
-            display: block;
-            object-fit: contain;
-            filter: drop-shadow(0 12px 24px rgba(245, 164, 45, 0.16));
-        }
-
-        .eyebrow {
-            margin: 0;
-            font-size: 12px;
-            letter-spacing: 0.28em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .network-title {
-            margin: 0;
-            font-size: clamp(38px, 4.8vw, 72px);
-            line-height: 0.93;
-            letter-spacing: -0.045em;
-            font-weight: 600;
-            max-width: 7ch;
-        }
-
-        .network-summary {
-            margin: 0;
-            font-size: clamp(14px, 1.2vw, 17px);
-            line-height: 1.65;
-            color: var(--muted);
-            max-width: 18rem;
-        }
-
-        .network-fx {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            grid-template-rows: auto minmax(0, 1fr);
-            align-self: center;
-            gap: 12px;
-            width: 100%;
-            min-height: clamp(156px, 24vh, 250px);
-            padding: 18px 0;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            background: linear-gradient(90deg, rgba(153, 203, 255, 0.08), rgba(153, 203, 255, 0));
-        }
-
-        .network-fx-meta {
-            display: grid;
-            gap: 6px;
-            padding-inline: clamp(20px, 1.8vw, 32px);
-        }
-
-        .network-fx-label {
-            font-size: 12px;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: var(--text);
-        }
-
-        .network-fx-span {
-            font-size: 11px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .network-fx-chart {
-            position: relative;
-            min-height: 0;
-            overflow: hidden;
-        }
-
-        .network-fx-chart[data-interactive="true"] {
-            cursor: crosshair;
-        }
-
-        .stage {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            gap: 16px;
-        }
-
-        .stage-label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 13px;
-            letter-spacing: 0.24em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .hero-value {
-            font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
-            font-size: clamp(56px, min(10vw, 18vh), 138px);
-            line-height: 0.9;
-            letter-spacing: 0.03em;
-            color: var(--cool);
-            text-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
-        }
-
-        .stage-divider {
-            width: min(100%, 420px);
-            height: 1px;
-            background: linear-gradient(90deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
-        }
-
-        .stage-meta {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px 20px;
-            max-width: 460px;
-        }
-
-        .meta-block {
-            display: grid;
-            gap: 7px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .meta-label {
-            font-size: 11px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .meta-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .market-board {
-            display: grid;
-            grid-template-rows: auto minmax(0, 0.92fr) minmax(0, 1.08fr);
-            gap: 18px;
-            padding: clamp(24px, 3vw, 40px);
-            min-height: 0;
-        }
-
-        .board-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 18px;
-        }
-
-        .board-title {
-            margin: 6px 0 10px;
-            font-size: clamp(24px, min(2.8vw, 5vh), 46px);
-            line-height: 0.95;
-            letter-spacing: -0.04em;
-            font-weight: 600;
-        }
-
-        .board-copy {
-            margin: 0;
-            max-width: 34rem;
-            font-size: clamp(13px, min(1vw, 2.2vh), 15px);
-            line-height: 1.5;
-            color: var(--muted);
-        }
-
-        .live-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            border: 1px solid var(--line);
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.04);
-            font-size: 12px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: var(--soft);
-            white-space: nowrap;
-        }
-
-        .live-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent);
-            box-shadow: 0 0 0 0 rgba(245, 164, 45, 0.72);
-            animation: livePulse 2.6s infinite;
-        }
-
-        .board-grid {
-            position: relative;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            grid-template-rows: repeat(3, minmax(0, 1fr));
-            border: 1px solid var(--line);
-            border-radius: 24px;
-            overflow: hidden;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
-            min-height: 0;
-        }
-
-        .board-grid::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0));
-            pointer-events: none;
-        }
-
-        .metric {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            gap: clamp(6px, 1vh, 14px);
-            min-height: 0;
-            padding: clamp(14px, 1.7vw, 24px);
-            overflow: hidden;
-        }
-
-        .metric:nth-child(odd) {
-            border-right: 1px solid var(--line);
-        }
-
-        .metric:nth-child(-n+4) {
-            border-bottom: 1px solid var(--line);
-        }
-
-        .metric::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(7, 14, 20, 0.06), rgba(7, 14, 20, 0.38));
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .metric-label, .metric-value {
-            position: relative;
-            z-index: 1;
-        }
-
-        .metric-live-chart {
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 14px;
-        }
-
-        .metric-live-chart .metric-label {
-            align-self: flex-start;
-            max-width: calc(100% - 112px);
-        }
-
-        .metric-live-chart .metric-value {
-            align-self: flex-start;
-            margin-top: auto;
-            max-width: 100%;
-            white-space: nowrap;
-            transition:
-                opacity 220ms ease,
-                transform 320ms cubic-bezier(0.2, 0.9, 0.2, 1),
-                filter 220ms ease;
-            transform-origin: left bottom;
-        }
-
-        .metric-chart-bg {
-            position: absolute;
-            inset: 36% 0 0 0;
-            overflow: hidden;
-            pointer-events: none;
-            z-index: 0;
-            opacity: 0;
-            transform: translateY(10px) scaleY(0.88);
-            transform-origin: center bottom;
-            transition:
-                opacity 260ms ease,
-                transform 360ms cubic-bezier(0.2, 0.9, 0.2, 1);
-        }
-
-        .metric-live-chart[data-chart-available="true"] .metric-chart-bg {
-            opacity: 1;
-        }
-
-        .metric-chart-svg {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        .metric-chart-area,
-        .metric-chart-line,
-        .metric-chart-guide,
-        .metric-chart-dot {
-            transition:
-                opacity 220ms ease,
-                transform 320ms ease;
-        }
-
-        .metric-chart-area {
-            opacity: 0.16;
-        }
-
-        .metric-chart-line {
-            opacity: 0.34;
-        }
-
-        .metric-chart-guide,
-        .metric-chart-dot {
-            opacity: 0;
-        }
-
-        .metric-corner-value {
-            position: absolute;
-            top: clamp(12px, 1.2vw, 18px);
-            right: clamp(12px, 1.3vw, 18px);
-            z-index: 1;
-            max-width: 46%;
-            text-align: right;
-            font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
-            font-size: 12px;
-            letter-spacing: 0.04em;
-            line-height: 1.2;
-            color: rgba(248, 244, 236, 0.84);
-            text-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
-            white-space: nowrap;
-            opacity: 0;
-            transform: translateY(-6px);
-            transition:
-                opacity 220ms ease,
-                transform 280ms cubic-bezier(0.2, 0.9, 0.2, 1);
-            pointer-events: none;
-        }
-
-        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-chart-bg {
-            transform: none;
-        }
-
-        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-chart-area {
-            opacity: 0.28;
-        }
-
-        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-chart-line {
-            opacity: 0.88;
-        }
-
-        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-value {
-            opacity: 0;
-            transform: translateY(12px) scale(0.84);
-            filter: saturate(0.84);
-        }
-
-        .metric-live-chart[data-chart-available="true"][data-hover-ready="true"][data-hover-active="true"] .metric-corner-value {
-            opacity: 1;
-            transform: none;
-        }
-
-        .metric-label {
-            font-size: 12px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .metric-value {
-            font-family: 'Bahnschrift SemiBold', 'Aptos', 'Segoe UI', sans-serif;
-            font-size: clamp(26px, min(4vw, 6vh), 60px);
-            line-height: 0.95;
-            letter-spacing: -0.04em;
-            color: #f8f4ec;
-            text-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
-        }
-
-        .metric[data-tone="accent"] .metric-value {
-            color: #ffb33a;
-        }
-
-        .metric[data-tone="cool"] .metric-value {
-            color: var(--cool);
-        }
-
-        .metric[data-tone="signal"] .metric-value {
-            color: var(--signal);
-        }
-
-        .flash {
-            animation: valueFlash 540ms ease;
-        }
-
-        .metric-halving {
-            justify-content: center;
-        }
-
-        .metric-halving .metric-value {
-            font-size: clamp(24px, min(3.6vw, 5.4vh), 54px);
-        }
-
-        #halvingProgress {
-            position: absolute;
-            inset: 0 auto 0 0;
-            width: 100%;
-            background: linear-gradient(90deg, rgba(103, 142, 193, 0.76), rgba(86, 117, 166, 0.96));
-            z-index: 0;
-            transition: width 900ms ease;
-        }
-
-        .metric-halving::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18));
-            z-index: 0;
-        }
-
-        .metric-halving .metric-label,
-        .metric-halving .metric-value {
-            z-index: 1;
-        }
-
-        .trend-section {
-            display: grid;
-            grid-template-rows: auto 1fr;
-            gap: 14px;
-            min-height: 0;
-        }
-
-        .trend-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 14px;
-        }
-
-        .trend-title {
-            margin: 0;
-            font-size: 12px;
-            letter-spacing: 0.28em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .trend-copy {
-            margin: 6px 0 0;
-            font-size: 14px;
-            line-height: 1.6;
-            color: var(--muted);
-        }
-
-        .trend-grid {
-            min-height: 0;
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .trend-panel {
-            position: relative;
-            min-height: 0;
-            overflow: hidden;
-            border: 1px solid var(--line);
-            border-radius: 22px;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012));
-        }
-
-        .trend-panel[data-tone="accent"] {
-            background: linear-gradient(180deg, rgba(245, 164, 45, 0.08), rgba(255, 255, 255, 0.012));
-        }
-
-        .trend-panel[data-tone="signal"] {
-            background: linear-gradient(180deg, rgba(158, 225, 105, 0.08), rgba(255, 255, 255, 0.012));
-        }
-
-        .trend-meta {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            gap: 6px;
-            padding: 18px 18px 0;
-        }
-
-        .trend-label {
-            font-size: 12px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: var(--text);
-        }
-
-        .trend-span {
-            font-size: 11px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .trend-chart {
-            position: absolute;
-            inset: 68px 0 0 0;
-            width: 100%;
-            height: calc(100% - 68px);
-            overflow: hidden;
-        }
-
         .chart-svg {
             display: block;
             width: 100%;
             height: 100%;
         }
 
-        .trend-chart[data-interactive="true"] {
-            cursor: crosshair;
-        }
-
-        .chart-tooltip {
-            position: absolute;
-            left: 0;
-            top: 0;
-            z-index: 2;
-            min-width: 132px;
-            max-width: min(220px, calc(100% - 16px));
-            padding: 10px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 14px;
-            background: rgba(6, 14, 20, 0.92);
-            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
-            backdrop-filter: blur(16px);
-            pointer-events: none;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 120ms ease;
-        }
-
-        .chart-tooltip.is-visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .chart-tooltip-date {
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--soft);
-        }
-
-        .chart-tooltip-value {
-            margin-top: 4px;
-            font-size: 18px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            color: var(--text);
-        }
-
-        .chart-tooltip-series {
-            margin-top: 6px;
-            font-size: 10px;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: var(--muted);
-        }
-
-        body.layout-short .dashboard {
-            gap: clamp(14px, 1.5vw, 22px);
-        }
-
-        body.layout-short .network-panel {
-            gap: 10px;
-            padding: 18px 20px;
-        }
-
-        body.layout-short .network-header {
-            gap: 8px;
-            max-width: 18rem;
-        }
-
-        body.layout-short .brand-mark {
-            width: 46px;
-            height: 46px;
-            border-radius: 15px;
-        }
-
-        body.layout-short .network-title {
-            font-size: clamp(30px, min(3.4vw, 6vh), 50px);
-        }
-
-        body.layout-short .network-summary {
-            font-size: 12px;
-            line-height: 1.35;
-            max-width: 14rem;
-        }
-
-        body.layout-short .network-fx {
-            gap: 8px;
-            min-height: clamp(104px, 17vh, 142px);
-            padding: 14px 0;
-        }
-
-        body.layout-short .network-fx-meta {
-            gap: 4px;
-        }
-
-        body.layout-short .network-fx-label {
-            font-size: 10px;
-            letter-spacing: 0.16em;
-        }
-
-        body.layout-short .network-fx-span {
-            font-size: 9px;
-            letter-spacing: 0.14em;
-        }
-
-        body.layout-short .hero-value {
-            font-size: clamp(40px, min(6.4vw, 9.5vh), 88px);
-        }
-
-        body.layout-short .stage {
-            gap: 8px;
-        }
-
-        body.layout-short .stage-label {
-            margin-bottom: 6px;
-            font-size: 12px;
-        }
-
-        body.layout-short .stage-meta {
-            gap: 8px 16px;
-        }
-
-        body.layout-short .meta-block {
-            padding-top: 8px;
-        }
-
-        body.layout-short .meta-label {
-            font-size: 10px;
-            letter-spacing: 0.15em;
-        }
-
-        body.layout-short .meta-value {
-            font-size: 15px;
-        }
-
-        body.layout-short .market-board {
-            grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.68fr);
-            gap: 8px;
-            padding: 18px;
-        }
-
-        body.layout-short .board-title {
-            margin: 4px 0 8px;
-            font-size: clamp(22px, min(2.35vw, 4vh), 36px);
-        }
-
-        body.layout-short .board-copy {
-            font-size: 12px;
-            line-height: 1.4;
-            max-width: 30rem;
-        }
-
-        body.layout-short .live-pill {
-            padding: 8px 12px;
-            font-size: 11px;
-        }
-
-        body.layout-short .metric {
-            padding: 10px 12px;
-            gap: 5px;
-        }
-
-        body.layout-short .metric-live-chart {
-            gap: 10px;
-        }
-
-        body.layout-short .metric-live-chart .metric-label {
-            max-width: calc(100% - 88px);
-        }
-
-        body.layout-short .metric-chart-bg {
-            inset: 40% 0 0 0;
-        }
-
-        body.layout-short .metric-corner-value {
-            top: 10px;
-            right: 12px;
-            font-size: 10px;
-            max-width: 48%;
-        }
-
-        body.layout-short .metric-label {
-            font-size: 10px;
-            letter-spacing: 0.14em;
-        }
-
-        body.layout-short .metric-value {
-            font-size: clamp(21px, min(2.45vw, 3.9vh), 36px);
-        }
-
-        body.layout-short .metric-halving .metric-value {
-            font-size: clamp(19px, min(2.25vw, 3.6vh), 32px);
-        }
-
-        body.layout-short .trend-section {
-            gap: 8px;
-        }
-
-        body.layout-short .trend-copy {
-            font-size: 11px;
-            line-height: 1.35;
-        }
-
-        body.layout-short .trend-grid {
-            gap: 8px;
-        }
-
-        body.layout-short .trend-panel {
-            min-height: 136px;
-            border-radius: 18px;
-        }
-
-        body.layout-short .trend-meta {
-            gap: 4px;
-            padding: 10px 12px 0;
-        }
-
-        body.layout-short .trend-label {
-            font-size: 11px;
-        }
-
-        body.layout-short .trend-span {
-            font-size: 10px;
-            letter-spacing: 0.14em;
-        }
-
-        body.layout-short .trend-chart {
-            inset: 44px 0 0 0;
-            height: calc(100% - 44px);
-        }
-
-        body.layout-short .chart-tooltip {
-            min-width: 118px;
-            max-width: min(188px, calc(100% - 12px));
-            padding: 8px 10px;
-            border-radius: 12px;
-        }
-
-        body.layout-short .chart-tooltip-date {
-            font-size: 10px;
-        }
-
-        body.layout-short .chart-tooltip-value {
-            margin-top: 3px;
-            font-size: 15px;
-        }
-
-        body.layout-short .chart-tooltip-series {
-            margin-top: 5px;
-            font-size: 9px;
-        }
-
-        body.layout-short.layout-compact .board-head {
-            flex-direction: row;
-            align-items: center;
-            gap: 12px;
-        }
-
-        body.layout-short.layout-compact .trend-panel {
-            min-height: 128px;
-        }
-
-        body.layout-compact .network-panel {
-            gap: 14px;
-            padding: 24px;
-        }
-
-        body.layout-compact .network-header {
-            gap: 12px;
-            max-width: 22rem;
-        }
-
-        body.layout-compact .network-title {
-            font-size: clamp(34px, min(4vw, 8vh), 58px);
-        }
-
-        body.layout-compact .network-summary {
-            font-size: 13px;
-            line-height: 1.5;
-            max-width: 15rem;
-        }
-
-        body.layout-compact .network-fx {
-            gap: 10px;
-            min-height: clamp(124px, 20vh, 196px);
-            padding: 16px 0;
-        }
-
-        body.layout-compact .network-fx-label {
-            font-size: 11px;
-        }
-
-        body.layout-compact .network-fx-span {
-            font-size: 10px;
-            letter-spacing: 0.14em;
-        }
-
-        body.layout-compact .hero-value {
-            font-size: clamp(48px, min(8.2vw, 13vh), 110px);
-        }
-
-        body.layout-compact .stage {
-            gap: 12px;
-        }
-
-        body.layout-compact .meta-value {
-            font-size: 16px;
-        }
-
-        body.layout-compact .market-board {
-            grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.88fr);
-            gap: 12px;
-            padding: 22px;
-        }
-
-        body.layout-compact .board-head {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        body.layout-compact .live-pill {
-            padding: 8px 12px;
-        }
-
-        body.layout-compact .metric {
-            padding: 14px 16px;
-            gap: 8px;
-        }
-
-        body.layout-compact .metric-live-chart {
-            gap: 10px;
-        }
-
-        body.layout-compact .metric-live-chart .metric-label {
-            max-width: calc(100% - 94px);
-        }
-
-        body.layout-compact .metric-chart-bg {
-            inset: 38% 0 0 0;
-        }
-
-        body.layout-compact .metric-corner-value {
-            top: 12px;
-            right: 14px;
-            font-size: 11px;
-            max-width: 48%;
-        }
-
-        body.layout-compact .metric-label {
-            font-size: 10px;
-            letter-spacing: 0.14em;
-        }
-
-        body.layout-compact .metric-value {
-            font-size: clamp(22px, min(2.8vw, 4.6vh), 40px);
-        }
-
-        body.layout-compact .metric-halving .metric-value {
-            font-size: clamp(20px, min(2.6vw, 4.2vh), 36px);
-        }
-
-        body.layout-compact .trend-section {
-            gap: 10px;
-        }
-
-        body.layout-compact .trend-copy {
-            font-size: 12px;
-            line-height: 1.4;
-        }
-
-        body.layout-compact .trend-grid {
-            gap: 8px;
-        }
-
-        body.layout-compact .trend-panel {
-            border-radius: 18px;
-        }
-
-        body.layout-compact .trend-meta {
-            gap: 4px;
-            padding: 14px 14px 0;
-        }
-
-        body.layout-compact .trend-label {
-            font-size: 11px;
-        }
-
-        body.layout-compact .trend-span {
-            font-size: 10px;
-            letter-spacing: 0.14em;
-        }
-
-        body.layout-compact .trend-chart {
-            inset: 52px 0 0 0;
-            height: calc(100% - 52px);
-        }
-
-        body.layout-compact .chart-tooltip {
-            min-width: 122px;
-            max-width: min(196px, calc(100% - 12px));
-            padding: 8px 10px;
-        }
-
-        body.layout-compact .chart-tooltip-date {
-            font-size: 10px;
-        }
-
-        body.layout-compact .chart-tooltip-value {
-            font-size: 16px;
-        }
-
-        body.layout-trend-medium .trend-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        body.layout-trend-medium .trend-panel:last-child {
-            grid-column: 1 / -1;
-        }
-
-        body.layout-trend-medium .trend-panel {
-            min-height: 188px;
-        }
-
         .chart-shell {
             animation: chartReveal 900ms ease both;
         }
 
-        @keyframes livePulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(245, 164, 45, 0.68);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(245, 164, 45, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(245, 164, 45, 0);
-            }
+        .flash {
+            animation: valueFlash 540ms ease;
+        }
+
+        .mobile-app {
+            display: none;
+        }
+
+        .mobile-adjustment-card {
+            display: grid;
+            gap: 10px;
+        }
+
+        .mobile-adjustment-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .mobile-adjustment-title {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .mobile-adjustment-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border: 1px solid rgba(158, 232, 95, 0.22);
+            border-radius: 999px;
+            background: rgba(158, 232, 95, 0.08);
+            color: var(--signal);
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .mobile-adjustment-chart {
+            position: relative;
+            height: 78px;
+            min-height: 0;
+            overflow: hidden;
         }
 
         @keyframes chartReveal {
@@ -1119,10 +149,6 @@
             }
         }
 
-        .mobile-app {
-            display: none;
-        }
-
         @media (max-width: 720px) {
             body {
                 display: block;
@@ -1133,10 +159,6 @@
             }
 
             body::after {
-                display: none;
-            }
-
-            .dashboard {
                 display: none;
             }
 
@@ -1255,6 +277,10 @@
             }
 
             .mobile-price-card .mobile-range-switch {
+                margin-top: 10px;
+            }
+
+            .mobile-price-card .mobile-stat-strip {
                 margin-top: 10px;
             }
 
@@ -1530,15 +556,45 @@
 
             .mobile-network-hero {
                 display: grid;
-                gap: 10px;
+                gap: 12px;
+            }
+
+            .mobile-network-hero-row {
+                display: grid;
+                gap: 12px;
+            }
+
+            .mobile-network-primary {
+                max-width: 100%;
+                overflow: hidden;
+                color: var(--text);
+                font-size: 30px;
+                text-align: left;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-retarget-card {
+                display: grid;
+                gap: 6px;
+                padding: 12px;
+                border: 1px solid rgba(158, 232, 95, 0.22);
+                border-radius: 16px;
+                background: rgba(158, 232, 95, 0.08);
+            }
+
+            .mobile-retarget-card .mobile-row-value {
+                max-width: 100%;
+                font-size: 21px;
+                text-align: left;
             }
 
             .mobile-network-hero .mobile-chart {
-                height: 116px;
-                margin: 2px -15px -15px;
+                height: 92px;
+                margin: 0 -14px 6px;
             }
 
             .mobile-clock-value {
+                margin-top: 8px;
                 color: var(--cool);
                 font-size: 56px;
                 letter-spacing: 0.04em;
@@ -1613,226 +669,1767 @@
             }
         }
 
-        @media (max-width: 1120px) {
+        @media (min-width: 721px) {
             body {
-                padding: 16px;
+                display: block;
+                align-items: initial;
+                justify-content: initial;
+                min-height: 100vh;
+                padding: clamp(18px, 2vw, 32px);
                 overflow: auto;
+                background-attachment: fixed;
             }
 
-            .dashboard {
-                height: auto;
-                min-height: calc(100vh - 32px);
-                grid-template-columns: 1fr;
+            body::after {
+                right: 5vw;
+                top: 4vh;
+                width: min(30vw, 380px);
+                opacity: 0.7;
             }
 
-            .network-panel {
-                min-height: 34vh;
+            body::before {
+                background:
+                    radial-gradient(circle at 16% 18%, rgba(10, 59, 87, 0.48), transparent 34%),
+                    radial-gradient(circle at 82% 14%, rgba(245, 164, 45, 0.14), transparent 28%),
+                    linear-gradient(135deg, rgba(3, 10, 16, 0.86), rgba(5, 12, 18, 0.5) 42%, rgba(5, 13, 19, 0.9));
             }
 
-            .network-fx {
+            .mobile-app {
+                position: relative;
+                z-index: 1;
+                display: grid;
+                gap: clamp(14px, 1.6vw, 22px);
+                width: min(1480px, 100%);
+                min-height: calc(100vh - (clamp(18px, 2vw, 32px) * 2));
+                margin: 0 auto;
+                -webkit-user-select: none;
+                user-select: none;
+                opacity: 0;
+                transform: translateY(18px) scale(0.992);
+                transition: opacity 680ms ease, transform 760ms cubic-bezier(0.2, 0.9, 0.2, 1);
+            }
+
+            body.loaded .mobile-app {
+                opacity: 1;
+                transform: none;
+            }
+
+            .mobile-panel {
+                position: relative;
+                overflow: hidden;
+                display: grid;
+                gap: clamp(14px, 1.45vw, 20px);
+                min-width: 0;
+                padding: clamp(20px, 2vw, 30px);
+                border: 1px solid var(--line);
+                border-radius: 26px;
+                background: linear-gradient(180deg, rgba(7, 15, 22, 0.92), rgba(5, 11, 17, 0.78));
+                box-shadow: 0 22px 58px rgba(0, 0, 0, 0.34);
+                backdrop-filter: blur(22px);
+            }
+
+            .mobile-panel::before {
+                content: '';
+                position: absolute;
+                inset: -24% -12% auto 12%;
+                height: 48%;
+                background: radial-gradient(circle, rgba(153, 203, 255, 0.16), transparent 70%);
+                filter: blur(24px);
+                pointer-events: none;
+            }
+
+            .mobile-panel > * {
+                position: relative;
+                z-index: 1;
+            }
+
+            .mobile-brand-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .mobile-brand-mark {
+                width: clamp(44px, 4vw, 56px);
+                height: clamp(44px, 4vw, 56px);
+                display: block;
+                object-fit: contain;
+                flex: 0 0 auto;
+                border-radius: 50%;
+                filter: drop-shadow(0 12px 24px rgba(245, 164, 45, 0.16));
+            }
+
+            .mobile-eyebrow,
+            .mobile-label,
+            .mobile-range-button,
+            .mobile-chart-span {
+                margin: 0;
+                font-size: 11px;
+                letter-spacing: 0.13em;
+                line-height: 1.35;
+                text-transform: uppercase;
+                color: var(--soft);
+            }
+
+            .mobile-title,
+            .mobile-section-title {
+                margin: 0;
+                letter-spacing: 0;
+                color: var(--text);
+            }
+
+            .mobile-title {
+                font-size: clamp(34px, 4vw, 58px);
+                line-height: 1.02;
+                font-weight: 680;
+            }
+
+            .mobile-section-title {
+                font-size: clamp(25px, 2.4vw, 36px);
+                line-height: 1.05;
+                font-weight: 660;
+            }
+
+            .mobile-copy {
+                margin: 0;
+                max-width: 34rem;
+                color: var(--muted);
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            .mobile-range-switch {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 4px;
+                padding: 4px;
+                border: 1px solid var(--line);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.04);
+            }
+
+            .mobile-price-card .mobile-range-switch {
+                margin-top: 12px;
+            }
+
+            .mobile-price-card .mobile-stat-strip {
+                margin-top: 12px;
+            }
+
+            .mobile-range-button {
+                min-width: 0;
+                min-height: 36px;
+                padding: 8px 6px;
+                border: 0;
+                border-radius: 999px;
+                background: transparent;
+                color: var(--soft);
+                font-family: inherit;
+                font-weight: 750;
+                text-align: center;
+                cursor: pointer;
+            }
+
+            .mobile-range-button[aria-selected="true"] {
+                background: rgba(245, 164, 45, 0.96);
+                color: #101418;
+            }
+
+            .mobile-price-card,
+            .mobile-card,
+            .mobile-stat-chip,
+            .mobile-support-card {
+                border: 1px solid var(--line);
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.026));
+            }
+
+            .mobile-price-card {
+                position: relative;
+                overflow: hidden;
+                display: grid;
+                grid-template-rows: auto minmax(180px, 1fr) auto auto;
+                min-height: clamp(360px, 42vh, 500px);
+                padding: clamp(18px, 1.8vw, 26px);
+                border-radius: 24px;
+                background:
+                    radial-gradient(circle at 76% 14%, rgba(245, 164, 45, 0.16), transparent 34%),
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.078), rgba(255, 255, 255, 0.03));
+            }
+
+            .mobile-price-row {
+                position: relative;
+                min-width: 0;
+            }
+
+            .mobile-price-toggle {
+                display: block;
+                min-width: 0;
+                max-width: 100%;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                color: inherit;
+                font: inherit;
+                text-align: left;
+                cursor: pointer;
+            }
+
+            .mobile-price-toggle:active {
+                transform: translateY(1px) scale(0.995);
+            }
+
+            .mobile-price-label-row {
+                display: inline-flex;
+                align-items: center;
+                min-height: 36px;
+                max-width: calc(100% - 86px);
+                margin: 0;
+                gap: 8px;
+            }
+
+            .mobile-price-label-row .mobile-label {
+                font-size: 14px;
+                font-weight: 750;
+                line-height: 1;
+                letter-spacing: 0.08em;
+                white-space: nowrap;
+            }
+
+            .mobile-selected-currency-pill {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 54px;
+                min-height: 36px;
+                padding: 0 12px;
+                border: 1px solid rgba(245, 164, 45, 0.24);
+                border-radius: 999px;
+                background: rgba(245, 164, 45, 0.1);
+                color: rgba(255, 194, 94, 0.96);
+                font-size: 14px;
+                font-weight: 750;
+                line-height: 1;
+                letter-spacing: 0;
+            }
+
+            .mobile-price-value,
+            .mobile-detail-price,
+            .mobile-clock-value,
+            .mobile-row-value,
+            .mobile-support-value {
+                font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
+                font-weight: 800;
+                line-height: 0.95;
+                letter-spacing: 0;
+            }
+
+            .mobile-price-value {
+                margin-top: 10px;
+                max-width: 100%;
+                overflow: hidden;
+                color: var(--accent);
+                font-size: clamp(44px, 5.5vw, 78px);
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-alternate-price {
+                margin: 8px 0 0;
+                color: rgba(179, 189, 196, 0.78);
+                font-size: clamp(16px, 1.25vw, 20px);
+                font-weight: 650;
+                line-height: 1.22;
+            }
+
+            .mobile-change-pill {
+                position: absolute;
+                top: 0;
+                right: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 72px;
+                min-height: 38px;
+                padding: 0 14px;
+                border-radius: 999px;
+                background: rgba(158, 225, 105, 0.14);
+                color: var(--signal);
+                font-size: 14px;
+                font-weight: 750;
+                white-space: nowrap;
+            }
+
+            .mobile-change-pill.is-negative {
+                background: rgba(255, 92, 92, 0.14);
+                color: #ff8c8c;
+            }
+
+            .mobile-chart,
+            .mobile-price-chart {
+                position: relative;
                 width: 100%;
-                min-height: 220px;
+                min-height: 0;
+                overflow: hidden;
             }
 
-            .network-title {
-                max-width: none;
+            .mobile-price-chart {
+                width: calc(100% + (clamp(18px, 1.8vw, 26px) * 2));
+                height: clamp(210px, 25vh, 310px);
+                margin: clamp(18px, 2vh, 26px) calc(clamp(18px, 1.8vw, 26px) * -1) 0;
             }
 
-            .market-board {
-                grid-template-rows: auto auto auto;
+            .mobile-price-chart[data-interactive="true"] {
+                cursor: crosshair;
+                touch-action: pan-y;
             }
 
-            .board-head {
-                align-items: flex-start;
-                flex-direction: column;
+            .mobile-detail-chart-shell {
+                position: relative;
+                height: 178px;
+                margin: 20px -18px -18px;
             }
 
-            .board-grid {
-                grid-template-columns: 1fr;
-                grid-template-rows: repeat(6, minmax(112px, auto));
+            .mobile-detail-chart-shell .mobile-chart {
+                height: 100%;
             }
 
-            .trend-grid {
-                grid-template-columns: 1fr;
+            .mobile-chart-marker {
+                position: absolute;
+                right: 9%;
+                bottom: 0;
+                height: 76%;
+                display: grid;
+                align-content: end;
+                justify-items: center;
+                pointer-events: none;
             }
 
-            .metric:nth-child(odd) {
-                border-right: none;
+            .mobile-chart-marker::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                bottom: 38px;
+                width: 1px;
+                background: rgba(255, 255, 255, 0.34);
             }
 
-            .metric:nth-child(-n+4) {
-                border-bottom: none;
+            .mobile-chart-chip {
+                position: relative;
+                z-index: 1;
+                padding: 9px 11px;
+                border: 1px solid rgba(255, 255, 255, 0.13);
+                border-radius: 13px;
+                background: rgba(6, 14, 20, 0.92);
+                box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+                color: var(--text);
+                font-size: 12px;
+                white-space: nowrap;
             }
 
-            .metric:not(:last-child) {
-                border-bottom: 1px solid var(--line);
+            .mobile-stat-strip {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .mobile-stat-chip {
+                display: grid;
+                gap: 6px;
+                min-width: 0;
+                padding: 13px;
+                border-radius: 17px;
+            }
+
+            .mobile-stat-chip:nth-child(3) {
+                grid-column: auto;
+                grid-template-columns: none;
+                align-items: start;
+            }
+
+            .mobile-stat-value {
+                overflow: hidden;
+                color: var(--text);
+                font-size: clamp(16px, 1.55vw, 22px);
+                font-weight: 700;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-card {
+                overflow: hidden;
+                border-radius: 20px;
+                padding: clamp(14px, 1.35vw, 18px);
+            }
+
+            .mobile-card + .mobile-card {
+                margin-top: 12px;
+            }
+
+            .mobile-row {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 14px;
+                min-width: 0;
+                padding: 13px 0;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .mobile-row:first-child {
+                border-top: 0;
+                padding-top: 0;
+            }
+
+            .mobile-row-value {
+                max-width: 66%;
+                overflow: hidden;
+                color: var(--text);
+                font-size: clamp(22px, 2vw, 30px);
+                white-space: nowrap;
+                text-align: right;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-detail-price {
+                margin-top: 10px;
+                color: var(--accent);
+                font-size: 56px;
+            }
+
+            .mobile-network-hero {
+                display: grid;
+                gap: 12px;
+            }
+
+            .mobile-network-hero-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(150px, 0.68fr);
+                align-items: end;
+                gap: 12px;
+            }
+
+            .mobile-network-primary {
+                max-width: 100%;
+                overflow: hidden;
+                color: var(--text);
+                font-size: clamp(30px, 2.9vw, 46px);
+                text-align: left;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-retarget-card {
+                display: grid;
+                gap: 6px;
+                min-width: 0;
+                padding: 12px;
+                border: 1px solid rgba(158, 232, 95, 0.22);
+                border-radius: 16px;
+                background: rgba(158, 232, 95, 0.08);
+            }
+
+            .mobile-retarget-card .mobile-row-value {
+                max-width: 100%;
+                font-size: clamp(18px, 1.5vw, 25px);
+                text-align: left;
+            }
+
+            .mobile-network-hero .mobile-chart {
+                height: clamp(96px, 13vh, 150px);
+                margin: 0 calc(clamp(14px, 1.35vw, 18px) * -1) calc(clamp(14px, 1.35vw, 18px) * -1);
+            }
+
+            .mobile-clock-value {
+                margin-top: 8px;
+                overflow: hidden;
+                color: var(--cool);
+                font-size: clamp(56px, 6vw, 92px);
+                letter-spacing: 0.04em;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-halving-card {
+                position: relative;
+                min-height: clamp(126px, 16vh, 180px);
+                display: grid;
+                place-items: center;
+                padding: 18px;
+                overflow: hidden;
+                border: 1px solid var(--line);
+                border-radius: 22px;
+                background: rgba(255, 255, 255, 0.015);
+            }
+
+            .mobile-halving-fill {
+                position: absolute;
+                inset: 0 auto 0 0;
+                width: 0%;
+                background: linear-gradient(90deg, rgba(103, 142, 193, 0.78), rgba(86, 117, 166, 0.96));
+                transition: width 900ms ease;
+            }
+
+            .mobile-halving-card .mobile-label,
+            .mobile-halving-card .mobile-row-value {
+                position: relative;
+                z-index: 1;
+                max-width: 100%;
+                text-align: center;
+            }
+
+            .mobile-support-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .mobile-support-card {
+                display: grid;
+                gap: 8px;
+                min-height: 104px;
+                min-width: 0;
+                padding: 14px;
+                border-radius: 18px;
+            }
+
+            .mobile-support-value {
+                overflow: hidden;
+                color: var(--text);
+                font-size: clamp(23px, 2vw, 30px);
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-fx-chart-card {
+                display: grid;
+                gap: 10px;
+                min-height: clamp(228px, 26vh, 340px);
+            }
+
+            .mobile-fx-chart-card .mobile-chart {
+                height: clamp(150px, 19vh, 252px);
+            }
+
+            .mobile-accent {
+                color: var(--accent);
+            }
+
+            .mobile-cool {
+                color: var(--cool);
+            }
+
+            .mobile-signal {
+                color: var(--signal);
             }
         }
 
-        @media (max-width: 720px) {
-            .panel {
+        @media (min-width: 1080px) {
+            .mobile-app {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-areas:
+                    "price price"
+                    "timing network"
+                    "support support";
+                align-items: stretch;
+            }
+
+            .mobile-price-panel {
+                grid-area: price;
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "brand"
+                    "price";
+                align-items: start;
+            }
+
+            .mobile-price-panel .mobile-brand-row {
+                grid-area: brand;
+            }
+
+            .mobile-price-card {
+                grid-area: price;
+            }
+
+            .mobile-app > section:nth-of-type(2) {
+                grid-area: timing;
+            }
+
+            .mobile-app > section:nth-of-type(3) {
+                grid-area: network;
+            }
+
+            .mobile-app > section:nth-of-type(4) {
+                grid-area: support;
+                grid-template-columns: minmax(290px, 0.82fr) minmax(0, 1.18fr);
+                grid-template-areas:
+                    "support-head support-chart"
+                    "support-grid support-chart";
+                align-items: stretch;
+            }
+
+            .mobile-app > section:nth-of-type(4) > div:first-child {
+                grid-area: support-head;
+            }
+
+            .mobile-support-grid {
+                grid-area: support-grid;
+            }
+
+            .mobile-fx-chart-card {
+                grid-area: support-chart;
+                min-height: 100%;
+            }
+
+            .mobile-fx-chart-card .mobile-chart {
+                height: 100%;
+                min-height: 230px;
+            }
+        }
+
+        @media (min-width: 1380px) {
+            .mobile-price-panel {
+                grid-template-columns: minmax(0, 1.48fr) minmax(340px, 0.52fr);
+            }
+
+            .mobile-price-card {
+                min-height: clamp(390px, 43vh, 530px);
+            }
+
+            .mobile-app {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+                grid-template-areas:
+                    "price price price"
+                    "timing network support";
+            }
+
+            .mobile-app > section:nth-of-type(4) {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "support-head"
+                    "support-grid"
+                    "support-chart";
+            }
+        }
+
+        @media (min-width: 1080px) {
+            body {
+                padding: clamp(12px, 1.25vw, 20px);
+                overflow: hidden;
+            }
+
+            .mobile-app {
+                width: min(1520px, 100%);
+                height: calc(100vh - (clamp(12px, 1.25vw, 20px) * 2));
+                min-height: 0;
+                grid-template-columns: minmax(390px, 1.12fr) minmax(270px, 0.78fr) minmax(310px, 0.94fr);
+                grid-template-rows: minmax(0, 1.04fr) minmax(0, 0.96fr);
+                grid-template-areas:
+                    "price timing network"
+                    "price support support";
+                gap: clamp(10px, 1vw, 14px);
+                align-items: stretch;
+                overflow: hidden;
+            }
+
+            .mobile-panel {
+                min-height: 0;
+                gap: clamp(8px, 0.75vw, 12px);
+                padding: clamp(13px, 1.15vw, 18px);
                 border-radius: 22px;
             }
 
-            .network-panel,
-            .market-board {
-                padding: 22px 20px;
+            .mobile-brand-row {
+                gap: 10px;
             }
 
-            .brand-mark {
-                width: 48px;
-                height: 48px;
-                border-radius: 15px;
+            .mobile-brand-mark {
+                width: clamp(38px, 3.1vw, 46px);
+                height: clamp(38px, 3.1vw, 46px);
             }
 
-            .network-title {
-                font-size: 38px;
+            .mobile-eyebrow,
+            .mobile-label,
+            .mobile-range-button,
+            .mobile-chart-span {
+                font-size: clamp(11px, 0.72vw, 12px);
+                font-weight: 760;
+                letter-spacing: 0.08em;
+                line-height: 1.18;
+                color: rgba(242, 246, 250, 0.66);
             }
 
-            .network-summary,
-            .board-copy {
-                font-size: 14px;
+            .mobile-title {
+                font-size: clamp(30px, 3.2vw, 44px);
             }
 
-            .hero-value {
-                font-size: clamp(64px, 16vw, 110px);
+            .mobile-section-title {
+                font-size: clamp(21px, 1.9vw, 28px);
             }
 
-            .stage-meta {
+            .mobile-copy {
+                font-size: 12px;
+                line-height: 1.35;
+            }
+
+            .mobile-app > section:nth-of-type(3) .mobile-copy,
+            .mobile-app > section:nth-of-type(4) .mobile-copy {
+                display: none;
+            }
+
+            .mobile-price-panel {
+                grid-area: price;
                 grid-template-columns: 1fr;
+                grid-template-rows: auto minmax(0, 1fr);
+                grid-template-areas:
+                    "brand"
+                    "price";
+                align-content: stretch;
             }
 
-            .metric {
-                min-height: 112px;
-                padding: 20px 18px;
+            .mobile-price-card {
+                min-height: 0;
+                height: auto;
+                grid-template-rows: auto minmax(0, 1fr) auto auto;
+                padding: clamp(14px, 1.15vw, 18px);
+                border-radius: 20px;
             }
 
-            .metric-value {
-                font-size: 38px;
+            .mobile-price-label-row {
+                min-height: 30px;
+                max-width: calc(100% - 78px);
             }
 
-            .network-fx {
-                min-height: 190px;
+            .mobile-price-label-row .mobile-label,
+            .mobile-selected-currency-pill,
+            .mobile-change-pill {
+                font-size: clamp(12px, 0.78vw, 13px);
             }
 
-            .trend-panel {
-                min-height: 210px;
+            .mobile-selected-currency-pill {
+                min-width: 46px;
+                min-height: 30px;
+                padding: 0 10px;
+            }
+
+            .mobile-change-pill {
+                min-width: 64px;
+                min-height: 32px;
+                padding: 0 11px;
+            }
+
+            .mobile-price-value {
+                margin-top: 7px;
+                font-size: clamp(42px, 4.25vw, 60px);
+            }
+
+            .mobile-alternate-price {
+                margin-top: 5px;
+                font-size: clamp(13px, 1vw, 16px);
+            }
+
+            .mobile-price-chart {
+                height: clamp(120px, 21vh, 160px);
+                margin-top: clamp(10px, 1.4vh, 14px);
+            }
+
+            .mobile-range-button {
+                min-height: 31px;
+                padding: 6px 5px;
+            }
+
+            .mobile-price-card .mobile-range-switch {
+                margin-top: 9px;
+            }
+
+            .mobile-stat-strip {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .mobile-stat-chip:nth-child(3) {
+                grid-column: auto;
+                grid-template-columns: none;
+                align-items: start;
+            }
+
+            .mobile-stat-chip {
+                min-height: 62px;
+                gap: 4px;
+                padding: 9px 10px;
+                border-radius: 14px;
+            }
+
+            .mobile-stat-value {
+                font-size: clamp(14px, 1.2vw, 18px);
+            }
+
+            .mobile-card {
+                padding: clamp(10px, 0.95vw, 13px);
+                border-radius: 16px;
+            }
+
+            .mobile-app > section:nth-of-type(2) > .mobile-card {
+                padding: 8px 10px;
+            }
+
+            .mobile-app > section:nth-of-type(2) > .mobile-card .mobile-row {
+                padding: 5px 0;
+            }
+
+            .mobile-row {
+                gap: 9px;
+                padding: 8px 0;
+            }
+
+            .mobile-row-value {
+                max-width: 60%;
+                font-size: clamp(17px, 1.5vw, 23px);
+            }
+
+            .mobile-clock-value {
+                font-size: clamp(44px, 4.3vw, 64px);
+            }
+
+            .mobile-halving-card {
+                min-height: clamp(64px, 10vh, 88px);
+                padding: 10px;
+                border-radius: 18px;
+            }
+
+            .mobile-network-hero {
+                gap: 8px;
+            }
+
+            .mobile-app > section:nth-of-type(3) .mobile-network-hero {
+                padding: 8px 10px;
+            }
+
+            .mobile-network-hero-row {
+                gap: 8px;
+            }
+
+            .mobile-network-primary {
+                font-size: clamp(20px, 2vw, 26px);
+            }
+
+            .mobile-retarget-card {
+                padding: 8px;
+                border-radius: 14px;
+            }
+
+            .mobile-retarget-card .mobile-row-value {
+                font-size: clamp(16px, 1.4vw, 20px);
+            }
+
+            .mobile-network-hero .mobile-chart {
+                height: clamp(62px, 9vh, 90px);
+                margin: 0;
+            }
+
+            .mobile-app > section:nth-of-type(3) > .mobile-card:not(.mobile-network-hero) {
+                padding: 8px 10px;
+            }
+
+            .mobile-app > section:nth-of-type(3) > .mobile-card:not(.mobile-network-hero) .mobile-row {
+                padding: 5px 0;
+            }
+
+            .mobile-app > section:nth-of-type(3) > .mobile-card:not(.mobile-network-hero) .mobile-row-value {
+                font-size: clamp(16px, 1.3vw, 20px);
+            }
+
+            .mobile-app > section:nth-of-type(2) {
+                grid-area: timing;
+            }
+
+            .mobile-app > section:nth-of-type(3) {
+                grid-area: network;
+            }
+
+            .mobile-app > section:nth-of-type(4) {
+                grid-area: support;
+                grid-template-columns: minmax(260px, 0.74fr) minmax(0, 1.26fr);
+                grid-template-rows: auto minmax(0, 1fr);
+                grid-template-areas:
+                    "support-head support-chart"
+                    "support-grid support-chart";
+                align-items: stretch;
+            }
+
+            .mobile-support-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .mobile-support-card {
+                min-height: 64px;
+                gap: 5px;
+                padding: 10px;
+                border-radius: 14px;
+            }
+
+            .mobile-support-value {
+                font-size: clamp(16px, 1.45vw, 22px);
+            }
+
+            .mobile-fx-chart-card {
+                grid-template-rows: auto minmax(0, 1fr);
+                min-height: 0;
+                height: 100%;
+                padding: clamp(10px, 0.95vw, 13px);
+            }
+
+            .mobile-fx-chart-card .mobile-chart {
+                height: auto;
+                min-height: 0;
+            }
+        }
+
+        @media (min-width: 1080px) and (max-height: 760px) {
+            body {
+                padding: 10px;
+            }
+
+            .mobile-app {
+                height: calc(100vh - 20px);
+                gap: 10px;
+            }
+
+            .mobile-panel {
+                gap: 8px;
+                padding: 12px;
+                border-radius: 20px;
+            }
+
+            .mobile-brand-mark {
+                width: 36px;
+                height: 36px;
+            }
+
+            .mobile-title {
+                font-size: clamp(29px, 3vw, 40px);
+            }
+
+            .mobile-section-title {
+                font-size: clamp(20px, 1.75vw, 25px);
+            }
+
+            .mobile-price-card {
+                padding: 12px;
+            }
+
+            .mobile-price-value {
+                font-size: clamp(38px, 4vw, 54px);
+            }
+
+            .mobile-price-chart {
+                height: clamp(110px, 19vh, 140px);
+            }
+
+            .mobile-stat-chip {
+                min-height: 56px;
+                padding: 8px;
+            }
+
+            .mobile-card {
+                padding: 9px 10px;
+            }
+
+            .mobile-row {
+                padding: 7px 0;
+            }
+
+            .mobile-clock-value {
+                font-size: clamp(40px, 4vw, 58px);
+            }
+
+            .mobile-halving-card {
+                min-height: 58px;
+                padding: 8px;
+            }
+
+            .mobile-network-hero .mobile-chart {
+                height: clamp(48px, 7vh, 62px);
+            }
+
+            .mobile-support-card {
+                min-height: 58px;
+                padding: 8px;
+            }
+        }
+
+        @media (min-width: 1080px) {
+            body {
+                padding: 10px;
+                background-color: #02070a;
+            }
+
+            body::before {
+                background:
+                    radial-gradient(circle at 12% 8%, rgba(32, 92, 116, 0.14), transparent 34%),
+                    radial-gradient(circle at 92% 14%, rgba(246, 162, 31, 0.09), transparent 26%),
+                    linear-gradient(135deg, rgba(1, 5, 8, 0.92), rgba(3, 9, 13, 0.86) 42%, rgba(1, 5, 8, 0.96));
+            }
+
+            body::after {
+                display: none;
+            }
+
+            .mobile-app {
+                width: min(1600px, 100%);
+                height: calc(100vh - 20px);
+                gap: 10px;
+                grid-template-columns: minmax(470px, 1.16fr) minmax(350px, 0.84fr) minmax(420px, 1fr);
+                grid-template-rows: minmax(0, 1.14fr) minmax(0, 0.86fr);
+            }
+
+            .mobile-panel {
+                gap: 10px;
+                padding: 14px;
+                border-color: rgba(150, 174, 188, 0.28);
+                border-radius: 10px;
+                background:
+                    linear-gradient(180deg, rgba(8, 17, 23, 0.96), rgba(3, 9, 13, 0.96)),
+                    rgba(4, 10, 14, 0.96);
+                box-shadow: 0 20px 58px rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(20px);
+            }
+
+            .mobile-panel::before {
+                display: none;
+            }
+
+            .mobile-brand-row {
+                gap: 12px;
+            }
+
+            .mobile-brand-mark {
+                width: 44px;
+                height: 44px;
+                filter: drop-shadow(0 12px 24px rgba(246, 162, 31, 0.18));
+            }
+
+            .mobile-eyebrow,
+            .mobile-label,
+            .mobile-chart-span {
+                color: rgba(205, 215, 222, 0.72);
+                font-size: 12px;
+                font-weight: 760;
+                letter-spacing: 0.07em;
+                line-height: 1.2;
+            }
+
+            .mobile-title {
+                font-size: clamp(38px, 3.2vw, 46px);
+                font-weight: 760;
+                line-height: 0.98;
+            }
+
+            .mobile-section-title {
+                font-size: clamp(25px, 2.05vw, 31px);
+                font-weight: 730;
+                line-height: 1.03;
+            }
+
+            .mobile-price-card,
+            .mobile-card,
+            .mobile-stat-chip,
+            .mobile-support-card {
+                border-color: rgba(150, 174, 188, 0.26);
+                border-radius: 8px;
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.018)),
+                    rgba(7, 15, 20, 0.78);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+            }
+
+            .mobile-price-card {
+                padding: 14px;
+                border-radius: 9px;
+                background:
+                    radial-gradient(circle at 84% 10%, rgba(246, 162, 31, 0.12), transparent 32%),
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.018)),
+                    rgba(7, 15, 20, 0.82);
+            }
+
+            .mobile-price-label-row {
+                min-height: 34px;
+                gap: 9px;
+            }
+
+            .mobile-price-label-row .mobile-label {
+                font-size: 13px;
+                letter-spacing: 0.06em;
+            }
+
+            .mobile-selected-currency-pill,
+            .mobile-change-pill {
+                min-height: 34px;
+                border-radius: 8px;
+                font-size: 13px;
+            }
+
+            .mobile-selected-currency-pill {
+                border-color: rgba(246, 162, 31, 0.45);
+                background: rgba(246, 162, 31, 0.08);
+                color: #ffb12e;
+            }
+
+            .mobile-change-pill {
+                border: 1px solid rgba(158, 232, 95, 0.28);
+                background: rgba(92, 150, 48, 0.22);
+                color: var(--signal);
+            }
+
+            .mobile-price-value,
+            .mobile-clock-value,
+            .mobile-row-value,
+            .mobile-support-value,
+            .mobile-stat-value {
+                font-family: 'Bahnschrift SemiBold', 'Aptos Display', 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+                text-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+            }
+
+            .mobile-price-value {
+                margin-top: 10px;
+                color: var(--accent);
+                font-size: clamp(52px, 4.6vw, 68px);
+                letter-spacing: 0;
+            }
+
+            .mobile-alternate-price {
+                color: rgba(215, 224, 230, 0.74);
+                font-size: 15px;
+            }
+
+            .mobile-price-chart {
+                height: clamp(160px, 24vh, 210px);
+                margin-top: 16px;
+            }
+
+            .mobile-stat-strip {
+                gap: 12px;
+            }
+
+            .mobile-stat-chip {
+                min-height: 88px;
+                padding: 14px;
+            }
+
+            .mobile-stat-value {
+                font-size: clamp(18px, 1.35vw, 24px);
+            }
+
+            .mobile-range-switch {
+                gap: 6px;
+                padding: 6px;
+                border-color: rgba(150, 174, 188, 0.24);
+                border-radius: 9px;
+                background: rgba(255, 255, 255, 0.045);
+            }
+
+            .mobile-range-button {
+                min-height: 40px;
+                border-radius: 7px;
+                color: rgba(210, 218, 224, 0.68);
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+            }
+
+            .mobile-range-button[aria-selected="true"] {
+                background: linear-gradient(180deg, #ffad2e, #f59b16);
+                color: #11161a;
+                box-shadow: 0 10px 22px rgba(246, 162, 31, 0.22);
+            }
+
+            .mobile-card {
+                padding: 14px;
+            }
+
+            .mobile-app > section:nth-of-type(2) > .mobile-card,
+            .mobile-app > section:nth-of-type(3) > .mobile-card:not(.mobile-network-hero) {
+                padding: 12px 14px;
+            }
+
+            .mobile-row {
+                padding: 11px 0;
+                border-top-color: rgba(150, 174, 188, 0.2);
+            }
+
+            .mobile-app > section:nth-of-type(2) > .mobile-card .mobile-row,
+            .mobile-app > section:nth-of-type(3) > .mobile-card:not(.mobile-network-hero) .mobile-row {
+                padding: 7px 0;
+            }
+
+            .mobile-row-value {
+                font-size: clamp(20px, 1.65vw, 27px);
+            }
+
+            .mobile-clock-value {
+                margin-top: 10px;
+                color: var(--text);
+                font-size: clamp(56px, 5.3vw, 78px);
+                line-height: 0.95;
+                letter-spacing: 0.02em;
+            }
+
+            .mobile-halving-card {
+                min-height: 126px;
+                align-content: center;
+                border-radius: 8px;
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.012)),
+                    rgba(7, 15, 20, 0.7);
+            }
+
+            .mobile-halving-card::before {
+                content: '';
+                position: absolute;
+                left: 16px;
+                right: 16px;
+                bottom: 22px;
+                height: 7px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+            }
+
+            .mobile-halving-fill {
+                inset: auto auto 22px 16px;
+                height: 7px;
+                max-width: calc(100% - 32px);
+                border-radius: 999px;
+                background: linear-gradient(90deg, #fbd21f, var(--accent));
+                box-shadow: 0 0 22px rgba(246, 162, 31, 0.24);
+            }
+
+            .mobile-halving-card .mobile-row-value {
+                color: #ffd51f;
+                font-size: clamp(24px, 2vw, 30px);
+            }
+
+            .mobile-network-hero {
+                gap: 10px;
+                padding: 16px 18px;
+            }
+
+            .mobile-app > section:nth-of-type(3) .mobile-network-hero {
+                padding: 16px 18px;
+            }
+
+            .mobile-network-primary {
+                font-size: clamp(26px, 2.2vw, 34px);
+            }
+
+            .mobile-network-hero .mobile-chart {
+                height: clamp(118px, 18vh, 170px);
+                margin: 4px 0 0;
+            }
+
+            .mobile-app > section:nth-of-type(3) > .mobile-card:not(.mobile-network-hero) .mobile-row-value {
+                font-size: clamp(18px, 1.4vw, 24px);
+            }
+
+            .mobile-app > section:nth-of-type(4) {
+                grid-template-columns: minmax(360px, 0.64fr) minmax(0, 1.36fr);
+                gap: 10px 12px;
+            }
+
+            .mobile-app > section:nth-of-type(4) .mobile-section-title {
+                font-size: clamp(26px, 1.65vw, 29px);
+                white-space: nowrap;
+            }
+
+            .mobile-support-grid {
+                gap: 10px;
+            }
+
+            .mobile-support-card {
+                min-height: 124px;
+                padding: 14px;
+            }
+
+            .mobile-support-value {
+                font-size: clamp(22px, 1.75vw, 30px);
+            }
+
+            .mobile-fx-chart-card {
+                gap: 16px;
+                padding: 14px;
+            }
+
+            .mobile-fx-chart-card .mobile-chart {
+                min-height: 260px;
+            }
+        }
+
+        @media (min-width: 1080px) and (max-height: 760px) {
+            .mobile-app {
+                gap: 8px;
+            }
+
+            .mobile-panel {
+                gap: 8px;
+                padding: 12px;
+            }
+
+            .mobile-brand-mark {
+                width: 38px;
+                height: 38px;
+            }
+
+            .mobile-title {
+                font-size: clamp(34px, 3vw, 42px);
+            }
+
+            .mobile-section-title {
+                font-size: clamp(22px, 1.8vw, 28px);
+            }
+
+            .mobile-price-value {
+                font-size: clamp(46px, 4.2vw, 60px);
+            }
+
+            .mobile-price-chart {
+                height: clamp(126px, 20vh, 160px);
+            }
+
+            .mobile-stat-chip {
+                min-height: 62px;
+                padding: 9px 10px;
+            }
+
+            .mobile-halving-card {
+                min-height: 92px;
+            }
+
+            .mobile-network-hero .mobile-chart {
+                height: clamp(62px, 9vh, 88px);
+            }
+
+            .mobile-support-card {
+                min-height: 72px;
+                padding: 10px;
+            }
+
+            .mobile-fx-chart-card .mobile-chart {
+                min-height: 0;
+            }
+        }
+
+        @media (min-width: 1080px) {
+            .mobile-app {
+                grid-template-columns: minmax(400px, 1.02fr) minmax(300px, 0.82fr) minmax(340px, 1fr);
+                grid-template-rows: minmax(0, 1fr) minmax(184px, 0.31fr);
+                grid-template-areas:
+                    "price timing network"
+                    "support support network";
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+
+            .mobile-price-panel {
+                grid-area: price;
+            }
+
+            .mobile-app > section:nth-of-type(2) {
+                grid-area: timing;
+            }
+
+            .mobile-app > section:nth-of-type(3) {
+                grid-area: network;
+            }
+
+            .mobile-support-panel {
+                grid-area: support;
+                display: grid;
+                grid-template-columns: minmax(340px, 0.78fr) minmax(300px, 1.22fr);
+                grid-template-rows: auto minmax(0, 1fr);
+                grid-template-areas:
+                    "support-head support-chart"
+                    "support-grid support-chart";
+                gap: 8px 12px;
+                align-items: stretch;
+                padding: 12px;
+            }
+
+            .mobile-support-panel > div:first-child {
+                grid-area: support-head;
+                min-width: 0;
+            }
+
+            .mobile-support-panel .mobile-copy {
+                display: none;
+            }
+
+            .mobile-support-panel .mobile-section-title {
+                font-size: clamp(22px, 1.75vw, 28px);
+                line-height: 1.15;
+                white-space: nowrap;
+            }
+
+            .mobile-support-panel .mobile-label,
+            .mobile-support-panel .mobile-chart-span {
+                font-size: clamp(10px, 0.68vw, 11px);
+                line-height: 1.15;
+            }
+
+            .mobile-support-panel .mobile-support-grid {
+                grid-area: support-grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                min-height: 0;
+            }
+
+            .mobile-support-panel .mobile-support-card {
+                min-height: 0;
+                align-content: center;
+                gap: 6px;
+                padding: 10px;
+            }
+
+            .mobile-support-panel .mobile-support-value {
+                font-size: clamp(17px, 1.35vw, 22px);
+                line-height: 1;
+            }
+
+            .mobile-support-panel .mobile-fx-chart-card {
+                grid-area: support-chart;
+                grid-template-rows: auto minmax(0, 1fr);
+                gap: 6px;
+                min-height: 0;
+                height: 100%;
+                padding: 10px;
+            }
+
+            .mobile-support-panel .mobile-fx-chart-card .mobile-chart {
+                height: auto;
+                min-height: 0;
+            }
+
+            .mobile-adjustment-card {
+                gap: 8px;
+            }
+
+            .mobile-adjustment-chart {
+                height: clamp(72px, 10vh, 104px);
+            }
+
+            .mobile-adjustment-pill {
+                min-height: 28px;
+                font-size: clamp(12px, 0.88vw, 15px);
+            }
+
+            .mobile-price-value {
+                font-size: clamp(48px, 4.1vw, 64px);
+            }
+
+            .mobile-price-chart {
+                height: clamp(126px, 18vh, 164px);
+                margin-top: 12px;
+            }
+
+            .mobile-stat-chip {
+                min-height: 68px;
+                padding: 10px 12px;
+            }
+
+            .mobile-range-switch {
+                padding: 5px;
+            }
+
+            .mobile-range-button {
+                min-height: 34px;
+            }
+        }
+
+        @media (min-width: 1080px) and (max-height: 760px) {
+            .mobile-app {
+                grid-template-rows: minmax(0, 1fr) minmax(176px, 0.32fr);
+            }
+
+            .mobile-support-panel {
+                grid-template-columns: minmax(300px, 0.82fr) minmax(260px, 1.18fr);
+                gap: 6px 10px;
+                padding: 10px;
+            }
+
+            .mobile-support-panel .mobile-support-card {
+                padding: 8px 9px;
+            }
+
+            .mobile-support-panel .mobile-support-value {
+                font-size: clamp(15px, 1.12vw, 19px);
+            }
+
+            .mobile-support-panel .mobile-fx-chart-card {
+                padding: 7px;
+            }
+
+            .mobile-adjustment-chart {
+                height: clamp(58px, 8vh, 72px);
+            }
+
+            .mobile-price-chart {
+                height: clamp(112px, 18vh, 132px);
+            }
+
+            .mobile-price-card .mobile-range-switch {
+                margin-top: 6px;
+            }
+
+            .mobile-stat-chip {
+                min-height: 56px;
+            }
+        }
+
+        @media (min-width: 1080px) {
+            .mobile-app > section.mobile-support-panel {
+                grid-area: support;
+                grid-template-columns: minmax(340px, 0.78fr) minmax(300px, 1.22fr);
+                grid-template-rows: auto minmax(0, 1fr);
+                grid-template-areas:
+                    "support-head support-chart"
+                    "support-grid support-chart";
+            }
+
+            .mobile-app > section.mobile-support-panel .mobile-support-grid,
+            .mobile-app > section.mobile-support-panel .mobile-fx-chart-card {
+                min-width: 0;
+            }
+        }
+
+        @media (min-width: 1080px) and (max-height: 760px) {
+            .mobile-app > section.mobile-support-panel {
+                grid-template-columns: minmax(300px, 0.82fr) minmax(260px, 1.18fr);
+            }
+        }
+
+        @media (min-width: 1080px) and (max-height: 700px) {
+            .mobile-app {
+                grid-template-rows: minmax(0, 1fr) minmax(150px, 0.24fr);
+            }
+
+            .mobile-panel {
+                gap: 7px;
+                padding: 10px;
+            }
+
+            .mobile-brand-mark {
+                width: 34px;
+                height: 34px;
+            }
+
+            .mobile-title {
+                font-size: clamp(28px, 3vw, 38px);
+            }
+
+            .mobile-section-title {
+                font-size: clamp(20px, 1.65vw, 24px);
+            }
+
+            .mobile-price-card {
+                padding: 10px;
+            }
+
+            .mobile-price-label-row {
+                min-height: 28px;
+            }
+
+            .mobile-selected-currency-pill,
+            .mobile-change-pill {
+                min-height: 28px;
+            }
+
+            .mobile-price-value {
+                margin-top: 4px;
+                font-size: clamp(39px, 3.9vw, 52px);
+            }
+
+            .mobile-alternate-price {
+                margin-top: 3px;
+                font-size: clamp(12px, 0.9vw, 14px);
+            }
+
+            .mobile-price-chart {
+                height: clamp(92px, 15vh, 108px);
+                margin-top: 8px;
+            }
+
+            .mobile-stat-strip {
+                gap: 6px;
+            }
+
+            .mobile-stat-chip {
+                min-height: 50px;
+                padding: 7px 8px;
+            }
+
+            .mobile-stat-value {
+                font-size: clamp(13px, 1.05vw, 16px);
+            }
+
+            .mobile-price-card .mobile-range-switch {
+                margin-top: 5px;
+            }
+
+            .mobile-range-switch {
+                padding: 4px;
+            }
+
+            .mobile-range-button {
+                min-height: 29px;
+                padding: 5px;
+            }
+
+            .mobile-clock-value {
+                font-size: clamp(42px, 4.4vw, 58px);
+            }
+
+            .mobile-row {
+                padding: 7px 0;
+            }
+
+            .mobile-halving-card {
+                min-height: 72px;
+                padding: 8px;
+            }
+
+            .mobile-support-panel {
+                grid-template-columns: minmax(300px, 0.82fr) minmax(260px, 1.18fr);
+                gap: 5px 10px;
+                padding: 8px;
+            }
+
+            .mobile-support-panel .mobile-section-title {
+                font-size: clamp(20px, 1.55vw, 23px);
+            }
+
+            .mobile-support-panel .mobile-label,
+            .mobile-support-panel .mobile-chart-span {
+                font-size: 9.5px;
+            }
+
+            .mobile-support-panel .mobile-support-grid {
+                gap: 6px;
+            }
+
+            .mobile-support-panel .mobile-support-card {
+                padding: 6px 8px;
+                gap: 3px;
+            }
+
+            .mobile-support-panel .mobile-support-value {
+                font-size: clamp(14px, 1.05vw, 17px);
+            }
+
+            .mobile-support-panel .mobile-fx-chart-card {
+                gap: 4px;
+                padding: 7px;
+            }
+
+            .mobile-adjustment-chart {
+                height: clamp(50px, 7vh, 62px);
+            }
+        }
+
+        .mobile-network-stats-card {
+            display: grid;
+            gap: 0;
+            padding: 0 14px;
+            border-radius: 8px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014)),
+                rgba(6, 13, 18, 0.88);
+        }
+
+        .mobile-network-stat-row {
+            display: grid;
+            grid-template-columns: 26px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 11px;
+            min-height: clamp(44px, 5.5vh, 56px);
+            border-top: 1px solid rgba(150, 174, 188, 0.16);
+        }
+
+        .mobile-network-stat-row:first-child {
+            border-top: 0;
+        }
+
+        .mobile-network-stat-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 22px;
+            height: 22px;
+            color: var(--signal);
+        }
+
+        .mobile-network-stat-icon svg {
+            display: block;
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.2;
+            stroke-linecap: square;
+            stroke-linejoin: miter;
+        }
+
+        .mobile-network-stat-icon-hash {
+            color: var(--signal);
+        }
+
+        .mobile-network-stat-icon-fee {
+            color: var(--accent);
+        }
+
+        .mobile-network-stat-icon-block {
+            color: var(--cool);
+        }
+
+        .mobile-network-stats-card .mobile-label {
+            min-width: 0;
+            color: rgba(205, 215, 222, 0.68);
+            font-size: clamp(10px, 1vw, 12px);
+            font-weight: 790;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mobile-network-stats-card .mobile-row-value {
+            max-width: none;
+            overflow: visible;
+            color: var(--text);
+            font-size: clamp(18px, 1.45vw, 22px);
+            line-height: 1;
+            text-align: right;
+            text-overflow: clip;
+        }
+
+        @media (max-width: 420px) {
+            .mobile-network-stats-card {
+                padding-inline: 13px;
+            }
+
+            .mobile-network-stat-row {
+                grid-template-columns: 25px minmax(0, 1fr) auto;
+                gap: 10px;
+                min-height: 48px;
+            }
+
+            .mobile-network-stats-card .mobile-label {
+                font-size: 10px;
+            }
+
+            .mobile-network-stats-card .mobile-row-value {
+                font-size: 18px;
             }
         }
     </style>
 </head>
 <body>
-<main class="dashboard">
-    <section class="panel network-panel">
-        <div class="network-header">
-            <img class="brand-mark" src="bitcoin-logo.png" alt="" aria-hidden="true">
-            <div>
-                <p class="eyebrow">Live network surface</p>
-                <h1 class="network-title">Bitcoin Block Clock</h1>
-            </div>
-            <p class="network-summary">Latest block height and sync state.</p>
-        </div>
-        <div class="network-fx">
-            <div class="network-fx-meta">
-                <span class="network-fx-label">EUR / USD</span>
-                <span class="network-fx-span">365-day exchange rate</span>
-            </div>
-            <div id="trendEurUsd" class="network-fx-chart" aria-hidden="true"></div>
-        </div>
-        <div class="stage">
-            <div>
-                <span class="stage-label">Block Time</span>
-                <div id="blockCounter" class="hero-value">Loading...</div>
-            </div>
-            <div class="stage-divider"></div>
-            <div class="stage-meta">
-                <div class="meta-block">
-                    <span class="meta-label">Last Sync</span>
-                    <span id="lastUpdated" class="meta-value">Pending</span>
-                </div>
-                <div class="meta-block">
-                    <span class="meta-label">Average Cadence</span>
-                    <span class="meta-value">~10 min</span>
-                </div>
-            </div>
-        </div>
-    </section>
-    <section class="panel market-board">
-        <div class="board-head">
-            <div>
-                <p class="eyebrow">Market board</p>
-                <h2 class="board-title">Spot, sats, and network pressure</h2>
-                <p class="board-copy">Live BTC price, sats per unit, hashrate, and the halving countdown.</p>
-            </div>
-            <div class="live-pill">
-                <span class="live-dot"></span>
-                Live Data
-            </div>
-        </div>
-        <div class="board-grid">
-            <article class="metric metric-live-chart" data-tone="accent" data-chart-available="false" data-hover-ready="false" data-hover-active="false">
-                <div id="metricPriceUSDChart" class="metric-chart-bg" aria-hidden="true"></div>
-                <span class="metric-label">Price in USD</span>
-                <span id="bitcoinPriceUSDCorner" class="metric-corner-value" aria-hidden="true">Loading...</span>
-                <span id="bitcoinPriceUSD" class="metric-value">Loading...</span>
-            </article>
-            <article class="metric metric-live-chart" data-tone="accent" data-chart-available="false" data-hover-ready="false" data-hover-active="false">
-                <div id="metricPriceEURChart" class="metric-chart-bg" aria-hidden="true"></div>
-                <span class="metric-label">Price in EUR</span>
-                <span id="bitcoinPriceEURCorner" class="metric-corner-value" aria-hidden="true">Loading...</span>
-                <span id="bitcoinPriceEUR" class="metric-value">Loading...</span>
-            </article>
-            <article class="metric" data-tone="cool">
-                <span class="metric-label">Sats / USD</span>
-                <span id="satsPerDollar" class="metric-value">Loading...</span>
-            </article>
-            <article class="metric" data-tone="cool">
-                <span class="metric-label">Sats / EUR</span>
-                <span id="satsPerEuro" class="metric-value">Loading...</span>
-            </article>
-            <article class="metric" data-tone="signal">
-                <span class="metric-label">Hash Rate</span>
-                <span id="hashRate" class="metric-value">Loading...</span>
-            </article>
-            <article class="metric metric-halving" data-tone="accent">
-                <span class="metric-label">Halving In</span>
-                <span id="nextHalving" class="metric-value">Loading...</span>
-                <div id="halvingProgress"></div>
-            </article>
-        </div>
-        <div class="trend-section">
-            <div class="trend-head">
-                <div>
-                    <p class="trend-title">One Year of Data</p>
-                    <p class="trend-copy">Trailing 365-day curves for BTC and network hashrate.</p>
-                </div>
-            </div>
-            <div class="trend-grid">
-                <article class="trend-panel" data-tone="accent">
-                    <div class="trend-meta">
-                        <span class="trend-label">BTC / USD</span>
-                        <span class="trend-span">1Y price history</span>
-                    </div>
-                    <div id="trendPriceUSD" class="trend-chart" aria-hidden="true"></div>
-                </article>
-                <article class="trend-panel" data-tone="accent">
-                    <div class="trend-meta">
-                        <span class="trend-label">BTC / EUR</span>
-                        <span class="trend-span">1Y price history</span>
-                    </div>
-                    <div id="trendPriceEUR" class="trend-chart" aria-hidden="true"></div>
-                </article>
-                <article class="trend-panel" data-tone="signal">
-                    <div class="trend-meta">
-                        <span class="trend-label">Hash Rate</span>
-                        <span class="trend-span">1Y network history</span>
-                    </div>
-                    <div id="trendHashRate" class="trend-chart" aria-hidden="true"></div>
-                </article>
-            </div>
-        </div>
-    </section>
-</main>
 <main class="mobile-app" aria-label="Bitcoin price tracker mobile view">
     <section class="mobile-panel mobile-price-panel" aria-labelledby="mobilePriceTitle">
         <div class="mobile-brand-row">
@@ -1855,6 +2452,20 @@
                 <span id="mobileRangeChange" class="mobile-change-pill">Pending</span>
             </div>
             <div id="mobilePrimaryChart" class="mobile-chart mobile-price-chart" aria-hidden="true"></div>
+            <div class="mobile-stat-strip">
+                <div class="mobile-stat-chip">
+                    <p id="mobileHighLabel" class="mobile-label">24h High</p>
+                    <strong id="mobileRangeHigh" class="mobile-stat-value">Loading...</strong>
+                </div>
+                <div class="mobile-stat-chip">
+                    <p id="mobileLowLabel" class="mobile-label">24h Low</p>
+                    <strong id="mobileRangeLow" class="mobile-stat-value">Loading...</strong>
+                </div>
+                <div class="mobile-stat-chip">
+                    <p class="mobile-label">Updated</p>
+                    <strong id="mobileLastUpdated" class="mobile-stat-value">Pending</strong>
+                </div>
+            </div>
             <div class="mobile-range-switch" role="tablist" aria-label="BTC price range">
                 <button class="mobile-range-button" type="button" data-mobile-range="day" role="tab" aria-selected="true">Day</button>
                 <button class="mobile-range-button" type="button" data-mobile-range="week" role="tab" aria-selected="false">Week</button>
@@ -1862,30 +2473,6 @@
                 <button class="mobile-range-button" type="button" data-mobile-range="year" role="tab" aria-selected="false">Year</button>
             </div>
         </article>
-        <div class="mobile-stat-strip">
-            <div class="mobile-stat-chip">
-                <p id="mobileHighLabel" class="mobile-label">24h High</p>
-                <strong id="mobileRangeHigh" class="mobile-stat-value">Loading...</strong>
-            </div>
-            <div class="mobile-stat-chip">
-                <p id="mobileLowLabel" class="mobile-label">24h Low</p>
-                <strong id="mobileRangeLow" class="mobile-stat-value">Loading...</strong>
-            </div>
-            <div class="mobile-stat-chip">
-                <p class="mobile-label">Updated</p>
-                <strong id="mobileLastUpdated" class="mobile-stat-value">Pending</strong>
-            </div>
-        </div>
-        <div class="mobile-card">
-            <div class="mobile-row">
-                <p class="mobile-label">Hash Rate</p>
-                <strong id="mobileHashRateSummary" class="mobile-row-value mobile-signal">Loading...</strong>
-            </div>
-            <div class="mobile-row">
-                <p id="mobileSatsLabel" class="mobile-label">Sats / USD</p>
-                <strong id="mobileSatsPerDollar" class="mobile-row-value">Loading...</strong>
-            </div>
-        </div>
     </section>
 
     <section class="mobile-panel" aria-labelledby="mobileTimingTitle">
@@ -1926,37 +2513,69 @@
     <section class="mobile-panel" aria-labelledby="mobileNetworkTitle">
         <div>
             <p class="mobile-eyebrow">Network health</p>
-            <h2 id="mobileNetworkTitle" class="mobile-section-title">Hashrate and fee pressure</h2>
-            <p class="mobile-copy">Hashrate, difficulty, fee pressure, and the next difficulty retarget.</p>
+            <h2 id="mobileNetworkTitle" class="mobile-section-title">Difficulty and retarget</h2>
+            <p class="mobile-copy">Protocol difficulty, projected retarget, fees, and estimated hashrate context.</p>
         </div>
         <div class="mobile-card mobile-network-hero">
-            <div>
-                <p class="mobile-label">Hash Rate</p>
-                <strong id="mobileHashRate" class="mobile-row-value mobile-signal">Loading...</strong>
+            <div id="mobileDifficultyChart" class="mobile-chart" aria-hidden="true"></div>
+            <div class="mobile-network-hero-row">
+                <div>
+                    <p class="mobile-label">Network Difficulty</p>
+                    <strong id="mobileDifficulty" class="mobile-row-value mobile-network-primary">Loading...</strong>
+                </div>
+                <div class="mobile-retarget-card">
+                    <p class="mobile-label">Next Retarget</p>
+                    <strong id="mobileAdjustment" class="mobile-row-value mobile-signal">Loading...</strong>
+                </div>
             </div>
-            <div id="mobileHashChart" class="mobile-chart" aria-hidden="true"></div>
         </div>
-        <div class="mobile-card">
-            <div class="mobile-row">
-                <p class="mobile-label">Difficulty</p>
-                <strong id="mobileDifficulty" class="mobile-row-value">Loading...</strong>
+        <div class="mobile-card mobile-adjustment-card">
+            <div class="mobile-adjustment-header">
+                <div class="mobile-adjustment-title">
+                    <p class="mobile-label">Adjustment Pressure</p>
+                    <p class="mobile-chart-span">Recent retargets + projection</p>
+                </div>
+                <strong id="mobileAdjustmentPressureValue" class="mobile-adjustment-pill">Loading...</strong>
             </div>
-            <div class="mobile-row">
-                <p class="mobile-label">Next Retarget</p>
-                <strong id="mobileAdjustment" class="mobile-row-value mobile-signal">Loading...</strong>
+            <div id="mobileAdjustmentChart" class="mobile-adjustment-chart" aria-hidden="true"></div>
+        </div>
+        <div class="mobile-card mobile-network-stats-card">
+            <div class="mobile-network-stat-row">
+                <span class="mobile-network-stat-icon mobile-network-stat-icon-hash" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M2.8 12.4h4.1l2.2-7.2 3.2 13.6 2.5-8.4 1.8 4.2h4.6" />
+                    </svg>
+                </span>
+                <p class="mobile-label">Estimated Hash Rate</p>
+                <strong id="mobileHashRate" class="mobile-row-value">Loading...</strong>
             </div>
-            <div class="mobile-row">
+            <div class="mobile-network-stat-row">
+                <span class="mobile-network-stat-icon mobile-network-stat-icon-fee" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M4 7h7" />
+                        <path d="M4 12h16" />
+                        <path d="M4 17h10" />
+                    </svg>
+                </span>
                 <p class="mobile-label">Mempool Fee</p>
                 <strong id="mobileMempoolFee" class="mobile-row-value">Loading...</strong>
             </div>
-            <div class="mobile-row">
+            <div class="mobile-network-stat-row">
+                <span class="mobile-network-stat-icon mobile-network-stat-icon-block" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M8 3v18" />
+                        <path d="M16 3v18" />
+                        <path d="M3 8h18" />
+                        <path d="M3 16h18" />
+                    </svg>
+                </span>
                 <p class="mobile-label">Block Height</p>
                 <strong id="mobileNetworkBlockCounter" class="mobile-row-value">Loading...</strong>
             </div>
         </div>
     </section>
 
-    <section class="mobile-panel" aria-labelledby="mobileSupportTitle">
+    <section class="mobile-panel mobile-support-panel" aria-labelledby="mobileSupportTitle">
         <div>
             <p class="mobile-eyebrow">Supporting context</p>
             <h2 id="mobileSupportTitle" class="mobile-section-title">FX and conversion rates</h2>
@@ -1964,8 +2583,8 @@
         </div>
         <div class="mobile-support-grid">
             <div class="mobile-support-card">
-                <p class="mobile-label">BTC / EUR</p>
-                <strong id="mobileBitcoinPriceEUR" class="mobile-support-value">Loading...</strong>
+                <p class="mobile-label">Sats / USD</p>
+                <strong id="mobileSatsPerDollar" class="mobile-support-value">Loading...</strong>
             </div>
             <div class="mobile-support-card">
                 <p class="mobile-label">Sats / EUR</p>
@@ -1995,6 +2614,7 @@
     let intradayHistoryRefreshPromise = null;
     let mobileWeeklyHistoryRefreshPromise = null;
     let mobileMonthlyHistoryRefreshPromise = null;
+    let latestDifficultyAdjustmentPercent = null;
 
     function promisifyIDBRequest(req) {
         return new Promise((resolve, reject) => {
@@ -2129,97 +2749,21 @@
         element.classList.add('flash');
     }
 
-    function setMetricTileLiveValue(containerId, text) {
-        const container = document.getElementById(containerId);
-        const tile = container?.closest('.metric-live-chart');
-        if (!tile) {
-            return;
-        }
-
-        tile.dataset.liveValue = text;
-    }
-
     function updateLastUpdated() {
         const formattedTime = new Date().toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit'
         });
-        setMetricText('lastUpdated', formattedTime);
         setElementText('mobileLastUpdated', formattedTime);
         setElementText('mobileTimingLastSync', formattedTime);
     }
-
-    function hasPanelOverflow() {
-        const panels = document.querySelectorAll('.panel');
-        return Array.from(panels).some(panel =>
-            panel.scrollHeight > panel.clientHeight + 8
-        );
-    }
-
-    function applyTrendLayout() {
-        const body = document.body;
-        const trendGrid = document.querySelector('.trend-grid');
-
-        body.classList.remove('layout-trend-medium');
-
-        if (!trendGrid || window.innerWidth <= 1120 || body.classList.contains('layout-short')) {
-            return;
-        }
-
-        if (trendGrid.clientWidth < 920) {
-            body.classList.add('layout-trend-medium');
-        }
-    }
-
-    function collapseTrendLayoutIfOverflowing() {
-        const body = document.body;
-
-        if (body.classList.contains('layout-trend-medium') && hasPanelOverflow()) {
-            body.classList.remove('layout-trend-medium');
-        }
-    }
-
-    function applyResponsiveLayout() {
-        const body = document.body;
-
-        body.classList.remove('layout-short', 'layout-compact', 'layout-scroll', 'layout-trend-medium');
-
-        if (window.innerWidth <= 1120) {
-            return;
-        }
-
-        if (window.innerHeight <= 840) {
-            body.classList.add('layout-short');
-        }
-
-        applyTrendLayout();
-        collapseTrendLayoutIfOverflowing();
-
-        if (hasPanelOverflow()) {
-            body.classList.add('layout-compact');
-            applyTrendLayout();
-            collapseTrendLayoutIfOverflowing();
-        }
-
-        if (hasPanelOverflow()) {
-            body.classList.add('layout-scroll');
-        }
-    }
-
-    const responsiveLayoutClasses = ['layout-short', 'layout-compact', 'layout-scroll', 'layout-trend-medium'];
-
-    function getResponsiveLayoutSignature() {
-        return responsiveLayoutClasses
-            .filter(className => document.body.classList.contains(className))
-            .join(' ');
-    }
-
-    async function updatePriceHistory(date, usdRate, eurRate, hashRate) {
+    async function updatePriceHistory(date, usdRate, eurRate, hashRate, difficulty) {
         const priceHistory = await getStoredData('bitcoinPriceHistory');
         priceHistory[date] = {
             USD: usdRate,
             EUR: eurRate,
-            HashRate: hashRate
+            HashRate: hashRate ?? priceHistory[date]?.HashRate ?? null,
+            Difficulty: difficulty ?? priceHistory[date]?.Difficulty ?? null
         };
         await setStoredData('bitcoinPriceHistory', priceHistory);
     }
@@ -2274,16 +2818,15 @@
         USD: null,
         EUR: null
     };
-    const mobileLatestSats = {
-        USD: null,
-        EUR: null
-    };
     const MOBILE_RANGE_DAY_COUNTS = {
         day: 1,
         week: 7,
         month: 30,
         year: 365
     };
+    const DAILY_CHART_MAX_GAP_MS = 3 * 24 * 60 * 60 * 1000;
+    const MAX_LIVE_CHART_PRICE_DEVIATION_RATIO = 0.2;
+    const CHART_Y_AXIS_LABEL_INSET = 18;
     const MOBILE_RANGE_LABELS = {
         day: '24h',
         week: '7d',
@@ -2387,7 +2930,7 @@
         return valuesByDate;
     }
 
-    function mapHashRateValues(values) {
+    function mapBlockchainChartValues(values) {
         const valuesByDate = {};
 
         (values || []).forEach(entry => {
@@ -2426,7 +2969,7 @@
             const entry = priceHistory[date];
             return entry?.USD == null ||
                 entry?.EUR == null ||
-                entry?.HashRate == null;
+                entry?.Difficulty == null;
         });
     }
 
@@ -2459,16 +3002,16 @@
         const rangeFrom = toUnixTimestamp(refreshStartDate);
         const rangeTo = toUnixTimestamp(endDate, true);
 
-        const [usdHistoryResponse, eurHistoryResponse, hashRateHistoryResponse] = await Promise.all([
+        const [usdHistoryResponse, eurHistoryResponse, difficultyHistoryResponse] = await Promise.all([
             fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
             fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`),
-            fetch(`https://api.blockchain.info/charts/hash-rate?timespan=${historyDays}days&format=json&cors=true`)
+            fetch(`https://api.blockchain.info/charts/difficulty?timespan=${historyDays}days&format=json&cors=true`)
         ]);
 
         const responses = [
             usdHistoryResponse,
             eurHistoryResponse,
-            hashRateHistoryResponse
+            difficultyHistoryResponse
         ];
 
         responses.forEach(response => {
@@ -2477,13 +3020,13 @@
             }
         });
 
-        const [usdHistoryData, eurHistoryData, hashRateHistoryData] = await Promise.all(
+        const [usdHistoryData, eurHistoryData, difficultyHistoryData] = await Promise.all(
             responses.map(response => response.json())
         );
 
         const usdSeries = forwardFillDailySeries(refreshDateRange, mapCoinGeckoPrices(usdHistoryData.prices));
         const eurSeries = forwardFillDailySeries(refreshDateRange, mapCoinGeckoPrices(eurHistoryData.prices));
-        const hashRateSeries = forwardFillDailySeries(refreshDateRange, mapHashRateValues(hashRateHistoryData.values));
+        const difficultySeries = forwardFillDailySeries(refreshDateRange, mapBlockchainChartValues(difficultyHistoryData.values));
 
         const latestHistory = await getPriceHistory();
         const nextHistory = {};
@@ -2491,12 +3034,14 @@
         fullDateRange.forEach(date => {
             const usdPrice = usdSeries[date] ?? latestHistory[date]?.USD ?? existingHistory[date]?.USD ?? null;
             const eurPrice = eurSeries[date] ?? latestHistory[date]?.EUR ?? existingHistory[date]?.EUR ?? null;
-            const hashRate = hashRateSeries[date] ?? latestHistory[date]?.HashRate ?? existingHistory[date]?.HashRate ?? null;
+            const hashRate = latestHistory[date]?.HashRate ?? existingHistory[date]?.HashRate ?? null;
+            const difficulty = difficultySeries[date] ?? latestHistory[date]?.Difficulty ?? existingHistory[date]?.Difficulty ?? null;
 
             nextHistory[date] = {
                 USD: usdPrice,
                 EUR: eurPrice,
-                HashRate: hashRate
+                HashRate: hashRate,
+                Difficulty: difficulty
             };
         });
 
@@ -3091,6 +3636,13 @@
         return 'Unavailable';
     }
 
+    function formatProjectedAdjustment(value) {
+        const adjustment = Number(value);
+        return Number.isFinite(adjustment)
+            ? `Projected ${formatSignedPercent(adjustment)}`
+            : 'Projected --';
+    }
+
     async function fetchJsonMetric(url, errorLabel) {
         const response = await fetch(url);
         if (!response.ok) {
@@ -3109,25 +3661,37 @@
         return await response.text();
     }
 
-    async function updateMobileNetworkPressure() {
+    async function updateNetworkPressure() {
         const [difficultyResult, adjustmentResult, feeResult] = await Promise.allSettled([
             fetchTextMetric('https://blockchain.info/q/getdifficulty', 'Difficulty'),
             fetchJsonMetric('https://mempool.space/api/v1/difficulty-adjustment', 'Difficulty retarget'),
             fetchJsonMetric('https://mempool.space/api/v1/fees/recommended', 'Mempool fee')
         ]);
+        const networkMetrics = {
+            difficulty: null,
+            adjustmentPercent: null
+        };
 
         if (difficultyResult.status === 'fulfilled') {
             setMetricText('mobileDifficulty', formatDifficulty(difficultyResult.value));
+            const difficulty = Number(difficultyResult.value);
+            networkMetrics.difficulty = Number.isFinite(difficulty) && difficulty > 0 ? difficulty : null;
         } else {
-            console.warn('Updating mobile difficulty failed:', difficultyResult.reason);
+            console.warn('Updating network difficulty failed:', difficultyResult.reason);
             setMetricText('mobileDifficulty', 'Unavailable');
         }
 
         if (adjustmentResult.status === 'fulfilled') {
             setMetricText('mobileAdjustment', formatDifficultyRetarget(adjustmentResult.value));
+            const adjustmentPercent = Number(adjustmentResult.value?.difficultyChange);
+            networkMetrics.adjustmentPercent = Number.isFinite(adjustmentPercent) ? adjustmentPercent : null;
+            latestDifficultyAdjustmentPercent = networkMetrics.adjustmentPercent;
+            setMetricText('mobileAdjustmentPressureValue', formatProjectedAdjustment(networkMetrics.adjustmentPercent));
         } else {
-            console.warn('Updating mobile difficulty retarget failed:', adjustmentResult.reason);
+            console.warn('Updating network difficulty retarget failed:', adjustmentResult.reason);
             setMetricText('mobileAdjustment', 'Unavailable');
+            latestDifficultyAdjustmentPercent = null;
+            setMetricText('mobileAdjustmentPressureValue', 'Projected --');
         }
 
         if (feeResult.status === 'fulfilled') {
@@ -3137,9 +3701,11 @@
                 ?? feeResult.value?.economyFee;
             setMetricText('mobileMempoolFee', formatFeeRate(recommendedFeeRate));
         } else {
-            console.warn('Updating mobile mempool fee failed:', feeResult.reason);
+            console.warn('Updating network mempool fee failed:', feeResult.reason);
             setMetricText('mobileMempoolFee', 'Unavailable');
         }
+
+        return networkMetrics;
     }
 
     function setHashRateMetrics(hashRateTh) {
@@ -3147,9 +3713,7 @@
             ? formatHashRate(hashRateTh, 'TH/s')
             : 'Unavailable';
 
-        setMetricText('hashRate', hashRateText);
         setMetricText('mobileHashRate', hashRateText);
-        setMetricText('mobileHashRateSummary', hashRateText);
     }
 
     async function updateHashRateMetrics(priceHistory, today) {
@@ -3174,7 +3738,6 @@
         const otherCurrency = getOtherMobileCurrency(selectedCurrency);
         const selectedPrice = mobileLatestPrices[selectedCurrency];
         const otherPrice = mobileLatestPrices[otherCurrency];
-        const selectedSats = mobileLatestSats[selectedCurrency];
         const nextCurrencyLabel = getOtherMobileCurrency(selectedCurrency);
 
         setElementText('mobileSelectedCurrencyPill', selectedCurrency);
@@ -3185,11 +3748,6 @@
         setElementText('mobileAlternatePrice', otherPrice != null
             ? `~ ${formatCurrencyValue(otherPrice, otherCurrency)}`
             : `${otherCurrency} loading...`);
-        setElementText('mobileSatsLabel', `Sats / ${selectedCurrency}`);
-        setMetricText('mobileSatsPerDollar', selectedSats != null
-            ? `${numberWithCommas(Number(selectedSats).toFixed(0))}`
-            : 'Loading...');
-
         document.querySelectorAll('[data-mobile-currency-toggle]').forEach(button => {
             button.setAttribute('aria-label', `Switch BTC price to ${nextCurrencyLabel}`);
         });
@@ -3252,6 +3810,34 @@
         return formatCurrencyValue(value, currencyCode);
     }
 
+    function isDesktopChartViewport() {
+        return typeof window.matchMedia === 'function'
+            && window.matchMedia('(min-width: 1080px)').matches;
+    }
+
+    function formatPriceAxisTick(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return '';
+        }
+
+        const absoluteValue = Math.abs(numericValue);
+        if (absoluteValue >= 1000000) {
+            return `${(numericValue / 1000000).toFixed(1)}M`;
+        }
+
+        if (absoluteValue >= 1000) {
+            return `${(numericValue / 1000).toFixed(1)}K`;
+        }
+
+        return numericValue.toFixed(0);
+    }
+
+    function formatExchangeRateAxisTick(value) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue.toFixed(2) : '';
+    }
+
     function formatSignedPercent(value) {
         if (!Number.isFinite(value)) {
             return 'Pending';
@@ -3291,11 +3877,123 @@
         setMobileChangeText('mobileRangeChange', formatSignedPercent(changePercent), isNegative);
     }
 
+    function getLatestFiniteSeriesValue(series) {
+        const latestEntry = Object.entries(series || {})
+            .map(([timestamp, value]) => ({
+                timestamp: Number(timestamp),
+                value: Number(value)
+            }))
+            .filter(entry => Number.isFinite(entry.timestamp) && Number.isFinite(entry.value) && entry.value > 0)
+            .sort((left, right) => right.timestamp - left.timestamp)[0];
+
+        return latestEntry ? latestEntry.value : null;
+    }
+
+    function getLatestPriceHistoryValue(priceHistory, currencyCode) {
+        const latestDate = Object.keys(priceHistory || {})
+            .sort()
+            .reverse()
+            .find(date => {
+                const value = Number(priceHistory[date]?.[currencyCode]);
+                return Number.isFinite(value) && value > 0;
+            });
+
+        return latestDate ? Number(priceHistory[latestDate][currencyCode]) : null;
+    }
+
+    function isPriceCloseToReference(price, referencePrice) {
+        const normalizedPrice = Number(price);
+        const normalizedReference = Number(referencePrice);
+
+        if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+            return false;
+        }
+
+        if (!Number.isFinite(normalizedReference) || normalizedReference <= 0) {
+            return true;
+        }
+
+        return Math.abs(normalizedPrice - normalizedReference) / normalizedReference <= MAX_LIVE_CHART_PRICE_DEVIATION_RATIO;
+    }
+
+    function canPatchLiveChartPrices(usdPrice, eurPrice, usdReference, eurReference) {
+        return isPriceCloseToReference(usdPrice, usdReference)
+            && isPriceCloseToReference(eurPrice, eurReference);
+    }
+
+    function getMobilePriceMaxGapMs(chartData) {
+        const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
+
+        if (mobileSelectedRange === 'day') {
+            return INTRADAY_BUCKET_MS * 3;
+        }
+
+        const weeklyData = selectedCurrency === 'EUR' ? chartData.weeklyEUR : chartData.weeklyUSD;
+        if (mobileSelectedRange === 'week' && weeklyData?.length > 1) {
+            return MOBILE_WEEKLY_BUCKET_MS * 3;
+        }
+
+        const monthlyData = selectedCurrency === 'EUR' ? chartData.monthlyEUR : chartData.monthlyUSD;
+        if (mobileSelectedRange === 'month' && monthlyData?.length > 1) {
+            return MOBILE_MONTHLY_BUCKET_MS * 3;
+        }
+
+        return DAILY_CHART_MAX_GAP_MS;
+    }
+
+    function buildDifficultyAdjustmentData(priceHistory, projectedAdjustmentPercent = null) {
+        const historyPoints = Object.keys(priceHistory || {})
+            .sort()
+            .map(date => ({
+                x: date,
+                y: Number(priceHistory[date]?.Difficulty)
+            }))
+            .filter(point => Number.isFinite(point.y) && point.y > 0);
+
+        const adjustments = [];
+        let previousDifficulty = null;
+
+        historyPoints.forEach(point => {
+            if (previousDifficulty == null) {
+                previousDifficulty = point.y;
+                return;
+            }
+
+            const adjustmentPercent = ((point.y - previousDifficulty) / previousDifficulty) * 100;
+            if (Math.abs(adjustmentPercent) >= 0.01) {
+                adjustments.push({
+                    x: point.x,
+                    y: adjustmentPercent,
+                    projected: false
+                });
+                previousDifficulty = point.y;
+            }
+        });
+
+        const recentAdjustments = adjustments.slice(-9);
+        const projectedValue = Number(projectedAdjustmentPercent);
+        if (Number.isFinite(projectedValue)) {
+            recentAdjustments.push({
+                x: 'Projected',
+                y: projectedValue,
+                projected: true
+            });
+        }
+
+        return recentAdjustments;
+    }
+
+    async function getDifficultyAdjustmentData(projectedAdjustmentPercent = null) {
+        return buildDifficultyAdjustmentData(await getPriceHistory(), projectedAdjustmentPercent);
+    }
+
     function renderMobileCharts(chartData) {
         syncMobileRangeButtons();
 
         const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
+        const showDesktopAxes = isDesktopChartViewport();
         const priceRangeData = getMobilePriceRangeData(chartData);
+        const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
         updateMobileRangeStats(priceRangeData);
 
         [
@@ -3311,15 +4009,23 @@
                 scrubMetaElementId: 'mobileAlternatePrice',
                 scrubStatusElementId: 'mobileRangeChange',
                 scrubMetaFormatter: point => `Selected ${formatMobileScrubDate(point.x)}`,
-                color: 'rgba(255, 179, 58, 0.92)'
+                color: 'rgba(255, 179, 58, 0.92)',
+                showYAxisTicks: showDesktopAxes,
+                yAxisFormatter: formatPriceAxisTick,
+                yAxisTickCount: 4,
+                plotPadding: showDesktopAxes ? { top: 14, right: 62, bottom: 12, left: 16 } : null,
+                yDomainPadding: 0.12,
+                maxPointGapMs: priceMaxGapMs
             },
             {
-                data: chartData.hash,
-                containerId: 'mobileHashChart',
-                seriesLabel: 'Hash Rate',
-                valueFormatter: value => formatHashRate(value, 'TH/s'),
+                data: chartData.difficulty,
+                containerId: 'mobileDifficultyChart',
+                seriesLabel: 'Difficulty',
+                valueFormatter: formatDifficulty,
                 interactive: false,
-                color: 'rgba(158, 225, 105, 0.9)'
+                color: 'rgba(158, 225, 105, 0.9)',
+                chartStyle: 'step',
+                maxPointGapMs: DAILY_CHART_MAX_GAP_MS
             },
             {
                 data: chartData.eurUsd,
@@ -3327,117 +4033,47 @@
                 seriesLabel: 'EUR / USD',
                 valueFormatter: formatEurUsdValue,
                 interactive: false,
-                color: 'rgba(153, 203, 255, 0.9)'
+                color: 'rgba(153, 203, 255, 0.9)',
+                showYAxisTicks: showDesktopAxes,
+                yAxisFormatter: formatExchangeRateAxisTick,
+                yAxisTickCount: 5,
+                plotPadding: showDesktopAxes ? { top: 12, right: 58, bottom: 16, left: 14 } : null,
+                yDomainPadding: 0.12,
+                maxPointGapMs: DAILY_CHART_MAX_GAP_MS
             }
         ].forEach(chart => {
             drawChart(chart.data, chart);
         });
-    }
-
-    function renderTrendCharts(chartData) {
-        [
-            {
-                data: chartData.usd,
-                containerId: 'trendPriceUSD',
-                seriesLabel: 'BTC / USD',
-                valueFormatter: value => formatCurrencyValue(value, 'USD'),
-                interactive: true,
-                color: 'rgba(255, 179, 58, 0.92)'
-            },
-            {
-                data: chartData.eur,
-                containerId: 'trendPriceEUR',
-                seriesLabel: 'BTC / EUR',
-                valueFormatter: value => formatCurrencyValue(value, 'EUR'),
-                interactive: true,
-                color: 'rgba(255, 179, 58, 0.82)'
-            },
-            {
-                data: chartData.eurUsd,
-                containerId: 'trendEurUsd',
-                seriesLabel: 'EUR / USD',
-                valueFormatter: formatEurUsdValue,
-                interactive: true,
-                color: 'rgba(153, 203, 255, 0.9)'
-            },
-            {
-                data: chartData.hash,
-                containerId: 'trendHashRate',
-                seriesLabel: 'Hash Rate',
-                valueFormatter: value => formatHashRate(value, 'TH/s'),
-                interactive: false,
-                color: 'rgba(158, 225, 105, 0.9)'
-            }
-        ].forEach(chart => {
-            drawChart(chart.data, chart);
+        drawAdjustmentPressureChart(chartData.adjustmentPressure, {
+            containerId: 'mobileAdjustmentChart'
         });
     }
-
-    function renderMetricTileCharts(chartData) {
-        [
-            {
-                data: chartData.intradayUSD,
-                containerId: 'metricPriceUSDChart',
-                cornerValueId: 'bitcoinPriceUSDCorner',
-                color: 'rgba(255, 179, 58, 0.88)',
-                valueFormatter: value => formatCurrencyValue(value, 'USD')
-            },
-            {
-                data: chartData.intradayEUR,
-                containerId: 'metricPriceEURChart',
-                cornerValueId: 'bitcoinPriceEURCorner',
-                color: 'rgba(255, 198, 94, 0.8)',
-                valueFormatter: value => formatCurrencyValue(value, 'EUR')
-            }
-        ].forEach(chart => {
-            drawMetricTileChart(chart.data, chart);
-        });
-    }
-
     async function redrawAllCharts() {
         const chartData = {
             usd: await getDataForChart('USD'),
             eur: await getDataForChart('EUR'),
             eurUsd: await getDataForChart('EURUSD'),
-            hash: await getDataForChart('HashRate'),
-            intradayUSD: await getMetricTileChartData('USD'),
-            intradayEUR: await getMetricTileChartData('EUR'),
+            difficulty: await getDataForChart('Difficulty'),
+            adjustmentPressure: await getDifficultyAdjustmentData(latestDifficultyAdjustmentPercent),
+            intradayUSD: await getIntradayChartData('USD'),
+            intradayEUR: await getIntradayChartData('EUR'),
             weeklyUSD: await getMobileWeeklyChartData(),
             weeklyEUR: await getMobileWeeklyChartData('EUR'),
             monthlyUSD: await getMobileMonthlyChartData(),
             monthlyEUR: await getMobileMonthlyChartData('EUR')
         };
 
-        for (let pass = 0; pass < 3; pass++) {
-            applyResponsiveLayout();
-            const layoutBeforeDraw = getResponsiveLayoutSignature();
-
-            renderTrendCharts(chartData);
-            renderMetricTileCharts(chartData);
-            renderMobileCharts(chartData);
-
-            applyResponsiveLayout();
-            const layoutAfterDraw = getResponsiveLayoutSignature();
-
-            if (layoutAfterDraw === layoutBeforeDraw) {
-                return;
-            }
-        }
-
-        applyResponsiveLayout();
-        renderTrendCharts(chartData);
-        renderMetricTileCharts(chartData);
         renderMobileCharts(chartData);
     }
 
     async function fetchBitcoinInfo() {
         const today = getTodayDate();
-        let mobileNetworkPressurePromise = null;
+        let networkPressurePromise = null;
         let hashRateUpdatePromise = null;
 
         try {
             let priceHistory = await getPriceHistory();
-            mobileNetworkPressurePromise = updateMobileNetworkPressure();
+            networkPressurePromise = updateNetworkPressure();
             hashRateUpdatePromise = updateHashRateMetrics(priceHistory, today)
                 .catch(hashRateError => {
                     console.error('Updating hash rate failed:', hashRateError);
@@ -3487,30 +4123,20 @@
             }
 
             const priceData = await priceResponse.json();
-            const btcUSD = priceData.USD.last;
-            const btcEUR = priceData.EUR.last;
-            const usdMetricText = formatCurrencyValue(btcUSD, 'USD');
-            const eurMetricText = formatCurrencyValue(btcEUR, 'EUR');
-
-            setMetricText('bitcoinPriceUSD', usdMetricText);
-            setMetricText('bitcoinPriceEUR', eurMetricText);
-            setElementText('bitcoinPriceUSDCorner', usdMetricText);
-            setElementText('bitcoinPriceEURCorner', eurMetricText);
-            setMetricTileLiveValue('metricPriceUSDChart', usdMetricText);
-            setMetricTileLiveValue('metricPriceEURChart', eurMetricText);
-            setMetricText('mobileBitcoinPriceEUR', eurMetricText);
+            const btcUSD = Number(priceData?.USD?.last);
+            const btcEUR = Number(priceData?.EUR?.last);
+            if (!Number.isFinite(btcUSD) || btcUSD <= 0 || !Number.isFinite(btcEUR) || btcEUR <= 0) {
+                throw new Error('Current price response did not include usable BTC prices.');
+            }
 
             const satsPerDollar = (1 / btcUSD) * 100000000;
-            setMetricText('satsPerDollar', `${numberWithCommas(satsPerDollar.toFixed(0))}`);
+            setMetricText('mobileSatsPerDollar', `${numberWithCommas(satsPerDollar.toFixed(0))}`);
 
             const satsPerEuro = (1 / btcEUR) * 100000000;
-            setMetricText('satsPerEuro', `${numberWithCommas(satsPerEuro.toFixed(0))}`);
             setMetricText('mobileSatsPerEuro', `${numberWithCommas(satsPerEuro.toFixed(0))}`);
 
             mobileLatestPrices.USD = btcUSD;
             mobileLatestPrices.EUR = btcEUR;
-            mobileLatestSats.USD = satsPerDollar;
-            mobileLatestSats.EUR = satsPerEuro;
             updateMobilePriceDisplay();
 
             const eurUsdRate = Number(btcUSD) / Number(btcEUR);
@@ -3525,18 +4151,55 @@
             }
 
             const blockCount = await blockResponse.text();
-            setMetricText('blockCounter', `${numberWithCommas(blockCount)}`);
             setMetricText('mobileBlockCounter', `${numberWithCommas(blockCount)}`);
             setMetricText('mobileNetworkBlockCounter', `${numberWithCommas(blockCount)}`);
             calculateTimeToNextHalving(blockCount);
 
+            const networkMetrics = await networkPressurePromise;
             const hashRateTh = await hashRateUpdatePromise;
             updateLastUpdated();
 
-            await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
-            await patchMobileWeeklyHistory(Date.now(), btcUSD, btcEUR);
-            await patchMobileMonthlyHistory(Date.now(), btcUSD, btcEUR);
-            await updatePriceHistory(today, btcUSD, btcEUR, hashRateTh);
+            const canPatchDailyHistory = !historyNeedsRefresh && canPatchLiveChartPrices(
+                btcUSD,
+                btcEUR,
+                getLatestPriceHistoryValue(priceHistory, 'USD'),
+                getLatestPriceHistoryValue(priceHistory, 'EUR')
+            );
+            const canPatchIntradayHistory = !intradayNeedsRefresh && canPatchLiveChartPrices(
+                btcUSD,
+                btcEUR,
+                getLatestFiniteSeriesValue(intradayHistory.USD),
+                getLatestFiniteSeriesValue(intradayHistory.EUR)
+            );
+            const canPatchMobileWeeklyHistory = !mobileWeeklyNeedsRefresh && canPatchLiveChartPrices(
+                btcUSD,
+                btcEUR,
+                getLatestFiniteSeriesValue(mobileWeeklyHistory.USD),
+                getLatestFiniteSeriesValue(mobileWeeklyHistory.EUR)
+            );
+            const canPatchMobileMonthlyHistory = !mobileMonthlyNeedsRefresh && canPatchLiveChartPrices(
+                btcUSD,
+                btcEUR,
+                getLatestFiniteSeriesValue(mobileMonthlyHistory.USD),
+                getLatestFiniteSeriesValue(mobileMonthlyHistory.EUR)
+            );
+
+            if (canPatchIntradayHistory) {
+                await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
+            }
+
+            if (canPatchMobileWeeklyHistory) {
+                await patchMobileWeeklyHistory(Date.now(), btcUSD, btcEUR);
+            }
+
+            if (canPatchMobileMonthlyHistory) {
+                await patchMobileMonthlyHistory(Date.now(), btcUSD, btcEUR);
+            }
+
+            if (canPatchDailyHistory) {
+                await updatePriceHistory(today, btcUSD, btcEUR, hashRateTh, networkMetrics?.difficulty ?? null);
+            }
+
             await purgeOldPrices();
 
             await redrawAllCharts();
@@ -3548,6 +4211,16 @@
                     const refreshedHashRate = getLatestHashRate(refreshedHistory, today);
                     setHashRateMetrics(refreshedHashRate);
 
+                    if (canPatchLiveChartPrices(
+                        btcUSD,
+                        btcEUR,
+                        getLatestPriceHistoryValue(refreshedHistory, 'USD'),
+                        getLatestPriceHistoryValue(refreshedHistory, 'EUR')
+                    )) {
+                        await updatePriceHistory(today, btcUSD, btcEUR, refreshedHashRate, networkMetrics?.difficulty ?? null);
+                        await purgeOldPrices();
+                    }
+
                     await redrawAllCharts();
                 }
             }
@@ -3556,7 +4229,15 @@
                 const refreshedIntradayHistory = await backgroundIntradayRefresh;
 
                 if (refreshedIntradayHistory) {
-                    await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
+                    if (canPatchLiveChartPrices(
+                        btcUSD,
+                        btcEUR,
+                        getLatestFiniteSeriesValue(refreshedIntradayHistory.USD),
+                        getLatestFiniteSeriesValue(refreshedIntradayHistory.EUR)
+                    )) {
+                        await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
+                    }
+
                     await redrawAllCharts();
                 }
             }
@@ -3565,7 +4246,15 @@
                 const refreshedMobileWeeklyHistory = await backgroundMobileWeeklyRefresh;
 
                 if (refreshedMobileWeeklyHistory) {
-                    await patchMobileWeeklyHistory(Date.now(), btcUSD, btcEUR);
+                    if (canPatchLiveChartPrices(
+                        btcUSD,
+                        btcEUR,
+                        getLatestFiniteSeriesValue(refreshedMobileWeeklyHistory.USD),
+                        getLatestFiniteSeriesValue(refreshedMobileWeeklyHistory.EUR)
+                    )) {
+                        await patchMobileWeeklyHistory(Date.now(), btcUSD, btcEUR);
+                    }
+
                     await redrawAllCharts();
                 }
             }
@@ -3574,7 +4263,15 @@
                 const refreshedMobileMonthlyHistory = await backgroundMobileMonthlyRefresh;
 
                 if (refreshedMobileMonthlyHistory) {
-                    await patchMobileMonthlyHistory(Date.now(), btcUSD, btcEUR);
+                    if (canPatchLiveChartPrices(
+                        btcUSD,
+                        btcEUR,
+                        getLatestFiniteSeriesValue(refreshedMobileMonthlyHistory.USD),
+                        getLatestFiniteSeriesValue(refreshedMobileMonthlyHistory.EUR)
+                    )) {
+                        await patchMobileMonthlyHistory(Date.now(), btcUSD, btcEUR);
+                    }
+
                     await redrawAllCharts();
                 }
             }
@@ -3582,7 +4279,7 @@
             console.error('Updating Bitcoin info failed:', error);
         } finally {
             await Promise.allSettled([
-                mobileNetworkPressurePromise,
+                networkPressurePromise,
                 hashRateUpdatePromise
             ].filter(Boolean));
         }
@@ -3786,10 +4483,52 @@
         return sampledPoints;
     }
 
+    function normalizeChartPadding(plotPadding) {
+        if (!plotPadding) {
+            return { top: 0, right: 0, bottom: 0, left: 0 };
+        }
+
+        if (typeof plotPadding === 'number') {
+            return {
+                top: plotPadding,
+                right: plotPadding,
+                bottom: plotPadding,
+                left: plotPadding
+            };
+        }
+
+        return {
+            top: Number(plotPadding.top) || 0,
+            right: Number(plotPadding.right) || 0,
+            bottom: Number(plotPadding.bottom) || 0,
+            left: Number(plotPadding.left) || 0
+        };
+    }
+
+    function buildChartDomain(minVal, maxVal, paddingRatio) {
+        const rawSpan = maxVal - minVal;
+        if (rawSpan === 0) {
+            const basis = Math.max(Math.abs(maxVal), 1);
+            const fallbackPadding = basis * 0.015;
+            return {
+                domainMin: minVal - fallbackPadding,
+                domainMax: maxVal + fallbackPadding
+            };
+        }
+
+        const padding = rawSpan * paddingRatio;
+        return {
+            domainMin: minVal - padding,
+            domainMax: maxVal + padding
+        };
+    }
+
     function buildChartGeometry(data, {
         svgWidth,
         svgHeight,
-        singlePointSpanMs = 86400000
+        singlePointSpanMs = 86400000,
+        plotPadding = null,
+        yDomainPadding = 0.08
     }) {
         const sourceData = data
             .map(point => ({
@@ -3814,19 +4553,34 @@
 
         const maxVal = Math.max(...renderData.map(point => point.y));
         const minVal = Math.min(...renderData.map(point => point.y));
+        const { domainMin, domainMax } = buildChartDomain(minVal, maxVal, yDomainPadding);
         const minTime = renderData[0].timeMs;
         const maxTime = renderData[renderData.length - 1].timeMs;
         const timeSpan = Math.max(maxTime - minTime, 1);
-        const xScale = timeMs => ((timeMs - minTime) / timeSpan) * svgWidth;
+        const padding = normalizeChartPadding(plotPadding);
+        const plot = {
+            left: padding.left,
+            top: padding.top,
+            width: Math.max(1, svgWidth - padding.left - padding.right),
+            height: Math.max(1, svgHeight - padding.top - padding.bottom)
+        };
+        plot.right = plot.left + plot.width;
+        plot.bottom = plot.top + plot.height;
+
+        const xScale = timeMs => plot.left + (((timeMs - minTime) / timeSpan) * plot.width);
         const yScale = value => {
-            if (maxVal === minVal) {
-                return svgHeight / 2;
+            if (domainMax === domainMin) {
+                return plot.top + (plot.height / 2);
             }
 
-            return ((maxVal - value) / (maxVal - minVal)) * svgHeight;
+            return plot.top + (((domainMax - value) / (domainMax - domainMin)) * plot.height);
         };
 
         return {
+            domainMin,
+            domainMax,
+            plot,
+            yScale,
             renderedPoints: renderData.map(point => ({
                 ...point,
                 pixelX: xScale(point.timeMs),
@@ -3840,19 +4594,104 @@
         };
     }
 
-    function buildLinePathData(points) {
-        return points.map((point, index) => {
+    function splitChartPointSegments(points, maxPointGapMs) {
+        const shouldSplitGaps = Number.isFinite(maxPointGapMs) && maxPointGapMs > 0;
+        if (!shouldSplitGaps || points.length <= 1) {
+            return [points];
+        }
+
+        return points.reduce((segments, point) => {
+            const currentSegment = segments[segments.length - 1];
+            const previousPoint = currentSegment[currentSegment.length - 1];
+
+            if (previousPoint && point.timeMs - previousPoint.timeMs > maxPointGapMs) {
+                segments.push([point]);
+                return segments;
+            }
+
+            currentSegment.push(point);
+            return segments;
+        }, [[]]).filter(segment => segment.length > 0);
+    }
+
+    function buildSegmentLinePathData(segment, chartStyle = 'line') {
+        if (segment.length === 0) {
+            return '';
+        }
+
+        if (chartStyle === 'step') {
+            return segment.reduce((path, point, index) => {
+                if (index === 0) {
+                    return `M ${point.pixelX} ${point.pixelY}`;
+                }
+
+                const previousPoint = segment[index - 1];
+                return `${path} L ${point.pixelX} ${previousPoint.pixelY} L ${point.pixelX} ${point.pixelY}`;
+            }, '');
+        }
+
+        return segment.map((point, index) => {
             const prefix = index === 0 ? 'M' : 'L';
             return `${prefix} ${point.pixelX} ${point.pixelY}`;
         }).join(' ');
     }
 
-    function buildAreaPathData(points, chartHeight) {
-        const linePathData = buildLinePathData(points);
-        const firstPoint = points[0];
-        const lastPoint = points[points.length - 1];
+    function buildLinePathData(points, maxPointGapMs = null, chartStyle = 'line') {
+        return splitChartPointSegments(points, maxPointGapMs)
+            .map(segment => buildSegmentLinePathData(segment, chartStyle))
+            .join(' ');
+    }
 
-        return `${linePathData} L ${lastPoint.pixelX} ${chartHeight} L ${firstPoint.pixelX} ${chartHeight} Z`;
+    function buildAreaPathData(points, chartBottom, maxPointGapMs = null, chartStyle = 'line') {
+        return splitChartPointSegments(points, maxPointGapMs)
+            .map(segment => {
+                const linePathData = buildSegmentLinePathData(segment, chartStyle);
+                const firstPoint = segment[0];
+                const lastPoint = segment[segment.length - 1];
+
+                return `${linePathData} L ${lastPoint.pixelX} ${chartBottom} L ${firstPoint.pixelX} ${chartBottom} Z`;
+            })
+            .join(' ');
+    }
+
+    function getNiceChartStep(rawStep) {
+        if (!Number.isFinite(rawStep) || rawStep <= 0) {
+            return 1;
+        }
+
+        const exponent = Math.floor(Math.log10(rawStep));
+        const power = Math.pow(10, exponent);
+        const fraction = rawStep / power;
+        let niceFraction = 1;
+
+        if (fraction > 5) {
+            niceFraction = 10;
+        } else if (fraction > 2) {
+            niceFraction = 5;
+        } else if (fraction > 1) {
+            niceFraction = 2;
+        }
+
+        return niceFraction * power;
+    }
+
+    function buildYAxisTicks(minVal, maxVal, requestedCount = 4) {
+        const tickCount = Math.max(2, requestedCount);
+        const rawStep = (maxVal - minVal) / (tickCount - 1);
+        const step = getNiceChartStep(rawStep);
+        const niceMin = Math.floor(minVal / step) * step;
+        const niceMax = Math.ceil(maxVal / step) * step;
+        const ticks = [];
+
+        for (let value = niceMax; value >= niceMin - (step / 2); value -= step) {
+            ticks.push(value);
+        }
+
+        if (ticks.length > tickCount + 2) {
+            return ticks.filter((_, index) => index % Math.ceil(ticks.length / tickCount) === 0).slice(0, tickCount);
+        }
+
+        return ticks;
     }
 
     function positionChartTooltip(tooltip, pointX, pointY, chartWidth, chartHeight) {
@@ -3904,14 +4743,10 @@
             ? `${days} days`
             : `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-        setMetricText('nextHalving', halvingText);
         setMetricText('mobileNextHalving', halvingText);
 
-        const progressElement = document.getElementById('halvingProgress');
         const totalBlocks = blocksPerHalving;
         const progressPercentage = (blocksUntilNextHalving / totalBlocks) * 100;
-        progressElement.style.width = `${progressPercentage}%`;
-
         const completedPercentage = Math.max(0, Math.min(100, 100 - progressPercentage));
         const mobileProgressElement = document.getElementById('mobileHalvingProgressFill');
         if (mobileProgressElement) {
@@ -3998,7 +4833,15 @@
         scrubMetaElementId = null,
         scrubStatusElementId = null,
         scrubMetaFormatter = point => formatChartDate(point.x),
-        scrubStatusText = 'Inspecting'
+        scrubStatusText = 'Inspecting',
+        showYAxisTicks = false,
+        yAxisFormatter = value => String(value),
+        yAxisTickCount = 4,
+        yAxisLabelInset = CHART_Y_AXIS_LABEL_INSET,
+        plotPadding = null,
+        yDomainPadding = 0.08,
+        maxPointGapMs = null,
+        chartStyle = 'line'
     }) {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -4016,7 +4859,9 @@
 
         const geometry = buildChartGeometry(data, {
             svgWidth,
-            svgHeight
+            svgHeight,
+            plotPadding,
+            yDomainPadding
         });
 
         if (!geometry) {
@@ -4032,7 +4877,7 @@
         svg.setAttribute("width", "100%");
         svg.setAttribute("height", "100%");
 
-        const { renderedPoints, hoverPoints } = geometry;
+        const { renderedPoints, hoverPoints, plot } = geometry;
 
         let trendColor = color;
         if (!color) {
@@ -4042,20 +4887,53 @@
                 : 'rgba(255, 0, 0, 0.75)';
         }
 
+        if (showYAxisTicks) {
+            buildYAxisTicks(geometry.domainMin, geometry.domainMax, yAxisTickCount).forEach(tickValue => {
+                const y = geometry.yScale(tickValue);
+                if (y < plot.top + 8 || y > plot.bottom - 8) {
+                    return;
+                }
+
+                const gridLine = document.createElementNS(svgNS, "line");
+                gridLine.setAttribute("x1", String(plot.left));
+                gridLine.setAttribute("x2", String(plot.right));
+                gridLine.setAttribute("y1", String(y));
+                gridLine.setAttribute("y2", String(y));
+                gridLine.setAttribute("stroke", "rgba(150, 174, 188, 0.18)");
+                gridLine.setAttribute("stroke-width", "1");
+                gridLine.setAttribute("stroke-dasharray", "2 4");
+                gridLine.setAttribute("vector-effect", "non-scaling-stroke");
+                svg.appendChild(gridLine);
+
+                const tickLabel = document.createElementNS(svgNS, "text");
+                const labelX = svgWidth - yAxisLabelInset;
+                tickLabel.setAttribute("x", String(labelX));
+                tickLabel.setAttribute("y", String(y + 4));
+                tickLabel.setAttribute("fill", "rgba(156, 201, 255, 0.9)");
+                tickLabel.setAttribute("font-size", "13");
+                tickLabel.setAttribute("font-weight", "650");
+                tickLabel.setAttribute("font-family", "Bahnschrift SemiBold, Aptos Narrow, Segoe UI, sans-serif");
+                tickLabel.setAttribute("text-anchor", "end");
+                tickLabel.setAttribute("dominant-baseline", "middle");
+                tickLabel.textContent = yAxisFormatter(tickValue);
+                svg.appendChild(tickLabel);
+            });
+        }
+
         const areaPath = document.createElementNS(svgNS, "path");
-        areaPath.setAttribute("d", buildAreaPathData(renderedPoints, svgHeight));
+        areaPath.setAttribute("d", buildAreaPathData(renderedPoints, plot.bottom, maxPointGapMs, chartStyle));
         areaPath.setAttribute("fill", trendColor);
         areaPath.setAttribute("fill-opacity", "0.16");
         svg.appendChild(areaPath);
 
         const linePath = document.createElementNS(svgNS, "path");
-        linePath.setAttribute("d", buildLinePathData(renderedPoints));
+        linePath.setAttribute("d", buildLinePathData(renderedPoints, maxPointGapMs, chartStyle));
         linePath.setAttribute("fill", "none");
         linePath.setAttribute("stroke", trendColor);
         linePath.setAttribute("stroke-opacity", "0.95");
         linePath.setAttribute("stroke-width", "2.8");
-        linePath.setAttribute("stroke-linecap", "round");
-        linePath.setAttribute("stroke-linejoin", "round");
+        linePath.setAttribute("stroke-linecap", chartStyle === 'step' ? "butt" : "round");
+        linePath.setAttribute("stroke-linejoin", chartStyle === 'step' ? "miter" : "round");
         svg.appendChild(linePath);
 
         const nextNodes = [svg];
@@ -4241,8 +5119,8 @@
 
             hoverGuide.setAttribute("x1", String(activePoint.pixelX));
             hoverGuide.setAttribute("x2", String(activePoint.pixelX));
-            hoverGuide.setAttribute("y1", "0");
-            hoverGuide.setAttribute("y2", String(svgHeight));
+            hoverGuide.setAttribute("y1", String(plot.top));
+            hoverGuide.setAttribute("y2", String(plot.bottom));
             hoverGuide.style.opacity = hoverPoints.length > 1 ? '1' : '0';
 
             hoverPoint.setAttribute("cx", String(activePoint.pixelX));
@@ -4331,183 +5209,115 @@
         container.dataset.chartRendered = 'true';
     }
 
-    function drawMetricTileChart(data, {
-        containerId,
-        color,
-        cornerValueId,
-        valueFormatter = value => numberWithCommas(Number(value).toFixed(0))
+    function drawAdjustmentPressureChart(data, {
+        containerId
     }) {
         const container = document.getElementById(containerId);
         if (!container) {
             return;
         }
 
-        const tile = container.closest('.metric-live-chart');
-        if (tile && typeof tile.__metricTileHoverCleanup === 'function') {
-            tile.__metricTileHoverCleanup();
-            tile.__metricTileHoverCleanup = null;
-        }
-
-        if (tile) {
-            tile.dataset.chartAvailable = 'false';
-            tile.dataset.hoverReady = 'false';
-            tile.dataset.hoverActive = 'false';
-        }
-
         const svgWidth = container.clientWidth;
         const svgHeight = container.clientHeight;
+        const values = (data || [])
+            .map(point => ({
+                ...point,
+                y: Number(point.y)
+            }))
+            .filter(point => Number.isFinite(point.y));
+
         if (svgWidth <= 0 || svgHeight <= 0) {
-            return;
-        }
-
-        const geometry = buildChartGeometry(
-            downsampleLineData(data, Math.max(36, Math.floor(svgWidth / 4))),
-            {
-                svgWidth,
-                svgHeight,
-                singlePointSpanMs: INTRADAY_BUCKET_MS
-            }
-        );
-
-        if (!geometry) {
-            replaceElementChildren(container);
             return;
         }
 
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
-        svg.setAttribute("class", "metric-chart-svg");
+        svg.setAttribute("class", "chart-svg");
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
         svg.setAttribute("preserveAspectRatio", "none");
         svg.setAttribute("width", "100%");
         svg.setAttribute("height", "100%");
 
-        const areaPath = document.createElementNS(svgNS, "path");
-        areaPath.setAttribute("class", "metric-chart-area");
-        areaPath.setAttribute("d", buildAreaPathData(geometry.renderedPoints, svgHeight));
-        areaPath.setAttribute("fill", color);
-        areaPath.setAttribute("pointer-events", "none");
-        svg.appendChild(areaPath);
+        const plot = {
+            left: 8,
+            right: svgWidth - 8,
+            top: 8,
+            bottom: svgHeight - 12
+        };
+        plot.width = Math.max(1, plot.right - plot.left);
+        plot.height = Math.max(1, plot.bottom - plot.top);
+        const baselineY = plot.top + (plot.height / 2);
 
-        const linePath = document.createElementNS(svgNS, "path");
-        linePath.setAttribute("class", "metric-chart-line");
-        linePath.setAttribute("d", buildLinePathData(geometry.renderedPoints));
-        linePath.setAttribute("fill", "none");
-        linePath.setAttribute("stroke", color);
-        linePath.setAttribute("stroke-width", "2.4");
-        linePath.setAttribute("stroke-linecap", "round");
-        linePath.setAttribute("stroke-linejoin", "round");
-        linePath.setAttribute("pointer-events", "none");
-        svg.appendChild(linePath);
+        const zeroLine = document.createElementNS(svgNS, "line");
+        zeroLine.setAttribute("x1", String(plot.left));
+        zeroLine.setAttribute("x2", String(plot.right));
+        zeroLine.setAttribute("y1", String(baselineY));
+        zeroLine.setAttribute("y2", String(baselineY));
+        zeroLine.setAttribute("stroke", "rgba(205, 215, 222, 0.24)");
+        zeroLine.setAttribute("stroke-width", "1");
+        zeroLine.setAttribute("stroke-dasharray", "3 5");
+        zeroLine.setAttribute("vector-effect", "non-scaling-stroke");
+        svg.appendChild(zeroLine);
 
-        const hoverGuide = document.createElementNS(svgNS, "line");
-        hoverGuide.setAttribute("class", "metric-chart-guide");
-        hoverGuide.setAttribute("stroke", "rgba(255, 255, 255, 0.38)");
-        hoverGuide.setAttribute("stroke-width", "1");
-        hoverGuide.setAttribute("stroke-dasharray", "3 5");
-        hoverGuide.setAttribute("vector-effect", "non-scaling-stroke");
-        hoverGuide.setAttribute("pointer-events", "none");
-        svg.appendChild(hoverGuide);
-
-        const hoverPoint = document.createElementNS(svgNS, "circle");
-        hoverPoint.setAttribute("class", "metric-chart-dot");
-        hoverPoint.setAttribute("r", "4.2");
-        hoverPoint.setAttribute("fill", color);
-        hoverPoint.setAttribute("stroke", "rgba(6, 14, 20, 0.92)");
-        hoverPoint.setAttribute("stroke-width", "2");
-        hoverPoint.setAttribute("pointer-events", "none");
-        svg.appendChild(hoverPoint);
-
-        const nextNodes = [svg];
-        const hoverCapable = supportsChartHover() && geometry.renderedPoints.length > 0;
-        if (!hoverCapable) {
-            replaceElementChildren(container, ...nextNodes);
+        if (values.length === 0) {
+            const emptyLabel = document.createElementNS(svgNS, "text");
+            emptyLabel.setAttribute("x", String(svgWidth / 2));
+            emptyLabel.setAttribute("y", String(baselineY - 8));
+            emptyLabel.setAttribute("fill", "rgba(205, 215, 222, 0.58)");
+            emptyLabel.setAttribute("font-size", "11");
+            emptyLabel.setAttribute("font-weight", "700");
+            emptyLabel.setAttribute("letter-spacing", "1.2");
+            emptyLabel.setAttribute("text-anchor", "middle");
+            emptyLabel.textContent = "WAITING FOR RETARGET DATA";
+            svg.appendChild(emptyLabel);
+            replaceElementChildren(container, svg);
             container.dataset.chartRendered = 'true';
-
-            if (tile) {
-                tile.dataset.chartAvailable = 'true';
-                tile.dataset.hoverReady = 'false';
-                tile.dataset.hoverActive = 'false';
-            }
             return;
         }
 
-        const restoreCornerValue = () => {
-            if (!cornerValueId) {
-                return;
+        const maxAbs = Math.max(1.5, ...values.map(point => Math.abs(point.y)));
+        const gap = Math.max(4, Math.min(8, plot.width / 56));
+        const barWidth = Math.max(5, Math.min(18, (plot.width - (gap * (values.length - 1))) / values.length));
+        const totalWidth = (barWidth * values.length) + (gap * (values.length - 1));
+        const startX = plot.left + ((plot.width - totalWidth) / 2);
+        const halfHeight = (plot.height / 2) - 5;
+
+        values.forEach((point, index) => {
+            const barHeight = Math.max(3, (Math.abs(point.y) / maxAbs) * halfHeight);
+            const x = startX + (index * (barWidth + gap));
+            const y = point.y >= 0 ? baselineY - barHeight : baselineY;
+            const bar = document.createElementNS(svgNS, "rect");
+            bar.setAttribute("x", String(x));
+            bar.setAttribute("y", String(y));
+            bar.setAttribute("width", String(barWidth));
+            bar.setAttribute("height", String(barHeight));
+            bar.setAttribute("rx", "2");
+            bar.setAttribute("fill", point.y >= 0 ? "rgba(158, 232, 95, 0.82)" : "rgba(246, 162, 31, 0.88)");
+            bar.setAttribute("opacity", point.projected ? "1" : "0.72");
+            svg.appendChild(bar);
+
+            if (point.projected) {
+                bar.setAttribute("stroke", "rgba(247, 249, 251, 0.78)");
+                bar.setAttribute("stroke-width", "1");
+                bar.setAttribute("vector-effect", "non-scaling-stroke");
+
+                const marker = document.createElementNS(svgNS, "line");
+                marker.setAttribute("x1", String(x + (barWidth / 2)));
+                marker.setAttribute("x2", String(x + (barWidth / 2)));
+                marker.setAttribute("y1", String(plot.top));
+                marker.setAttribute("y2", String(plot.bottom));
+                marker.setAttribute("stroke", "rgba(247, 249, 251, 0.26)");
+                marker.setAttribute("stroke-width", "1");
+                marker.setAttribute("vector-effect", "non-scaling-stroke");
+                svg.insertBefore(marker, bar);
             }
+        });
 
-            const fallbackValue = tile?.dataset.liveValue || document.getElementById(cornerValueId)?.textContent || '';
-            if (fallbackValue) {
-                setElementText(cornerValueId, fallbackValue);
-            }
-        };
-
-        const hideHover = () => {
-            hoverGuide.style.opacity = '0';
-            hoverPoint.style.opacity = '0';
-            if (tile) {
-                tile.dataset.hoverActive = 'false';
-            }
-            restoreCornerValue();
-        };
-
-        const hoverSurface = tile || container;
-        const updateHover = event => {
-            const rect = hoverSurface.getBoundingClientRect();
-            if (rect.width <= 0 || rect.height <= 0) {
-                return;
-            }
-
-            const relativeX = Math.min(
-                Math.max(((event.clientX - rect.left) / rect.width) * svgWidth, 0),
-                svgWidth
-            );
-            const activePoint = interpolateChartPoint(geometry.renderedPoints, relativeX);
-            if (!activePoint) {
-                hideHover();
-                return;
-            }
-
-            hoverGuide.setAttribute("x1", String(activePoint.pixelX));
-            hoverGuide.setAttribute("x2", String(activePoint.pixelX));
-            hoverGuide.setAttribute("y1", "0");
-            hoverGuide.setAttribute("y2", String(svgHeight));
-            hoverGuide.style.opacity = geometry.renderedPoints.length > 1 ? '1' : '0';
-
-            hoverPoint.setAttribute("cx", String(activePoint.pixelX));
-            hoverPoint.setAttribute("cy", String(activePoint.pixelY));
-            hoverPoint.style.opacity = '1';
-
-            if (tile) {
-                tile.dataset.hoverActive = 'true';
-            }
-            if (cornerValueId) {
-                setElementText(cornerValueId, valueFormatter(activePoint.y));
-            }
-        };
-
-        hoverSurface.addEventListener('mouseenter', updateHover);
-        hoverSurface.addEventListener('mousemove', updateHover);
-        hoverSurface.addEventListener('mouseleave', hideHover);
-        hoverSurface.__metricTileHoverCleanup = () => {
-            hoverSurface.removeEventListener('mouseenter', updateHover);
-            hoverSurface.removeEventListener('mousemove', updateHover);
-            hoverSurface.removeEventListener('mouseleave', hideHover);
-        };
-
-        replaceElementChildren(container, ...nextNodes);
+        replaceElementChildren(container, svg);
         container.dataset.chartRendered = 'true';
-
-        if (tile) {
-            tile.dataset.chartAvailable = 'true';
-            tile.dataset.hoverReady = 'true';
-            tile.dataset.hoverActive = 'false';
-        }
-        restoreCornerValue();
     }
 
-    async function getMetricTileChartData(currencyCode) {
+    async function getIntradayChartData(currencyCode) {
         const intradayHistory = await getIntradayHistory();
 
         return Object.keys(intradayHistory[currencyCode] || {})
@@ -4547,20 +5357,15 @@
                     }))
                     .filter(point => Number.isFinite(point.y));
                 break;
-            case 'SatsUSD':
-                filteredData = sortedDates
-                    .filter(date => priceHistory[date].USD != null)
-                    .map(date => ({ x: date, y: 1 / priceHistory[date].USD * 100000000 }));
-                break;
-            case 'SatsEUR':
-                filteredData = sortedDates
-                    .filter(date => priceHistory[date].EUR != null)
-                    .map(date => ({ x: date, y: 1 / priceHistory[date].EUR * 100000000 }));
-                break;
             case 'HashRate':
                 filteredData = sortedDates
                     .filter(date => priceHistory[date].HashRate != null)
                     .map(date => ({ x: date, y: priceHistory[date].HashRate }));
+                break;
+            case 'Difficulty':
+                filteredData = sortedDates
+                    .filter(date => priceHistory[date].Difficulty != null)
+                    .map(date => ({ x: date, y: priceHistory[date].Difficulty }));
                 break;
             default:
                 filteredData = [];
@@ -4573,10 +5378,11 @@
     syncMobileRangeButtons();
     updateMobilePriceDisplay();
 
-    requestAnimationFrame(() => {
+    const markMobileAppLoaded = () => {
         document.body.classList.add('loaded');
-        applyResponsiveLayout();
-    });
+    };
+    requestAnimationFrame(markMobileAppLoaded);
+    setTimeout(markMobileAppLoaded, 120);
 
     fetchBitcoinInfo();
     setInterval(fetchBitcoinInfo, 60000);

@@ -1,4 +1,4 @@
-package com.example.bitcoinblockclock
+package com.bitcoinblockclock
 
 import android.service.dreams.DreamService
 import android.webkit.WebView
