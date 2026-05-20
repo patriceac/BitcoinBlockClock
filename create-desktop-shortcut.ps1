@@ -1,5 +1,5 @@
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$targetPath = Join-Path $repoRoot 'dist\electron\BitcoinBlockClock.exe'
+$targetPath = Join-Path $repoRoot 'dist\electron\win-unpacked\BitcoinBlockClock.exe'
 $iconPath = Join-Path $repoRoot 'electron\assets\bitcoin-logo.ico'
 
 if (-not (Test-Path $targetPath)) {

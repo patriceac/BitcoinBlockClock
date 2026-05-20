@@ -15,6 +15,7 @@ const MIME_TYPES = {
 
 const STATIC_PORT = 38765;
 const START_HIDDEN_ARG = 'start-hidden';
+const WINDOWS_TRAY_GUID = '8f20d7c4-2295-46a0-94a1-9d920b5f4f3a';
 const DEFAULT_WINDOW_BOUNDS = {
     width: 1365,
     height: 820
@@ -230,7 +231,8 @@ function createTray() {
         return tray;
     }
 
-    tray = new Tray(getWindowIconPath());
+    // Keep Windows notification-area identity stable across rebuilds and launch paths.
+    tray = new Tray(getWindowIconPath(), WINDOWS_TRAY_GUID);
     tray.setToolTip('Bitcoin Block Clock');
     updateTrayMenu();
 

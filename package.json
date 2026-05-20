@@ -25,6 +25,7 @@
     ],
     "win": {
       "icon": "electron/assets/bitcoin-logo.ico",
+      "executableName": "BitcoinBlockClock",
       "target": [
         "nsis",
         "portable"
