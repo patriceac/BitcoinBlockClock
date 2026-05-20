@@ -5,8 +5,11 @@
   "main": "electron/main.js",
   "scripts": {
     "electron": "electron .",
-    "build:electron": "electron-builder --win portable",
-    "pack:electron": "electron-builder --win dir"
+    "build:electron": "electron-builder",
+    "build:electron:win": "electron-builder --win nsis portable",
+    "build:electron:mac": "electron-builder --mac dmg --universal",
+    "build:electron:linux": "electron-builder --linux AppImage deb",
+    "pack:electron": "electron-builder --dir"
   },
   "build": {
     "appId": "com.bitcoinblockclock.desktop",
@@ -20,15 +23,39 @@
       "app/src/main/assets/**/*",
       "package.json"
     ],
-    "portable": {
-      "artifactName": "BitcoinBlockClock.exe",
-      "unpackDirName": "BitcoinBlockClock"
-    },
     "win": {
       "icon": "electron/assets/bitcoin-logo.ico",
       "target": [
+        "nsis",
         "portable"
       ]
+    },
+    "nsis": {
+      "artifactName": "BitcoinBlockClock-Windows-Setup.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "BitcoinBlockClock-Windows-Portable.${ext}",
+      "unpackDirName": "BitcoinBlockClock"
+    },
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        "dmg"
+      ]
+    },
+    "dmg": {
+      "artifactName": "BitcoinBlockClock-macOS.${ext}"
+    },
+    "linux": {
+      "category": "Finance",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "artifactName": "BitcoinBlockClock-Linux.${ext}"
     }
   },
   "devDependencies": {
