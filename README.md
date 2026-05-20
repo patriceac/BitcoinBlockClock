@@ -5,13 +5,14 @@
 <h1 align="center">Bitcoin Block Clock</h1>
 
 <p align="center">
-  A desktop Bitcoin dashboard for live price, block height, fee pressure, hashrate, and halving progress.
+  A Bitcoin dashboard for live price, block height, fee pressure, hashrate, and halving progress.
 </p>
 
 <p align="center">
   <a href="https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Windows-Setup.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Windows-Setup.exe-f6a21f?style=for-the-badge&logo=windows&logoColor=white"></a>
   <a href="https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-macOS.dmg"><img alt="Download for macOS" src="https://img.shields.io/badge/macOS-DMG-111820?style=for-the-badge&logo=apple&logoColor=white"></a>
   <a href="https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Linux.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Linux-AppImage-8fc7ff?style=for-the-badge&logo=linux&logoColor=111820"></a>
+  <a href="https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Android.apk"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-9be870?style=for-the-badge&logo=android&logoColor=111820"></a>
 </p>
 
 <p align="center">
@@ -33,8 +34,11 @@
 | macOS | [BitcoinBlockClock-macOS.dmg](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-macOS.dmg) | Drag-and-drop desktop package. |
 | Linux | [BitcoinBlockClock-Linux.AppImage](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Linux.AppImage) | Portable Linux build. |
 | Linux package | [BitcoinBlockClock-Linux.deb](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Linux.deb) | Debian/Ubuntu package. |
+| Android | [BitcoinBlockClock-Android.apk](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Android.apk) | Release-mode APK for sideloading. |
 
-Desktop installers are attached to the latest GitHub release. The release workflow builds Windows, macOS, and Linux artifacts from the same Electron wrapper.
+Release installers and the Android APK are attached to the latest GitHub release. The workflow builds desktop artifacts with Electron Builder and the Android APK with Gradle's `assembleRelease` task.
+
+The Android APK is a release-mode sideload build. Configure production signing before using it for app-store distribution.
 
 ## What It Shows
 
@@ -84,4 +88,4 @@ Android release APK:
 .\gradlew.bat assembleRelease
 ```
 
-Cross-platform desktop releases are produced by the [release installers workflow](https://github.com/patriceac/BitcoinBlockClock/actions/workflows/release-installers.yml) when a `v*` tag is pushed or the workflow is run manually with a release tag.
+Cross-platform desktop releases and the Android APK are produced by the [release installers workflow](https://github.com/patriceac/BitcoinBlockClock/actions/workflows/release-installers.yml) when a `v*` tag is pushed or the workflow is run manually with a release tag.
