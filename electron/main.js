@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu } = require('electron');
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -14,14 +14,18 @@ const MIME_TYPES = {
 };
 
 const STATIC_PORT = 38765;
+const START_HIDDEN_ARG = 'start-hidden';
 const DEFAULT_WINDOW_BOUNDS = {
     width: 1365,
     height: 820
 };
 
 let mainWindow = null;
+let tray = null;
 let staticServer = null;
 let windowStateSaveTimer = null;
+let isQuitting = false;
+let shouldMaximizeOnShow = false;
 
 function getAssetRoot() {
     return path.join(app.getAppPath(), 'app', 'src', 'main', 'assets');
@@ -90,6 +94,152 @@ function scheduleWindowStateSave(window) {
     }, 200);
 }
 
+function flushWindowState(window) {
+    if (windowStateSaveTimer) {
+        clearTimeout(windowStateSaveTimer);
+        windowStateSaveTimer = null;
+    }
+
+    return writeWindowState(window);
+}
+
+function showMainWindow() {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        createMainWindow().catch(error => {
+            console.error('Restoring window from tray failed:', error);
+        });
+        return;
+    }
+
+    if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+    }
+
+    mainWindow.show();
+    mainWindow.setSkipTaskbar(false);
+
+    if (shouldMaximizeOnShow) {
+        shouldMaximizeOnShow = false;
+        mainWindow.maximize();
+    }
+
+    mainWindow.focus();
+}
+
+function hideMainWindowToTray() {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        return;
+    }
+
+    flushWindowState(mainWindow).catch(error => {
+        console.error('Saving window state before hiding to tray failed:', error);
+    });
+
+    mainWindow.setSkipTaskbar(true);
+    mainWindow.hide();
+}
+
+function toggleMainWindowFromTray() {
+    if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible() || mainWindow.isMinimized()) {
+        showMainWindow();
+        return;
+    }
+
+    hideMainWindowToTray();
+}
+
+function quitFromTray() {
+    isQuitting = true;
+    app.quit();
+}
+
+function shouldStartHidden() {
+    return process.argv.includes(START_HIDDEN_ARG)
+        || process.argv.includes('--hidden')
+        || process.argv.includes('--start-minimized');
+}
+
+function getLoginItemOptions() {
+    const args = [START_HIDDEN_ARG];
+
+    if (!app.isPackaged) {
+        args.unshift(app.getAppPath());
+    }
+
+    return {
+        path: process.env.PORTABLE_EXECUTABLE_FILE || process.execPath,
+        args
+    };
+}
+
+function getStartAtLoginEnabled() {
+    try {
+        return app.getLoginItemSettings(getLoginItemOptions()).openAtLogin;
+    } catch (error) {
+        console.error('Reading startup setting failed:', error);
+        return false;
+    }
+}
+
+function setStartAtLoginEnabled(enabled) {
+    try {
+        app.setLoginItemSettings({
+            ...getLoginItemOptions(),
+            openAtLogin: enabled
+        });
+    } catch (error) {
+        console.error('Updating startup setting failed:', error);
+    }
+
+    updateTrayMenu();
+}
+
+function updateTrayMenu() {
+    if (!tray) {
+        return;
+    }
+
+    const menuTemplate = [
+        {
+            label: 'Show Bitcoin Block Clock',
+            click: showMainWindow
+        },
+        {
+            label: 'Start at Login',
+            type: 'checkbox',
+            checked: getStartAtLoginEnabled(),
+            click: menuItem => {
+                setStartAtLoginEnabled(menuItem.checked);
+            }
+        }
+    ];
+
+    menuTemplate.push(
+        { type: 'separator' },
+        {
+            label: 'Quit Bitcoin Block Clock',
+            click: quitFromTray
+        }
+    );
+
+    tray.setContextMenu(Menu.buildFromTemplate(menuTemplate));
+}
+
+function createTray() {
+    if (tray) {
+        return tray;
+    }
+
+    tray = new Tray(getWindowIconPath());
+    tray.setToolTip('Bitcoin Block Clock');
+    updateTrayMenu();
+
+    tray.on('click', toggleMainWindowFromTray);
+    tray.on('double-click', showMainWindow);
+
+    return tray;
+}
+
 function getMimeType(filePath) {
     return MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 }
@@ -155,7 +305,10 @@ function getClockUrl(server) {
         throw new Error('Static server did not expose a TCP port.');
     }
 
-    return `http://127.0.0.1:${address.port}/clock.html?v=${Date.now()}`;
+    const clockUrl = new URL(`http://127.0.0.1:${address.port}/clock.html`);
+    clockUrl.searchParams.set('v', String(Date.now()));
+
+    return clockUrl.toString();
 }
 
 async function createMainWindow() {
@@ -189,10 +342,17 @@ async function createMainWindow() {
     });
 
     mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
+        if (shouldStartHidden()) {
+            shouldMaximizeOnShow = windowState.maximized;
+            mainWindow.setSkipTaskbar(true);
+            return;
+        }
+
         if (windowState.maximized) {
             mainWindow.maximize();
         }
+
+        mainWindow.show();
     });
 
     mainWindow.on('resize', () => {
@@ -215,12 +375,23 @@ async function createMainWindow() {
         scheduleWindowStateSave(mainWindow);
     });
 
-    mainWindow.on('close', () => {
-        if (windowStateSaveTimer) {
-            clearTimeout(windowStateSaveTimer);
-            windowStateSaveTimer = null;
+    mainWindow.on('minimize', event => {
+        if (isQuitting) {
+            return;
         }
-        writeWindowState(mainWindow).catch(error => {
+
+        event.preventDefault();
+        hideMainWindowToTray();
+    });
+
+    mainWindow.on('close', event => {
+        if (!isQuitting) {
+            event.preventDefault();
+            hideMainWindowToTray();
+            return;
+        }
+
+        flushWindowState(mainWindow).catch(error => {
             console.error('Saving window state during close failed:', error);
         });
     });
@@ -256,12 +427,16 @@ async function closeStaticServer() {
 app.setAppUserModelId('com.bitcoinblockclock.desktop');
 
 app.whenReady().then(async () => {
+    createTray();
     await createMainWindow();
 
     app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             await createMainWindow();
+            return;
         }
+
+        showMainWindow();
     });
 }).catch(error => {
     console.error('Launching Electron app failed:', error);
@@ -275,6 +450,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', event => {
+    isQuitting = true;
+
     if (staticServer) {
         event.preventDefault();
         closeStaticServer().finally(() => {

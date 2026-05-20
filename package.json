@@ -21,7 +21,8 @@
       "package.json"
     ],
     "portable": {
-      "artifactName": "BitcoinBlockClock.exe"
+      "artifactName": "BitcoinBlockClock.exe",
+      "unpackDirName": "BitcoinBlockClock"
     },
     "win": {
       "icon": "electron/assets/bitcoin-logo.ico",

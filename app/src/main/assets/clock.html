@@ -2333,7 +2333,8 @@
             }
         }
 
-        .mobile-network-stats-card {
+        .mobile-network-stats-card,
+        .mobile-timing-stats-card {
             display: grid;
             gap: 0;
             padding: 0 14px;
@@ -2343,7 +2344,8 @@
                 rgba(6, 13, 18, 0.88);
         }
 
-        .mobile-network-stat-row {
+        .mobile-network-stat-row,
+        .mobile-timing-stat-row {
             display: grid;
             grid-template-columns: 26px minmax(0, 1fr) auto;
             align-items: center;
@@ -2352,11 +2354,13 @@
             border-top: 1px solid rgba(150, 174, 188, 0.16);
         }
 
-        .mobile-network-stat-row:first-child {
+        .mobile-network-stat-row:first-child,
+        .mobile-timing-stat-row:first-child {
             border-top: 0;
         }
 
-        .mobile-network-stat-icon {
+        .mobile-network-stat-icon,
+        .mobile-timing-stat-icon {
             display: inline-grid;
             place-items: center;
             width: 22px;
@@ -2364,7 +2368,8 @@
             color: var(--signal);
         }
 
-        .mobile-network-stat-icon svg {
+        .mobile-network-stat-icon svg,
+        .mobile-timing-stat-icon svg {
             display: block;
             width: 22px;
             height: 22px;
@@ -2387,7 +2392,20 @@
             color: var(--cool);
         }
 
-        .mobile-network-stats-card .mobile-label {
+        .mobile-timing-stat-icon-sync {
+            color: var(--cool);
+        }
+
+        .mobile-timing-stat-icon-cadence {
+            color: var(--signal);
+        }
+
+        .mobile-timing-stat-icon-halving {
+            color: var(--accent);
+        }
+
+        .mobile-network-stats-card .mobile-label,
+        .mobile-timing-stats-card .mobile-label {
             min-width: 0;
             color: rgba(205, 215, 222, 0.68);
             font-size: clamp(10px, 1vw, 12px);
@@ -2398,7 +2416,8 @@
             text-overflow: ellipsis;
         }
 
-        .mobile-network-stats-card .mobile-row-value {
+        .mobile-network-stats-card .mobile-row-value,
+        .mobile-timing-stats-card .mobile-row-value {
             max-width: none;
             overflow: visible;
             color: var(--text);
@@ -2409,21 +2428,25 @@
         }
 
         @media (max-width: 420px) {
-            .mobile-network-stats-card {
+            .mobile-network-stats-card,
+            .mobile-timing-stats-card {
                 padding-inline: 13px;
             }
 
-            .mobile-network-stat-row {
+            .mobile-network-stat-row,
+            .mobile-timing-stat-row {
                 grid-template-columns: 25px minmax(0, 1fr) auto;
                 gap: 10px;
                 min-height: 48px;
             }
 
-            .mobile-network-stats-card .mobile-label {
+            .mobile-network-stats-card .mobile-label,
+            .mobile-timing-stats-card .mobile-label {
                 font-size: 10px;
             }
 
-            .mobile-network-stats-card .mobile-row-value {
+            .mobile-network-stats-card .mobile-row-value,
+            .mobile-timing-stats-card .mobile-row-value {
                 font-size: 18px;
             }
         }
@@ -2433,7 +2456,6 @@
 <main class="mobile-app" aria-label="Bitcoin price tracker mobile view">
     <section class="mobile-panel mobile-price-panel" aria-labelledby="mobilePriceTitle">
         <div class="mobile-brand-row">
-            <img class="mobile-brand-mark" src="bitcoin-logo-android.png" alt="" aria-hidden="true">
             <div>
                 <p class="mobile-eyebrow">Bitcoin price tracker</p>
                 <h1 id="mobilePriceTitle" class="mobile-title">BTC price today</h1>
@@ -2477,7 +2499,6 @@
 
     <section class="mobile-panel" aria-labelledby="mobileTimingTitle">
         <div class="mobile-brand-row">
-            <img class="mobile-brand-mark" src="bitcoin-logo-android.png" alt="" aria-hidden="true">
             <div>
                 <p class="mobile-eyebrow">Block clock</p>
                 <h2 id="mobileTimingTitle" class="mobile-section-title">Network timing</h2>
@@ -2487,16 +2508,39 @@
             <p class="mobile-label">Current block height</p>
             <div id="mobileBlockCounter" class="mobile-clock-value">Loading...</div>
         </div>
-        <div class="mobile-card">
-            <div class="mobile-row">
+        <div class="mobile-card mobile-timing-stats-card">
+            <div class="mobile-timing-stat-row">
+                <span class="mobile-timing-stat-icon mobile-timing-stat-icon-sync" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M20 11a8 8 0 0 0-14.6-4.5L4 8" />
+                        <path d="M4 4v4h4" />
+                        <path d="M4 13a8 8 0 0 0 14.6 4.5L20 16" />
+                        <path d="M20 20v-4h-4" />
+                    </svg>
+                </span>
                 <p class="mobile-label">Last Sync</p>
                 <strong id="mobileTimingLastSync" class="mobile-row-value">Pending</strong>
             </div>
-            <div class="mobile-row">
+            <div class="mobile-timing-stat-row">
+                <span class="mobile-timing-stat-icon mobile-timing-stat-icon-cadence" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
+                        <path d="M12 7v5l3.5 2" />
+                    </svg>
+                </span>
                 <p class="mobile-label">Average Cadence</p>
                 <strong class="mobile-row-value">~10 min</strong>
             </div>
-            <div class="mobile-row">
+            <div class="mobile-timing-stat-row">
+                <span class="mobile-timing-stat-icon mobile-timing-stat-icon-halving" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M4 6h16" />
+                        <path d="M4 18h16" />
+                        <path d="M8 6v12" />
+                        <path d="M16 6v12" />
+                        <path d="M4 12h16" />
+                    </svg>
+                </span>
                 <p class="mobile-label">Next Halving</p>
                 <strong id="mobileNextHalving" class="mobile-row-value">Loading...</strong>
             </div>
@@ -4275,6 +4319,7 @@
                     await redrawAllCharts();
                 }
             }
+
         } catch (error) {
             console.error('Updating Bitcoin info failed:', error);
         } finally {
