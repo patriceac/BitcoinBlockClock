@@ -4404,16 +4404,11 @@
     }
 
     const VISIBLE_REFRESH_INTERVAL_MS = 60 * 1000;
-    const HIDDEN_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
     let bitcoinInfoRefreshTimer = null;
     let bitcoinInfoRefreshPromise = null;
 
     function isClockVisible() {
         return typeof document.hidden === 'boolean' ? !document.hidden : true;
-    }
-
-    function getBitcoinInfoRefreshInterval() {
-        return isClockVisible() ? VISIBLE_REFRESH_INTERVAL_MS : HIDDEN_REFRESH_INTERVAL_MS;
     }
 
     function clearBitcoinInfoRefreshTimer() {
@@ -4438,8 +4433,13 @@
         return bitcoinInfoRefreshPromise;
     }
 
-    function scheduleBitcoinInfoRefresh(delayMs = getBitcoinInfoRefreshInterval()) {
+    function scheduleBitcoinInfoRefresh(delayMs = VISIBLE_REFRESH_INTERVAL_MS) {
         clearBitcoinInfoRefreshTimer();
+
+        if (!isClockVisible()) {
+            return;
+        }
+
         bitcoinInfoRefreshTimer = setTimeout(runScheduledBitcoinInfoRefresh, delayMs);
     }
 
@@ -4455,6 +4455,10 @@
 
     function restartBitcoinInfoRefreshLoop({ refreshImmediately = false } = {}) {
         clearBitcoinInfoRefreshTimer();
+
+        if (!isClockVisible()) {
+            return;
+        }
 
         if (refreshImmediately) {
             runScheduledBitcoinInfoRefresh();
@@ -5568,7 +5572,9 @@
             refreshImmediately: isClockVisible()
         });
     });
-    restartBitcoinInfoRefreshLoop({ refreshImmediately: true });
+    restartBitcoinInfoRefreshLoop({
+        refreshImmediately: isClockVisible()
+    });
 </script>
 </body>
 </html>
