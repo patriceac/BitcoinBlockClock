@@ -1,4 +1,5 @@
 const { app, BrowserWindow, shell, Tray, Menu } = require('electron');
+const { execFileSync } = require('node:child_process');
 const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -15,6 +16,8 @@ const MIME_TYPES = {
 
 const STATIC_PORT = 38765;
 const START_HIDDEN_ARG = 'start-hidden';
+const LOGIN_ITEM_NAME = 'com.bitcoinblockclock.desktop';
+const WINDOWS_RUN_REGISTRY_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
 const WINDOWS_TRAY_GUID = '8f20d7c4-2295-46a0-94a1-9d920b5f4f3a';
 const DEFAULT_WINDOW_BOUNDS = {
     width: 1365,
@@ -168,9 +171,92 @@ function getLoginItemOptions() {
     }
 
     return {
+        name: LOGIN_ITEM_NAME,
         path: process.env.PORTABLE_EXECUTABLE_FILE || process.execPath,
         args
     };
+}
+
+function hasEnabledNamedLoginItem(settings) {
+    return Array.isArray(settings.launchItems)
+        && settings.launchItems.some(item => item.name === LOGIN_ITEM_NAME && item.enabled !== false);
+}
+
+function splitWindowsCommandLine(commandLine) {
+    const args = [];
+    let currentArg = '';
+    let inQuotes = false;
+
+    for (const character of commandLine.trim()) {
+        if (character === '"') {
+            inQuotes = !inQuotes;
+            continue;
+        }
+
+        if (/\s/.test(character) && !inQuotes) {
+            if (currentArg) {
+                args.push(currentArg);
+                currentArg = '';
+            }
+            continue;
+        }
+
+        currentArg += character;
+    }
+
+    if (currentArg) {
+        args.push(currentArg);
+    }
+
+    return args;
+}
+
+function readRegisteredWindowsLoginItem() {
+    try {
+        const output = execFileSync('reg.exe', [
+            'query',
+            WINDOWS_RUN_REGISTRY_KEY,
+            '/v',
+            LOGIN_ITEM_NAME
+        ], {
+            encoding: 'utf8',
+            windowsHide: true
+        });
+
+        const registryLine = output
+            .split(/\r?\n/)
+            .find(line => line.trim().startsWith(LOGIN_ITEM_NAME));
+
+        if (!registryLine) {
+            return null;
+        }
+
+        const value = registryLine.replace(/^\s*\S+\s+REG_\S+\s+/, '').trim();
+        const [registeredPath, ...registeredArgs] = splitWindowsCommandLine(value);
+
+        if (!registeredPath) {
+            return null;
+        }
+
+        return {
+            path: registeredPath,
+            args: registeredArgs
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+function loginItemOptionsMatch(firstOptions, secondOptions) {
+    if (!firstOptions || !secondOptions || firstOptions.path !== secondOptions.path) {
+        return false;
+    }
+
+    const firstArgs = firstOptions.args || [];
+    const secondArgs = secondOptions.args || [];
+
+    return firstArgs.length === secondArgs.length
+        && firstArgs.every((arg, index) => arg === secondArgs[index]);
 }
 
 function getStartAtLoginEnabled() {
@@ -186,13 +272,49 @@ function setStartAtLoginEnabled(enabled) {
     try {
         app.setLoginItemSettings({
             ...getLoginItemOptions(),
-            openAtLogin: enabled
+            openAtLogin: enabled,
+            enabled
         });
     } catch (error) {
         console.error('Updating startup setting failed:', error);
     }
 
     updateTrayMenu();
+}
+
+function repairStartAtLoginRegistration() {
+    if (process.platform !== 'win32') {
+        return;
+    }
+
+    try {
+        const currentSettings = app.getLoginItemSettings(getLoginItemOptions());
+        if (currentSettings.openAtLogin) {
+            return;
+        }
+
+        const registeredLoginItem = readRegisteredWindowsLoginItem();
+        if (!registeredLoginItem || loginItemOptionsMatch(registeredLoginItem, getLoginItemOptions())) {
+            return;
+        }
+
+        const registeredSettings = app.getLoginItemSettings({
+            name: LOGIN_ITEM_NAME,
+            ...registeredLoginItem
+        });
+
+        if (!hasEnabledNamedLoginItem(registeredSettings)) {
+            return;
+        }
+
+        app.setLoginItemSettings({
+            ...getLoginItemOptions(),
+            openAtLogin: true,
+            enabled: true
+        });
+    } catch (error) {
+        console.error('Repairing startup setting failed:', error);
+    }
 }
 
 function updateTrayMenu() {
@@ -429,6 +551,7 @@ async function closeStaticServer() {
 app.setAppUserModelId('com.bitcoinblockclock.desktop');
 
 app.whenReady().then(async () => {
+    repairStartAtLoginRegistration();
     createTray();
     await createMainWindow();
 
