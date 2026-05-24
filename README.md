@@ -29,14 +29,16 @@
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows | [BitcoinBlockClock-Windows-Setup.exe](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Windows-Setup.exe) | Standard setup installer. |
-| Windows portable | [BitcoinBlockClock-Windows-Portable.exe](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Windows-Portable.exe) | Runs without installation. |
+| Windows | [BitcoinBlockClock-Windows-Setup.exe](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Windows-Setup.exe) | Standard setup installer with repaired Start at Login registration. |
+| Windows portable | [BitcoinBlockClock-Windows-Portable.exe](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Windows-Portable.exe) | Rebuilt portable Windows executable that runs without installation. |
 | macOS | [BitcoinBlockClock-macOS.dmg](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-macOS.dmg) | Drag-and-drop desktop package. |
 | Linux | [BitcoinBlockClock-Linux.AppImage](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Linux.AppImage) | Portable Linux build. |
 | Linux package | [BitcoinBlockClock-Linux.deb](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Linux.deb) | Debian/Ubuntu package. |
 | Android | [BitcoinBlockClock-Android.apk](https://github.com/patriceac/BitcoinBlockClock/releases/latest/download/BitcoinBlockClock-Android.apk) | Release-mode APK for sideloading. |
 
-Release installers and the Android APK are attached to the latest GitHub release. The workflow builds desktop artifacts with Electron Builder and the Android APK with Gradle's `assembleRelease` task.
+The latest GitHub release includes the rebuilt Windows installer and portable Windows executable. The Windows Start at Login option repairs stale startup entries so Windows launches the installed app at sign-in.
+
+Release installers and the Android APK are attached to GitHub releases. The workflow builds desktop artifacts with Electron Builder and the Android APK with Gradle's `assembleRelease` task.
 
 The Android APK is a release-mode sideload build. Configure production signing before using it for app-store distribution.
 
