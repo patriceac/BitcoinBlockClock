@@ -77,6 +77,98 @@
             animation: chartReveal 900ms ease both;
         }
 
+        .mobile-price-chart-shell {
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .mobile-price-chart-shell .mobile-price-chart {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        .mobile-price-status-stack {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: grid;
+            justify-items: end;
+            gap: 8px;
+            max-width: min(52%, 260px);
+            pointer-events: none;
+        }
+
+        .mobile-price-trend-readout {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            max-width: 100%;
+        }
+
+        .mobile-price-status-stack .mobile-change-pill {
+            position: static;
+        }
+
+        .mobile-trend-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            border-radius: 999px;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .mobile-trend-pill {
+            padding: 0 10px;
+            border: 1px solid rgba(158, 232, 95, 0.24);
+            background: rgba(26, 58, 35, 0.58);
+            color: var(--signal);
+            font-size: 12px;
+            font-weight: 790;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+            backdrop-filter: blur(12px);
+        }
+
+        .mobile-trend-pill.is-negative {
+            border-color: rgba(255, 92, 92, 0.24);
+            background: rgba(68, 30, 34, 0.58);
+            color: #ff9a9a;
+        }
+
+        .mobile-trend-pill.is-neutral {
+            border-color: rgba(153, 203, 255, 0.22);
+            background: rgba(18, 36, 50, 0.58);
+            color: rgba(197, 222, 244, 0.9);
+        }
+
+        @media (max-width: 420px) {
+            .mobile-price-status-stack {
+                position: absolute;
+                gap: 6px;
+                max-width: 54%;
+                margin-top: 0;
+                justify-items: end;
+            }
+
+            .mobile-price-trend-readout {
+                justify-content: flex-end;
+                max-width: 100%;
+            }
+
+            .mobile-price-status-stack .mobile-change-pill {
+                position: static;
+            }
+
+            .mobile-trend-pill {
+                min-height: 24px;
+                padding: 0 8px;
+                font-size: 11px;
+            }
+        }
+
         .flash {
             animation: valueFlash 540ms ease;
         }
@@ -450,14 +542,15 @@
             }
 
             .mobile-chart,
-            .mobile-price-chart {
+            .mobile-price-chart,
+            .mobile-price-chart-shell {
                 position: relative;
                 width: 100%;
                 min-height: 0;
                 overflow: hidden;
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 width: calc(100% + 32px);
                 height: 148px;
                 margin: 14px -16px 0;
@@ -985,14 +1078,15 @@
             }
 
             .mobile-chart,
-            .mobile-price-chart {
+            .mobile-price-chart,
+            .mobile-price-chart-shell {
                 position: relative;
                 width: 100%;
                 min-height: 0;
                 overflow: hidden;
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 width: calc(100% + (clamp(18px, 1.8vw, 26px) * 2));
                 height: clamp(210px, 25vh, 310px);
                 margin: clamp(18px, 2vh, 26px) calc(clamp(18px, 1.8vw, 26px) * -1) 0;
@@ -1446,7 +1540,7 @@
                 font-size: clamp(13px, 1vw, 16px);
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(120px, 21vh, 160px);
                 margin-top: clamp(10px, 1.4vh, 14px);
             }
@@ -1641,7 +1735,7 @@
                 font-size: clamp(38px, 4vw, 54px);
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(110px, 19vh, 140px);
             }
 
@@ -1821,7 +1915,7 @@
                 font-size: 15px;
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(160px, 24vh, 210px);
                 margin-top: 16px;
             }
@@ -2009,7 +2103,7 @@
                 font-size: clamp(46px, 4.2vw, 60px);
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(126px, 20vh, 160px);
             }
 
@@ -2144,7 +2238,7 @@
                 font-size: clamp(48px, 4.1vw, 64px);
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(126px, 18vh, 164px);
                 margin-top: 12px;
             }
@@ -2190,7 +2284,7 @@
                 height: clamp(58px, 8vh, 72px);
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(112px, 18vh, 132px);
             }
 
@@ -2271,7 +2365,7 @@
                 font-size: clamp(12px, 0.9vw, 14px);
             }
 
-            .mobile-price-chart {
+            .mobile-price-chart-shell {
                 height: clamp(92px, 15vh, 108px);
                 margin-top: 8px;
             }
@@ -2524,9 +2618,16 @@
                     <div id="mobileBitcoinPriceUSD" class="mobile-price-value">Loading...</div>
                     <p id="mobileAlternatePrice" class="mobile-alternate-price">EUR loading...</p>
                 </button>
-                <span id="mobileRangeChange" class="mobile-change-pill">Pending</span>
+                <div class="mobile-price-status-stack" aria-live="polite">
+                    <div class="mobile-price-trend-readout">
+                        <span id="mobileTrendBadge" class="mobile-trend-pill is-neutral">Pending</span>
+                    </div>
+                    <span id="mobileRangeChange" class="mobile-change-pill">Pending</span>
+                </div>
             </div>
-            <div id="mobilePrimaryChart" class="mobile-chart mobile-price-chart" aria-hidden="true"></div>
+            <div class="mobile-price-chart-shell">
+                <div id="mobilePrimaryChart" class="mobile-chart mobile-price-chart" aria-hidden="true"></div>
+            </div>
             <div class="mobile-stat-strip">
                 <div class="mobile-stat-chip">
                     <p id="mobileHighLabel" class="mobile-label">24h High</p>
@@ -2929,6 +3030,18 @@
         week: '7d',
         month: '30d',
         year: '1y'
+    };
+    const MOBILE_TREND_EMA_PERIODS = {
+        day: 12,
+        week: 12,
+        month: 7,
+        year: 21
+    };
+    const MOBILE_TREND_NEUTRAL_THRESHOLDS = {
+        day: 0.5,
+        week: 1,
+        month: 1.5,
+        year: 3
     };
     mobileSelectedRange = getSavedMobileSelectedRange();
     mobileSelectedCurrency = getSavedMobileSelectedCurrency();
@@ -3994,6 +4107,71 @@
         setMobileChangeText('mobileRangeChange', formatSignedPercent(changePercent), isNegative);
     }
 
+    function getMobileTrendEmaPeriod(pointCount) {
+        if (!Number.isFinite(pointCount) || pointCount <= 2) {
+            return 2;
+        }
+
+        const preferredWindowSize = MOBILE_TREND_EMA_PERIODS[mobileSelectedRange] || 7;
+        return Math.max(2, Math.min(preferredWindowSize, Math.floor(pointCount / 2)));
+    }
+
+    function buildExponentialMovingAverageData(data) {
+        const sortedData = sortChartData(data);
+        if (sortedData.length < 2) {
+            return [];
+        }
+
+        const period = getMobileTrendEmaPeriod(sortedData.length);
+        const smoothingFactor = 2 / (period + 1);
+        let previousEma = sortedData[0].y;
+
+        return sortedData.map((point, index) => {
+            previousEma = index === 0
+                ? point.y
+                : (point.y * smoothingFactor) + (previousEma * (1 - smoothingFactor));
+            return {
+                x: point.x,
+                y: previousEma
+            };
+        });
+    }
+
+    function getMobileTrendAnalysis(data) {
+        const trendLineData = buildExponentialMovingAverageData(data);
+        if (trendLineData.length < 2) {
+            return null;
+        }
+
+        const firstPoint = trendLineData[0];
+        const lastPoint = trendLineData[trendLineData.length - 1];
+        const change = lastPoint.y - firstPoint.y;
+        const changePercent = firstPoint.y > 0 ? (change / firstPoint.y) * 100 : 0;
+        const neutralThreshold = MOBILE_TREND_NEUTRAL_THRESHOLDS[mobileSelectedRange] || 1;
+        const isNeutral = Math.abs(changePercent) < neutralThreshold;
+        const isNegative = !isNeutral && changePercent < 0;
+        const label = isNeutral ? 'Sideways' : (isNegative ? 'Downtrend' : 'Uptrend');
+
+        return {
+            trendLineData,
+            changePercent,
+            isNegative,
+            isNeutral,
+            text: `${label} ${formatSignedPercent(changePercent)}`
+        };
+    }
+
+    function updateMobileTrendBadge(analysis) {
+        const element = document.getElementById('mobileTrendBadge');
+        if (!element) {
+            return;
+        }
+
+        element.textContent = analysis ? analysis.text : 'Pending';
+        element.classList.toggle('is-negative', Boolean(analysis?.isNegative));
+        element.classList.toggle('is-neutral', !analysis || Boolean(analysis.isNeutral));
+    }
+
     function getLatestFiniteSeriesValue(series) {
         const latestEntry = Object.entries(series || {})
             .map(([timestamp, value]) => ({
@@ -4111,7 +4289,9 @@
         const showDesktopAxes = isDesktopChartViewport();
         const priceRangeData = getMobilePriceRangeData(chartData);
         const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
+        const priceTrendAnalysis = getMobileTrendAnalysis(priceRangeData);
         updateMobileRangeStats(priceRangeData);
+        updateMobileTrendBadge(priceTrendAnalysis);
 
         [
             {
@@ -4132,7 +4312,9 @@
                 yAxisTickCount: 4,
                 plotPadding: showDesktopAxes ? { top: 14, right: 62, bottom: 12, left: 16 } : null,
                 yDomainPadding: 0.12,
-                maxPointGapMs: priceMaxGapMs
+                maxPointGapMs: priceMaxGapMs,
+                overlayData: priceTrendAnalysis?.trendLineData || null,
+                overlayColor: 'rgba(177, 222, 255, 0.76)'
             },
             {
                 data: chartData.difficulty,
@@ -4763,6 +4945,7 @@
             domainMin,
             domainMax,
             plot,
+            xScale,
             yScale,
             renderedPoints: renderData.map(point => ({
                 ...point,
@@ -4775,6 +4958,22 @@
                 pixelY: yScale(point.y)
             }))
         };
+    }
+
+    function projectChartPoints(data, geometry) {
+        return (data || [])
+            .map(point => ({
+                ...point,
+                y: Number(point.y),
+                timeMs: getChartTimeValue(point.x)
+            }))
+            .filter(point => Number.isFinite(point.timeMs) && Number.isFinite(point.y))
+            .sort((left, right) => left.timeMs - right.timeMs)
+            .map(point => ({
+                ...point,
+                pixelX: geometry.xScale(point.timeMs),
+                pixelY: geometry.yScale(point.y)
+            }));
     }
 
     function splitChartPointSegments(points, maxPointGapMs) {
@@ -5024,7 +5223,9 @@
         plotPadding = null,
         yDomainPadding = 0.08,
         maxPointGapMs = null,
-        chartStyle = 'line'
+        chartStyle = 'line',
+        overlayData = null,
+        overlayColor = 'rgba(177, 222, 255, 0.72)'
     }) {
         const container = document.getElementById(containerId);
         if (!container) {
@@ -5118,6 +5319,20 @@
         linePath.setAttribute("stroke-linecap", chartStyle === 'step' ? "butt" : "round");
         linePath.setAttribute("stroke-linejoin", chartStyle === 'step' ? "miter" : "round");
         svg.appendChild(linePath);
+
+        const overlayPoints = projectChartPoints(overlayData, geometry);
+        if (overlayPoints.length > 1) {
+            const overlayPath = document.createElementNS(svgNS, "path");
+            overlayPath.setAttribute("d", buildLinePathData(overlayPoints, maxPointGapMs));
+            overlayPath.setAttribute("fill", "none");
+            overlayPath.setAttribute("stroke", overlayColor);
+            overlayPath.setAttribute("stroke-opacity", "0.82");
+            overlayPath.setAttribute("stroke-width", "1.9");
+            overlayPath.setAttribute("stroke-linecap", "round");
+            overlayPath.setAttribute("stroke-linejoin", "round");
+            overlayPath.setAttribute("vector-effect", "non-scaling-stroke");
+            svg.appendChild(overlayPath);
+        }
 
         const nextNodes = [svg];
 
