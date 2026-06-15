@@ -3293,26 +3293,135 @@
         return Math.floor(timestampMs / INTRADAY_BUCKET_MS) * INTRADAY_BUCKET_MS;
     }
 
-    function trimIntradaySeries(series, nowMs = Date.now()) {
-        const { startMs, endMs } = getIntradayWindow(nowMs);
+    function normalizePriceBucketValue(value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (typeof value === 'number') {
+            return Number.isFinite(value)
+                ? { open: value, high: value, low: value, close: value }
+                : null;
+        }
+
+        if (typeof value !== 'object') {
+            const numericValue = Number(value);
+            return Number.isFinite(numericValue)
+                ? { open: numericValue, high: numericValue, low: numericValue, close: numericValue }
+                : null;
+        }
+
+        const close = Number(value.close ?? value.y ?? value.price ?? value.value);
+        const open = Number(value.open ?? close);
+        const high = Number(value.high ?? close);
+        const low = Number(value.low ?? close);
+
+        if (!Number.isFinite(close)) {
+            return null;
+        }
+
+        return {
+            open: Number.isFinite(open) ? open : close,
+            high: Number.isFinite(high) ? Math.max(high, close) : close,
+            low: Number.isFinite(low) ? Math.min(low, close) : close,
+            close
+        };
+    }
+
+    function mergePriceIntoBucket(existingValue, price) {
+        const normalizedPrice = Number(price);
+        if (!Number.isFinite(normalizedPrice)) {
+            return normalizePriceBucketValue(existingValue);
+        }
+
+        const existingBucket = normalizePriceBucketValue(existingValue);
+        if (!existingBucket) {
+            return {
+                open: normalizedPrice,
+                high: normalizedPrice,
+                low: normalizedPrice,
+                close: normalizedPrice
+            };
+        }
+
+        return {
+            open: existingBucket.open,
+            high: Math.max(existingBucket.high, normalizedPrice),
+            low: Math.min(existingBucket.low, normalizedPrice),
+            close: normalizedPrice
+        };
+    }
+
+    function trimPriceBucketSeries(series, nowMs, getWindow, floorToBucket) {
+        const { startMs, endMs } = getWindow(nowMs);
         const trimmedSeries = {};
 
         Object.entries(series || {}).forEach(([timestamp, value]) => {
-            const normalizedTimestamp = Number(timestamp);
-            const normalizedValue = Number(value);
+            const bucketTimestamp = floorToBucket(Number(timestamp));
+            const bucketValue = normalizePriceBucketValue(value);
 
-            if (!Number.isFinite(normalizedTimestamp) || !Number.isFinite(normalizedValue)) {
+            if (!Number.isFinite(bucketTimestamp) || !bucketValue) {
                 return;
             }
 
-            if (normalizedTimestamp < startMs || normalizedTimestamp > endMs) {
+            if (bucketTimestamp < startMs || bucketTimestamp > endMs) {
                 return;
             }
 
-            trimmedSeries[String(normalizedTimestamp)] = normalizedValue;
+            trimmedSeries[String(bucketTimestamp)] = bucketValue;
         });
 
         return trimmedSeries;
+    }
+
+    function bucketPriceSeries(prices, floorToBucket) {
+        const series = {};
+
+        (prices || []).forEach(([timestamp, price]) => {
+            const bucketTimestamp = floorToBucket(Number(timestamp));
+            const bucketKey = String(bucketTimestamp);
+
+            if (!Number.isFinite(bucketTimestamp)) {
+                return;
+            }
+
+            const nextBucketValue = mergePriceIntoBucket(series[bucketKey], price);
+            if (nextBucketValue) {
+                series[bucketKey] = nextBucketValue;
+            }
+        });
+
+        return series;
+    }
+
+    function patchPriceBucketSeries(series, bucketTimestamp, price, nowMs, getWindow, floorToBucket) {
+        const bucketKey = String(bucketTimestamp);
+
+        return trimPriceBucketSeries({
+            ...series,
+            [bucketKey]: mergePriceIntoBucket(series?.[bucketKey], price)
+        }, nowMs, getWindow, floorToBucket);
+    }
+
+    function priceBucketSeriesToChartData(series) {
+        return Object.entries(series || {})
+            .map(([timestamp, value]) => {
+                const bucketValue = normalizePriceBucketValue(value);
+                return bucketValue
+                    ? {
+                        x: Number(timestamp),
+                        y: bucketValue.close,
+                        high: bucketValue.high,
+                        low: bucketValue.low
+                    }
+                    : null;
+            })
+            .filter(point => point && Number.isFinite(point.x) && Number.isFinite(point.y))
+            .sort((left, right) => left.x - right.x);
+    }
+
+    function trimIntradaySeries(series, nowMs = Date.now()) {
+        return trimPriceBucketSeries(series, nowMs, getIntradayWindow, floorToIntradayBucket);
     }
 
     function normalizeIntradayHistory(rawHistory, nowMs = Date.now()) {
@@ -3338,20 +3447,7 @@
     }
 
     function bucketIntradayPrices(prices) {
-        const series = {};
-
-        (prices || []).forEach(([timestamp, price]) => {
-            const normalizedPrice = Number(price);
-            const bucketTimestamp = floorToIntradayBucket(Number(timestamp));
-
-            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedPrice)) {
-                return;
-            }
-
-            series[String(bucketTimestamp)] = normalizedPrice;
-        });
-
-        return series;
+        return bucketPriceSeries(prices, floorToIntradayBucket);
     }
 
     function shouldRefreshIntradayHistory(history, nowMs = Date.now()) {
@@ -3413,14 +3509,8 @@
         const bucketTimestamp = String(floorToIntradayBucket(nowMs));
         const nextHistory = {
             updatedAt: history.updatedAt,
-            USD: trimIntradaySeries({
-                ...history.USD,
-                [bucketTimestamp]: Number(usdPrice)
-            }, nowMs),
-            EUR: trimIntradaySeries({
-                ...history.EUR,
-                [bucketTimestamp]: Number(eurPrice)
-            }, nowMs)
+            USD: patchPriceBucketSeries(history.USD, bucketTimestamp, usdPrice, nowMs, getIntradayWindow, floorToIntradayBucket),
+            EUR: patchPriceBucketSeries(history.EUR, bucketTimestamp, eurPrice, nowMs, getIntradayWindow, floorToIntradayBucket)
         };
 
         return await setIntradayHistory(nextHistory, nowMs);
@@ -3446,26 +3536,7 @@
     }
 
     function trimMobileWeeklySeries(series, nowMs = Date.now()) {
-        const { startMs, endMs } = getMobileWeeklyWindow(nowMs);
-        const trimmedSeries = {};
-
-        Object.entries(series || {}).forEach(([timestamp, value]) => {
-            const normalizedTimestamp = Number(timestamp);
-            const normalizedValue = Number(value);
-            const bucketTimestamp = floorToMobileWeeklyBucket(normalizedTimestamp);
-
-            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedValue)) {
-                return;
-            }
-
-            if (bucketTimestamp < startMs || bucketTimestamp > endMs) {
-                return;
-            }
-
-            trimmedSeries[String(bucketTimestamp)] = normalizedValue;
-        });
-
-        return trimmedSeries;
+        return trimPriceBucketSeries(series, nowMs, getMobileWeeklyWindow, floorToMobileWeeklyBucket);
     }
 
     function normalizeMobileWeeklyHistory(rawHistory, nowMs = Date.now()) {
@@ -3491,20 +3562,7 @@
     }
 
     function bucketMobileWeeklyPrices(prices) {
-        const series = {};
-
-        (prices || []).forEach(([timestamp, price]) => {
-            const normalizedPrice = Number(price);
-            const bucketTimestamp = floorToMobileWeeklyBucket(Number(timestamp));
-
-            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedPrice)) {
-                return;
-            }
-
-            series[String(bucketTimestamp)] = normalizedPrice;
-        });
-
-        return series;
+        return bucketPriceSeries(prices, floorToMobileWeeklyBucket);
     }
 
     function shouldRefreshMobileWeeklyHistory(history, nowMs = Date.now()) {
@@ -3566,14 +3624,8 @@
         const bucketTimestamp = String(floorToMobileWeeklyBucket(nowMs));
         const nextHistory = {
             updatedAt: history.updatedAt,
-            USD: trimMobileWeeklySeries({
-                ...history.USD,
-                [bucketTimestamp]: Number(usdPrice)
-            }, nowMs),
-            EUR: trimMobileWeeklySeries({
-                ...history.EUR,
-                [bucketTimestamp]: Number(eurPrice)
-            }, nowMs)
+            USD: patchPriceBucketSeries(history.USD, bucketTimestamp, usdPrice, nowMs, getMobileWeeklyWindow, floorToMobileWeeklyBucket),
+            EUR: patchPriceBucketSeries(history.EUR, bucketTimestamp, eurPrice, nowMs, getMobileWeeklyWindow, floorToMobileWeeklyBucket)
         };
 
         return await setMobileWeeklyHistory(nextHistory, nowMs);
@@ -3583,13 +3635,7 @@
         const history = await getMobileWeeklyHistory(nowMs);
         const series = isValidMobileCurrency(currencyCode) ? history[currencyCode] : history.USD;
 
-        return Object.entries(series || {})
-            .map(([timestamp, price]) => ({
-                x: Number(timestamp),
-                y: Number(price)
-            }))
-            .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y))
-            .sort((left, right) => left.x - right.x);
+        return priceBucketSeriesToChartData(series);
     }
 
     function createEmptyMobileMonthlyHistory() {
@@ -3612,26 +3658,7 @@
     }
 
     function trimMobileMonthlySeries(series, nowMs = Date.now()) {
-        const { startMs, endMs } = getMobileMonthlyWindow(nowMs);
-        const trimmedSeries = {};
-
-        Object.entries(series || {}).forEach(([timestamp, value]) => {
-            const normalizedTimestamp = Number(timestamp);
-            const normalizedValue = Number(value);
-            const bucketTimestamp = floorToMobileMonthlyBucket(normalizedTimestamp);
-
-            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedValue)) {
-                return;
-            }
-
-            if (bucketTimestamp < startMs || bucketTimestamp > endMs) {
-                return;
-            }
-
-            trimmedSeries[String(bucketTimestamp)] = normalizedValue;
-        });
-
-        return trimmedSeries;
+        return trimPriceBucketSeries(series, nowMs, getMobileMonthlyWindow, floorToMobileMonthlyBucket);
     }
 
     function normalizeMobileMonthlyHistory(rawHistory, nowMs = Date.now()) {
@@ -3657,20 +3684,7 @@
     }
 
     function bucketMobileMonthlyPrices(prices) {
-        const series = {};
-
-        (prices || []).forEach(([timestamp, price]) => {
-            const normalizedPrice = Number(price);
-            const bucketTimestamp = floorToMobileMonthlyBucket(Number(timestamp));
-
-            if (!Number.isFinite(bucketTimestamp) || !Number.isFinite(normalizedPrice)) {
-                return;
-            }
-
-            series[String(bucketTimestamp)] = normalizedPrice;
-        });
-
-        return series;
+        return bucketPriceSeries(prices, floorToMobileMonthlyBucket);
     }
 
     function shouldRefreshMobileMonthlyHistory(history, nowMs = Date.now()) {
@@ -3732,14 +3746,8 @@
         const bucketTimestamp = String(floorToMobileMonthlyBucket(nowMs));
         const nextHistory = {
             updatedAt: history.updatedAt,
-            USD: trimMobileMonthlySeries({
-                ...history.USD,
-                [bucketTimestamp]: Number(usdPrice)
-            }, nowMs),
-            EUR: trimMobileMonthlySeries({
-                ...history.EUR,
-                [bucketTimestamp]: Number(eurPrice)
-            }, nowMs)
+            USD: patchPriceBucketSeries(history.USD, bucketTimestamp, usdPrice, nowMs, getMobileMonthlyWindow, floorToMobileMonthlyBucket),
+            EUR: patchPriceBucketSeries(history.EUR, bucketTimestamp, eurPrice, nowMs, getMobileMonthlyWindow, floorToMobileMonthlyBucket)
         };
 
         return await setMobileMonthlyHistory(nextHistory, nowMs);
@@ -3749,13 +3757,7 @@
         const history = await getMobileMonthlyHistory(nowMs);
         const series = isValidMobileCurrency(currencyCode) ? history[currencyCode] : history.USD;
 
-        return Object.entries(series || {})
-            .map(([timestamp, price]) => ({
-                x: Number(timestamp),
-                y: Number(price)
-            }))
-            .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y))
-            .sort((left, right) => left.x - right.x);
+        return priceBucketSeriesToChartData(series);
     }
 
     function getLatestHashRate(priceHistory, preferredDate = getTodayDate()) {
@@ -3995,11 +3997,19 @@
 
     function sortChartData(data) {
         return (data || [])
-            .map(point => ({
-                ...point,
-                y: Number(point.y),
-                timeMs: getChartTimeValue(point.x)
-            }))
+            .map(point => {
+                const y = Number(point.y);
+                const high = Number(point.high);
+                const low = Number(point.low);
+
+                return {
+                    ...point,
+                    y,
+                    high: Number.isFinite(high) ? Math.max(high, y) : y,
+                    low: Number.isFinite(low) ? Math.min(low, y) : y,
+                    timeMs: getChartTimeValue(point.x)
+                };
+            })
             .filter(point => Number.isFinite(point.timeMs) && Number.isFinite(point.y))
             .sort((left, right) => left.timeMs - right.timeMs);
     }
@@ -4034,6 +4044,54 @@
         }
 
         return filterRecentChartData(dailyData, MOBILE_RANGE_DAY_COUNTS[mobileSelectedRange]);
+    }
+
+    function mergeMobilePriceStatsData(...series) {
+        const pointsByTimestamp = new Map();
+
+        series.forEach(data => {
+            sortChartData(data).forEach(point => {
+                const existingPoint = pointsByTimestamp.get(point.timeMs);
+
+                if (!existingPoint) {
+                    pointsByTimestamp.set(point.timeMs, { ...point });
+                    return;
+                }
+
+                pointsByTimestamp.set(point.timeMs, {
+                    ...existingPoint,
+                    high: Math.max(existingPoint.high, point.high),
+                    low: Math.min(existingPoint.low, point.low),
+                    y: point.y,
+                    x: point.x
+                });
+            });
+        });
+
+        return Array.from(pointsByTimestamp.values())
+            .sort((left, right) => left.timeMs - right.timeMs);
+    }
+
+    function getMobilePriceStatsData(chartData, chartRangeData) {
+        const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
+        const dailyData = selectedCurrency === 'EUR' ? chartData.eur : chartData.usd;
+        const intradayData = selectedCurrency === 'EUR' ? chartData.intradayEUR : chartData.intradayUSD;
+        const weeklyData = selectedCurrency === 'EUR' ? chartData.weeklyEUR : chartData.weeklyUSD;
+        const monthlyData = selectedCurrency === 'EUR' ? chartData.monthlyEUR : chartData.monthlyUSD;
+
+        if (mobileSelectedRange === 'day') {
+            return sortChartData(chartRangeData);
+        }
+
+        if (mobileSelectedRange === 'week') {
+            return mergeMobilePriceStatsData(chartRangeData, intradayData);
+        }
+
+        if (mobileSelectedRange === 'month') {
+            return mergeMobilePriceStatsData(chartRangeData, weeklyData, intradayData);
+        }
+
+        return mergeMobilePriceStatsData(chartRangeData, monthlyData, weeklyData, intradayData, dailyData);
     }
 
     function formatCompactPrice(value, currencyCode = mobileSelectedCurrency) {
@@ -4077,14 +4135,15 @@
         return `${sign}${value.toFixed(1)}%`;
     }
 
-    function updateMobileRangeStats(data) {
-        const sortedData = sortChartData(data);
+    function updateMobileRangeStats(statsData, changeData = statsData) {
+        const sortedStatsData = sortChartData(statsData);
+        const sortedChangeData = sortChartData(changeData);
         const rangeLabel = MOBILE_RANGE_LABELS[mobileSelectedRange] || '24h';
 
         setElementText('mobileHighLabel', `${rangeLabel} High`);
         setElementText('mobileLowLabel', `${rangeLabel} Low`);
 
-        if (sortedData.length === 0) {
+        if (sortedStatsData.length === 0 || sortedChangeData.length === 0) {
             [
                 'mobileRangeHigh',
                 'mobileRangeLow'
@@ -4093,11 +4152,10 @@
             return;
         }
 
-        const firstPoint = sortedData[0];
-        const lastPoint = sortedData[sortedData.length - 1];
-        const values = sortedData.map(point => point.y);
-        const high = Math.max(...values);
-        const low = Math.min(...values);
+        const firstPoint = sortedChangeData[0];
+        const lastPoint = sortedChangeData[sortedChangeData.length - 1];
+        const high = Math.max(...sortedStatsData.map(point => point.high));
+        const low = Math.min(...sortedStatsData.map(point => point.low));
         const change = lastPoint.y - firstPoint.y;
         const changePercent = firstPoint.y > 0 ? (change / firstPoint.y) * 100 : 0;
         const isNegative = change < 0;
@@ -4174,10 +4232,14 @@
 
     function getLatestFiniteSeriesValue(series) {
         const latestEntry = Object.entries(series || {})
-            .map(([timestamp, value]) => ({
-                timestamp: Number(timestamp),
-                value: Number(value)
-            }))
+            .map(([timestamp, value]) => {
+                const bucketValue = normalizePriceBucketValue(value);
+
+                return {
+                    timestamp: Number(timestamp),
+                    value: bucketValue?.close ?? null
+                };
+            })
             .filter(entry => Number.isFinite(entry.timestamp) && Number.isFinite(entry.value) && entry.value > 0)
             .sort((left, right) => right.timestamp - left.timestamp)[0];
 
@@ -4288,9 +4350,10 @@
         const selectedCurrency = isValidMobileCurrency(mobileSelectedCurrency) ? mobileSelectedCurrency : 'USD';
         const showDesktopAxes = isDesktopChartViewport();
         const priceRangeData = getMobilePriceRangeData(chartData);
+        const priceStatsData = getMobilePriceStatsData(chartData, priceRangeData);
         const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
         const priceTrendAnalysis = getMobileTrendAnalysis(priceRangeData);
-        updateMobileRangeStats(priceRangeData);
+        updateMobileRangeStats(priceStatsData, priceRangeData);
         updateMobileTrendBadge(priceTrendAnalysis);
 
         [
@@ -5718,12 +5781,7 @@
     async function getIntradayChartData(currencyCode) {
         const intradayHistory = await getIntradayHistory();
 
-        return Object.keys(intradayHistory[currencyCode] || {})
-            .sort((left, right) => Number(left) - Number(right))
-            .map(timestamp => ({
-                x: Number(timestamp),
-                y: intradayHistory[currencyCode][timestamp]
-            }));
+        return priceBucketSeriesToChartData(intradayHistory[currencyCode]);
     }
 
     async function getDataForChart(type) {
