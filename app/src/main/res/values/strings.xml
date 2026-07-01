@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Bitcoin Block Clock</string>
+    <string name="widget_description">Bitcoin price, block height, halving progress and fees</string>
+    <string name="widget_refresh">Refresh Bitcoin data</string>
+    <string name="tile_label">Bitcoin Clock</string>
+    <string name="tile_description">Bitcoin price tile</string>
+    <string name="complication_label">Bitcoin Price</string>
 </resources>
