@@ -4435,7 +4435,7 @@
     const INTRADAY_BUCKET_MINUTES = 10;
     const INTRADAY_BUCKET_MS = INTRADAY_BUCKET_MINUTES * 60 * 1000;
     const INTRADAY_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
-    const INTRADAY_STORAGE_KEY = 'bitcoinIntradayPriceHistory';
+    const INTRADAY_STORAGE_KEY = 'bitcoinIntradayPriceHistoryV2';
     const MOBILE_WEEKLY_WINDOW_DAYS = 7;
     const MOBILE_WEEKLY_WINDOW_MS = MOBILE_WEEKLY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     const MOBILE_WEEKLY_BUCKET_HOURS = 1;
@@ -4891,6 +4891,42 @@
         return bucketPriceSeries(prices, floorToIntradayBucket);
     }
 
+    function getKrakenOhlcRows(responseData) {
+        const errors = Array.isArray(responseData?.error) ? responseData.error : [];
+        if (errors.length > 0) {
+            throw new Error(`Kraken OHLC request failed: ${errors.join(', ')}`);
+        }
+
+        const result = responseData?.result;
+        if (!result || typeof result !== 'object') {
+            return [];
+        }
+
+        const pairKey = Object.keys(result).find(key => key !== 'last');
+        return pairKey && Array.isArray(result[pairKey]) ? result[pairKey] : [];
+    }
+
+    function mapKrakenOhlcToIntradaySeries(responseData) {
+        const series = {};
+
+        getKrakenOhlcRows(responseData).forEach(row => {
+            const timestampMs = Number(row?.[0]) * 1000;
+            const bucketTimestamp = floorToIntradayBucket(timestampMs);
+            const bucketValue = normalizePriceBucketValue({
+                open: row?.[1],
+                high: row?.[2],
+                low: row?.[3],
+                close: row?.[4]
+            });
+
+            if (Number.isFinite(bucketTimestamp) && bucketValue) {
+                series[String(bucketTimestamp)] = bucketValue;
+            }
+        });
+
+        return series;
+    }
+
     function shouldRefreshIntradayHistory(history, nowMs = Date.now()) {
         if (!history.updatedAt) {
             return true;
@@ -4904,12 +4940,9 @@
     }
 
     async function refreshIntradayHistory(nowMs = Date.now()) {
-        const { startMs, endMs } = getIntradayWindow(nowMs);
-        const rangeFrom = Math.floor(startMs / 1000);
-        const rangeTo = Math.floor(endMs / 1000);
         const [usdResponse, eurResponse] = await Promise.all([
-            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
-            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`)
+            fetch('https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5'),
+            fetch('https://api.kraken.com/0/public/OHLC?pair=XBTEUR&interval=5')
         ]);
 
         [usdResponse, eurResponse].forEach(response => {
@@ -4925,8 +4958,8 @@
 
         return await setIntradayHistory({
             updatedAt: nowMs,
-            USD: bucketIntradayPrices(usdData.prices),
-            EUR: bucketIntradayPrices(eurData.prices)
+            USD: mapKrakenOhlcToIntradaySeries(usdData),
+            EUR: mapKrakenOhlcToIntradaySeries(eurData)
         }, nowMs);
     }
 
