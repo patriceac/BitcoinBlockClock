@@ -3688,6 +3688,320 @@
                 border-top: 0;
             }
         }
+
+        .mobile-chart-drawing-toolbar {
+            position: relative;
+            z-index: 8;
+            display: grid;
+            gap: 6px;
+            margin-top: clamp(8px, 1.2vh, 12px);
+            pointer-events: auto;
+        }
+
+        .mobile-chart-drawing-command-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .mobile-chart-drawing-toggle,
+        .mobile-chart-autoscan-toggle,
+        .mobile-chart-drawing-action,
+        .mobile-chart-drawing-tool {
+            min-height: 34px;
+            border: 1px solid rgba(166, 196, 211, 0.24);
+            background: rgba(8, 18, 24, 0.9);
+            color: rgba(230, 237, 242, 0.88);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 1;
+            -webkit-tap-highlight-color: transparent;
+            backdrop-filter: blur(14px);
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .mobile-chart-drawing-toggle,
+        .mobile-chart-autoscan-toggle,
+        .mobile-chart-drawing-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 12px;
+            border-radius: 999px;
+        }
+
+        .mobile-chart-drawing-toggle[aria-expanded="true"],
+        .mobile-chart-drawing-toggle.is-active,
+        .mobile-chart-autoscan-toggle[aria-pressed="true"],
+        .mobile-chart-drawing-tool[aria-pressed="true"] {
+            border-color: rgba(245, 164, 45, 0.58);
+            background: rgba(72, 51, 22, 0.92);
+            color: rgba(255, 205, 126, 0.98);
+        }
+
+        .mobile-chart-drawing-count {
+            display: inline-grid;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            place-items: center;
+            border-radius: 999px;
+            background: rgba(245, 164, 45, 0.18);
+            color: rgba(255, 197, 104, 0.98);
+            font-size: 10px;
+        }
+
+        .mobile-chart-autoscan-toggle[aria-pressed="true"] {
+            border-color: rgba(87, 214, 205, 0.5);
+            background: rgba(18, 63, 64, 0.9);
+            color: rgba(170, 244, 238, 0.98);
+        }
+
+        .mobile-chart-autoscan-toggle[aria-busy="true"] {
+            background-image: linear-gradient(90deg, transparent, rgba(134, 240, 231, 0.09), transparent);
+            background-size: 180% 100%;
+            animation: chart-autoscan-working 1.8s linear infinite;
+        }
+
+        .mobile-chart-autoscan-count {
+            display: inline-grid;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            place-items: center;
+            border-radius: 999px;
+            background: rgba(87, 214, 205, 0.15);
+            color: rgba(164, 244, 237, 0.96);
+            font-size: 10px;
+        }
+
+        @keyframes chart-autoscan-working {
+            to {
+                background-position: -180% 0;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .mobile-chart-autoscan-toggle[aria-busy="true"] {
+                animation: none;
+            }
+        }
+
+        .mobile-chart-drawing-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            pointer-events: auto;
+        }
+
+        .mobile-chart-drawing-action {
+            min-width: 0;
+            padding: 0 11px;
+        }
+
+        .mobile-chart-drawing-action:disabled {
+            opacity: 0.42;
+            cursor: default;
+        }
+
+        .mobile-chart-drawing-action[hidden] {
+            display: none;
+        }
+
+        .mobile-chart-drawing-action.is-destructive:not(:disabled) {
+            border-color: rgba(255, 108, 108, 0.24);
+            color: rgba(255, 160, 160, 0.94);
+        }
+
+        .mobile-chart-drawing-palette {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            width: min(440px, 100%);
+            padding: 6px;
+            border: 1px solid rgba(166, 196, 211, 0.26);
+            border-radius: 14px;
+            background: rgba(7, 16, 22, 0.96);
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+            flex-wrap: wrap;
+            pointer-events: auto;
+        }
+
+        .mobile-chart-drawing-palette[hidden] {
+            display: none;
+        }
+
+        .mobile-chart-drawing-tool {
+            padding: 0 11px;
+            border-radius: 9px;
+        }
+
+        .mobile-price-chart[data-drawing-active="true"] {
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .chart-drawing-visual-layer,
+        .chart-drawing-draft-layer {
+            pointer-events: none;
+        }
+
+        .chart-drawing-line,
+        .chart-drawing-draft-line,
+        .chart-drawing-fib-line {
+            fill: none;
+            stroke: rgba(255, 205, 126, 0.96);
+            stroke-width: 1.7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .chart-drawing-line.is-selected {
+            stroke: rgba(255, 222, 169, 1);
+            stroke-width: 2.2;
+        }
+
+        .chart-drawing-line.is-locked {
+            stroke-opacity: 0.72;
+        }
+
+        .chart-drawing-line.is-autoscan {
+            stroke: rgba(91, 220, 211, 0.92);
+            stroke-width: 1.5;
+            stroke-dasharray: 6 5;
+            stroke-opacity: 0.86;
+        }
+
+        .chart-drawing-draft-line {
+            stroke-dasharray: 5 5;
+            stroke-opacity: 0.82;
+        }
+
+        .chart-drawing-fib-line {
+            stroke-width: 1.1;
+            stroke-opacity: 0.76;
+        }
+
+        .chart-drawing-fill {
+            fill: rgba(245, 164, 45, 0.08);
+            stroke: none;
+        }
+
+        .chart-drawing-fill.is-selected {
+            fill: rgba(245, 164, 45, 0.12);
+        }
+
+        .chart-drawing-fill.is-autoscan {
+            fill: rgba(69, 206, 198, 0.055);
+        }
+
+        .mobile-market-note {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 7px 10px;
+            align-items: baseline;
+            margin-top: 9px;
+            padding: 9px 11px;
+            border-left: 2px solid rgba(87, 214, 205, 0.62);
+            border-radius: 0 10px 10px 0;
+            background: rgba(16, 37, 43, 0.52);
+            color: rgba(220, 233, 236, 0.86);
+        }
+
+        .mobile-market-note[hidden] {
+            display: none;
+        }
+
+        .mobile-market-note-label {
+            color: rgba(137, 229, 222, 0.94);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .mobile-market-note-text {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .chart-drawing-hit-line {
+            fill: none;
+            stroke: transparent;
+            stroke-width: 18;
+            stroke-linecap: round;
+            pointer-events: stroke;
+            cursor: pointer;
+        }
+
+        .chart-drawing-handle,
+        .chart-drawing-draft-handle {
+            fill: rgba(6, 14, 20, 0.98);
+            stroke: rgba(255, 214, 148, 1);
+            stroke-width: 2;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .chart-drawing-handle {
+            pointer-events: all;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .chart-drawing-handle:active {
+            cursor: grabbing;
+        }
+
+        .chart-drawing-draft-handle {
+            stroke-dasharray: 2 2;
+        }
+
+        .chart-drawing-label {
+            fill: rgba(255, 212, 144, 0.9);
+            font-family: 'Bahnschrift SemiBold', 'Aptos Narrow', 'Segoe UI', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            paint-order: stroke;
+            stroke: rgba(6, 14, 20, 0.92);
+            stroke-width: 3px;
+            stroke-linejoin: round;
+            pointer-events: none;
+        }
+
+        @media (max-width: 420px) {
+            .mobile-chart-drawing-command-row {
+                gap: 4px;
+            }
+
+            .mobile-chart-drawing-toggle,
+            .mobile-chart-autoscan-toggle,
+            .mobile-chart-drawing-action,
+            .mobile-chart-drawing-tool {
+                min-height: 40px;
+                font-size: 11px;
+            }
+
+            .mobile-chart-drawing-actions {
+                gap: 3px;
+            }
+
+            .mobile-chart-drawing-action {
+                padding: 0 10px;
+            }
+
+            .mobile-market-note {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 4px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3874,6 +4188,36 @@
             </div>
             <div class="mobile-price-chart-shell">
                 <div id="mobilePrimaryChart" class="mobile-chart mobile-price-chart" aria-hidden="true"></div>
+            </div>
+            <div class="mobile-chart-drawing-toolbar" aria-label="Chart drawing controls">
+                <div class="mobile-chart-drawing-command-row">
+                    <button class="mobile-chart-drawing-toggle" type="button" data-mobile-chart-drawing-toggle aria-expanded="false" aria-controls="mobileChartDrawingPalette">
+                        Draw
+                        <span id="mobileChartDrawingCount" class="mobile-chart-drawing-count">0</span>
+                    </button>
+                    <button class="mobile-chart-autoscan-toggle" type="button" data-mobile-chart-autoscan-toggle aria-pressed="true" aria-busy="false">
+                        Auto
+                        <span id="mobileChartAutoscanCount" class="mobile-chart-autoscan-count">0</span>
+                    </button>
+                    <span class="mobile-chart-drawing-actions">
+                        <button class="mobile-chart-drawing-action" type="button" data-mobile-chart-drawing-cancel hidden>Cancel</button>
+                        <button class="mobile-chart-drawing-action" type="button" data-mobile-chart-drawing-lock hidden>Lock</button>
+                        <button class="mobile-chart-drawing-action is-destructive" type="button" data-mobile-chart-drawing-delete hidden>Delete</button>
+                        <button class="mobile-chart-drawing-action" type="button" data-mobile-chart-drawing-undo disabled>Undo</button>
+                    </span>
+                </div>
+                <div id="mobileChartDrawingPalette" class="mobile-chart-drawing-palette" role="toolbar" aria-label="Drawing tools" hidden>
+                    <button class="mobile-chart-drawing-tool" type="button" data-mobile-chart-drawing-tool="trend" aria-pressed="false" aria-label="Draw trend line">Line</button>
+                    <button class="mobile-chart-drawing-tool" type="button" data-mobile-chart-drawing-tool="horizontal" aria-pressed="false" aria-label="Draw support or resistance level">Level</button>
+                    <button class="mobile-chart-drawing-tool" type="button" data-mobile-chart-drawing-tool="channel" aria-pressed="false" aria-label="Draw parallel channel">Channel</button>
+                    <button class="mobile-chart-drawing-tool" type="button" data-mobile-chart-drawing-tool="triangle" aria-pressed="false" aria-label="Draw triangle">Triangle</button>
+                    <button class="mobile-chart-drawing-tool" type="button" data-mobile-chart-drawing-tool="wedge" aria-pressed="false" aria-label="Draw wedge">Wedge</button>
+                    <button class="mobile-chart-drawing-tool" type="button" data-mobile-chart-drawing-tool="fib" aria-pressed="false" aria-label="Draw Fibonacci retracement">Fib</button>
+                </div>
+            </div>
+            <div id="mobileMarketNote" class="mobile-market-note" aria-live="polite" hidden>
+                <span class="mobile-market-note-label">Market note</span>
+                <p id="mobileMarketNoteText" class="mobile-market-note-text"></p>
             </div>
             <div class="mobile-stat-strip">
                 <div class="mobile-stat-chip">
@@ -4064,6 +4408,8 @@
         </div>
     </section>
 </main>
+<script src="history-feed.js"></script>
+<script src="autoscan.js"></script>
 <script>
     let databasePromise = null;
     let historyRefreshPromise = null;
@@ -4533,9 +4879,11 @@
     const MOBILE_MONTHLY_STORAGE_KEY = 'bitcoinMobileMonthlyPriceHistory';
     const MOBILE_RANGE_SELECTION_STORAGE_KEY = 'bitcoinMobileSelectedRange';
     const MOBILE_CURRENCY_SELECTION_STORAGE_KEY = 'bitcoinMobileSelectedCurrency';
+    const MOBILE_CHART_AUTOSCAN_ENABLED_STORAGE_KEY = 'bitcoinMobileChartAutoscanEnabledV1';
     const MOBILE_PRICE_CURRENCIES = ['USD', 'EUR'];
     let mobileSelectedRange = 'day';
     let mobileSelectedCurrency = 'USD';
+    let mobileChartAutoscanEnabled = true;
     const mobileLatestPrices = {
         USD: null,
         EUR: null
@@ -4548,6 +4896,7 @@
     };
     const DAILY_CHART_MAX_GAP_MS = 3 * 24 * 60 * 60 * 1000;
     const MAX_LIVE_CHART_PRICE_DEVIATION_RATIO = 0.2;
+    const MARKET_FETCH_TIMEOUT_MS = 10000;
     const CHART_Y_AXIS_LABEL_INSET = 18;
     const MOBILE_RANGE_LABELS = {
         day: '24h',
@@ -4555,6 +4904,46 @@
         month: '30d',
         year: '1y'
     };
+    const MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS = Object.freeze({
+        day: Object.freeze({
+            rangeLabel: 'Day',
+            krakenIntervalMinutes: 5,
+            bucketMs: INTRADAY_BUCKET_MS,
+            windowMs: INTRADAY_WINDOW_MS,
+            candleLabel: '10-minute',
+            cacheTtlMs: 5 * 60 * 1000
+        }),
+        week: Object.freeze({
+            rangeLabel: 'Week',
+            krakenIntervalMinutes: 15,
+            bucketMs: MOBILE_WEEKLY_BUCKET_MS,
+            windowMs: MOBILE_WEEKLY_WINDOW_MS,
+            candleLabel: 'hourly',
+            cacheTtlMs: 15 * 60 * 1000
+        }),
+        month: Object.freeze({
+            rangeLabel: 'Month',
+            krakenIntervalMinutes: 60,
+            bucketMs: MOBILE_MONTHLY_BUCKET_MS,
+            windowMs: MOBILE_MONTHLY_WINDOW_MS,
+            candleLabel: '6-hour',
+            cacheTtlMs: 60 * 60 * 1000
+        }),
+        year: Object.freeze({
+            rangeLabel: 'Year',
+            krakenIntervalMinutes: 1440,
+            bucketMs: 24 * 60 * 60 * 1000,
+            windowMs: HISTORY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+            scanLookbackCandles: Object.freeze([60, 90, 120, 180, 260]),
+            candleLabel: 'daily',
+            cacheTtlMs: 6 * 60 * 60 * 1000
+        })
+    });
+    const mobileChartAutoscanResults = new Map();
+    const mobileChartAutoscanCandleCache = new Map();
+    const mobileChartAutoscanPendingRequests = new Map();
+    const mobileChartAutoscanFallbackSeries = new Map();
+    const mobileChartAutoscanBusyScopes = new Set();
     const MOBILE_TREND_EMA_PERIODS = {
         day: 12,
         week: 12,
@@ -4569,6 +4958,7 @@
     };
     mobileSelectedRange = getSavedMobileSelectedRange();
     mobileSelectedCurrency = getSavedMobileSelectedCurrency();
+    mobileChartAutoscanEnabled = getSavedMobileChartAutoscanEnabled();
 
     function isValidMobileRange(value) {
         return Object.prototype.hasOwnProperty.call(MOBILE_RANGE_LABELS, value);
@@ -4626,6 +5016,647 @@
         }
     }
 
+    function getSavedMobileChartAutoscanEnabled() {
+        try {
+            const savedValue = localStorage.getItem(getLocalStorageKey(MOBILE_CHART_AUTOSCAN_ENABLED_STORAGE_KEY));
+            return savedValue == null ? true : savedValue === 'true';
+        } catch (error) {
+            console.warn('Failed to restore automatic chart scan preference.', error);
+            return true;
+        }
+    }
+
+    function saveMobileChartAutoscanEnabled() {
+        try {
+            localStorage.setItem(
+                getLocalStorageKey(MOBILE_CHART_AUTOSCAN_ENABLED_STORAGE_KEY),
+                String(mobileChartAutoscanEnabled)
+            );
+        } catch (error) {
+            console.warn('Failed to save automatic chart scan preference.', error);
+        }
+    }
+
+    function getMobileChartAutoscanEngine() {
+        return window.BitcoinChartAutoscan || null;
+    }
+
+    function getCurrentMobileChartAutoscanResult() {
+        return mobileChartAutoscanResults.get(getMobileChartDrawingScopeKey()) || null;
+    }
+
+    function getCurrentMobileChartAutoscanPatterns() {
+        if (!mobileChartAutoscanEnabled) {
+            return [];
+        }
+
+        const result = getCurrentMobileChartAutoscanResult();
+        return Array.isArray(result?.patterns) ? result.patterns : [];
+    }
+
+    function getMobileChartAutoscanCandleSignature(candles, source) {
+        if (!Array.isArray(candles) || candles.length === 0) {
+            return `${source}:empty`;
+        }
+
+        const first = candles[0];
+        const last = candles[candles.length - 1];
+        return [
+            source,
+            candles.length,
+            Number(first.timeMs),
+            Number(last.timeMs),
+            Number(last.close).toFixed(4),
+            Number(last.high).toFixed(4),
+            Number(last.low).toFixed(4)
+        ].join(':');
+    }
+
+    function chartDataToMobileChartAutoscanCandles(chartData) {
+        let previousClose = null;
+        return sortChartData(chartData).map(point => {
+            const close = Number(point.y);
+            const openValue = Number(point.open);
+            const open = Number.isFinite(openValue) ? openValue : (previousClose ?? close);
+            const high = Math.max(Number(point.high), open, close);
+            const low = Math.min(Number(point.low), open, close);
+            previousClose = close;
+            return {
+                timeMs: point.timeMs,
+                open,
+                high,
+                low,
+                close
+            };
+        });
+    }
+
+    function getMobileChartAutoscanFallbackQuality(candles) {
+        if (!Array.isArray(candles) || candles.length === 0) {
+            return 0.8;
+        }
+
+        const wickCandles = candles.filter(candle => (
+            candle.high > Math.max(candle.open, candle.close)
+            || candle.low < Math.min(candle.open, candle.close)
+        )).length;
+        return wickCandles / candles.length >= 0.45 ? 0.9 : 0.8;
+    }
+
+    function applyMobileChartAutoscanCandles(scopeKey, candles, {
+        source,
+        qualityMultiplier,
+        commentaryEligible
+    }) {
+        const engine = getMobileChartAutoscanEngine();
+        if (!engine || !Array.isArray(candles)) {
+            return null;
+        }
+
+        const signature = getMobileChartAutoscanCandleSignature(candles, source);
+        const existingResult = mobileChartAutoscanResults.get(scopeKey);
+        if (existingResult?.signature === signature) {
+            return existingResult;
+        }
+
+        try {
+            const scanStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            const [, range] = scopeKey.split(':');
+            const scanLookbackCandles = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[range]?.scanLookbackCandles;
+            const scanResult = engine.scanMarket(candles, {
+                qualityMultiplier,
+                ...(Array.isArray(scanLookbackCandles) ? { lookbackWindows: scanLookbackCandles } : {})
+            });
+            const scanFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+            const result = {
+                ...scanResult,
+                source,
+                signature,
+                commentaryEligible,
+                scanDurationMs: Math.max(0, scanFinishedAt - scanStartedAt)
+            };
+            mobileChartAutoscanResults.set(scopeKey, result);
+            if (scopeKey === getMobileChartDrawingScopeKey()) {
+                requestMobileChartDrawingRender();
+            }
+            return result;
+        } catch (error) {
+            console.warn('Automatic chart scan failed; leaving the price chart available.', error);
+            return null;
+        }
+    }
+
+    function getMobileChartAutoscanKrakenPair(currencyCode) {
+        return currencyCode === 'EUR' ? 'XBTEUR' : 'XBTUSD';
+    }
+
+    async function fetchMobileChartAutoscanCandles(currencyCode, range) {
+        const engine = getMobileChartAutoscanEngine();
+        const config = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[range];
+        if (!engine || !config) {
+            throw new Error('Automatic chart scan is unavailable.');
+        }
+
+        const pair = getMobileChartAutoscanKrakenPair(currencyCode);
+        const response = await fetchWithTimeout(
+            `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=${config.krakenIntervalMinutes}`
+        );
+        if (!response.ok) {
+            throw new Error(`Automatic chart scan market data request failed with status ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        const rows = getKrakenOhlcRows(responseData);
+        const committedRows = rows.length > 1 ? rows.slice(0, -1) : [];
+        const rawCandles = committedRows.map(row => ({
+            timeMs: Number(row?.[0]) * 1000,
+            open: Number(row?.[1]),
+            high: Number(row?.[2]),
+            low: Number(row?.[3]),
+            close: Number(row?.[4])
+        }));
+        const aggregatedCandles = engine.aggregateCandles(rawCandles, config.bucketMs);
+        const latestCandle = aggregatedCandles[aggregatedCandles.length - 1];
+        const windowStartMs = latestCandle ? latestCandle.timeMs - config.windowMs : Infinity;
+        const candles = aggregatedCandles.filter(candle => candle.timeMs >= windowStartMs);
+        if (candles.length < 30) {
+            throw new Error(`Automatic chart scan received only ${candles.length} committed candles.`);
+        }
+
+        return candles;
+    }
+
+    function queueMobileChartAutoscanRefresh(scopeKey = getMobileChartDrawingScopeKey()) {
+        const [currencyCode, range] = scopeKey.split(':');
+        const config = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[range];
+        if (!config || !isValidMobileCurrency(currencyCode)) {
+            return Promise.resolve(null);
+        }
+
+        const cachedEntry = mobileChartAutoscanCandleCache.get(scopeKey);
+        if (cachedEntry && Date.now() - cachedEntry.fetchedAt < config.cacheTtlMs) {
+            applyMobileChartAutoscanCandles(scopeKey, cachedEntry.candles, {
+                source: 'exchange-ohlc',
+                qualityMultiplier: 1,
+                commentaryEligible: true
+            });
+            return Promise.resolve(cachedEntry.candles);
+        }
+
+        const pendingRequest = mobileChartAutoscanPendingRequests.get(scopeKey);
+        if (pendingRequest) {
+            return pendingRequest;
+        }
+
+        mobileChartAutoscanBusyScopes.add(scopeKey);
+        syncMobileChartAutoscanControls();
+        const request = fetchMobileChartAutoscanCandles(currencyCode, range)
+            .then(candles => {
+                mobileChartAutoscanCandleCache.set(scopeKey, {
+                    candles,
+                    fetchedAt: Date.now()
+                });
+                applyMobileChartAutoscanCandles(scopeKey, candles, {
+                    source: 'exchange-ohlc',
+                    qualityMultiplier: 1,
+                    commentaryEligible: true
+                });
+                return candles;
+            })
+            .catch(error => {
+                console.warn('Refreshing automatic chart scan data failed; using chart data when possible.', error);
+                return null;
+            })
+            .finally(() => {
+                mobileChartAutoscanPendingRequests.delete(scopeKey);
+                mobileChartAutoscanBusyScopes.delete(scopeKey);
+                syncMobileChartAutoscanControls();
+            });
+        mobileChartAutoscanPendingRequests.set(scopeKey, request);
+        return request;
+    }
+
+    function updateMobileChartAutoscanForRangeData(chartData) {
+        const scopeKey = getMobileChartDrawingScopeKey();
+        const fallbackCandles = chartDataToMobileChartAutoscanCandles(chartData);
+        mobileChartAutoscanFallbackSeries.set(scopeKey, fallbackCandles);
+        if (!mobileChartAutoscanEnabled) {
+            syncMobileChartAutoscanControls();
+            return;
+        }
+
+        const cachedEntry = mobileChartAutoscanCandleCache.get(scopeKey);
+        if (cachedEntry) {
+            applyMobileChartAutoscanCandles(scopeKey, cachedEntry.candles, {
+                source: 'exchange-ohlc',
+                qualityMultiplier: 1,
+                commentaryEligible: true
+            });
+        } else {
+            applyMobileChartAutoscanCandles(scopeKey, fallbackCandles, {
+                source: 'chart-fallback',
+                qualityMultiplier: getMobileChartAutoscanFallbackQuality(fallbackCandles),
+                commentaryEligible: false
+            });
+        }
+        queueMobileChartAutoscanRefresh(scopeKey);
+    }
+
+    function updateMobileMarketNote() {
+        const note = document.getElementById('mobileMarketNote');
+        const noteText = document.getElementById('mobileMarketNoteText');
+        const engine = getMobileChartAutoscanEngine();
+        const result = getCurrentMobileChartAutoscanResult();
+        const event = mobileChartAutoscanEnabled && result?.commentaryEligible
+            ? result.events?.[0]
+            : null;
+        const config = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[mobileSelectedRange];
+        const commentary = event && engine
+            ? engine.formatEventCommentary(event, {
+                rangeLabel: config.rangeLabel,
+                assetLabel: `BTC/${mobileSelectedCurrency}`,
+                candleLabel: config.candleLabel
+            })
+            : '';
+
+        if (!note || !noteText || !commentary) {
+            if (note) {
+                note.hidden = true;
+            }
+            return;
+        }
+
+        if (note.dataset.eventId !== event.id || noteText.textContent !== commentary) {
+            note.dataset.eventId = event.id;
+            noteText.textContent = commentary;
+        }
+        note.hidden = false;
+    }
+
+    function syncMobileChartAutoscanControls() {
+        const scopeKey = getMobileChartDrawingScopeKey();
+        const button = document.querySelector('[data-mobile-chart-autoscan-toggle]');
+        const countElement = document.getElementById('mobileChartAutoscanCount');
+        const patterns = getCurrentMobileChartAutoscanPatterns();
+        const busy = mobileChartAutoscanEnabled && mobileChartAutoscanBusyScopes.has(scopeKey);
+
+        if (button) {
+            button.setAttribute('aria-pressed', String(mobileChartAutoscanEnabled));
+            button.setAttribute('aria-busy', String(busy));
+            button.setAttribute(
+                'aria-label',
+                `Automatic chart scan ${mobileChartAutoscanEnabled ? 'on' : 'off'}${patterns.length ? `, ${patterns.length} pattern${patterns.length === 1 ? '' : 's'}` : ''}`
+            );
+        }
+        if (countElement) {
+            countElement.textContent = String(patterns.length);
+        }
+        updateMobileMarketNote();
+    }
+
+    function toggleMobileChartAutoscan() {
+        mobileChartAutoscanEnabled = !mobileChartAutoscanEnabled;
+        saveMobileChartAutoscanEnabled();
+        if (mobileChartAutoscanEnabled) {
+            const scopeKey = getMobileChartDrawingScopeKey();
+            const fallbackCandles = mobileChartAutoscanFallbackSeries.get(scopeKey) || [];
+            if (!mobileChartAutoscanResults.has(scopeKey) && fallbackCandles.length > 0) {
+                applyMobileChartAutoscanCandles(scopeKey, fallbackCandles, {
+                    source: 'chart-fallback',
+                    qualityMultiplier: getMobileChartAutoscanFallbackQuality(fallbackCandles),
+                    commentaryEligible: false
+                });
+            }
+            queueMobileChartAutoscanRefresh(scopeKey);
+        }
+        requestMobileChartDrawingRender();
+        syncMobileChartAutoscanControls();
+    }
+
+    const MOBILE_CHART_DRAWING_STORAGE_KEY = 'bitcoinMobileChartDrawingsV1';
+    const MOBILE_CHART_DRAWING_MAX_PER_SCOPE = 60;
+    const MOBILE_CHART_DRAWING_UNDO_LIMIT = 20;
+    const MOBILE_CHART_DRAWING_TOOL_DEFINITIONS = Object.freeze({
+        trend: Object.freeze({ label: 'Trend line', anchorCount: 2 }),
+        horizontal: Object.freeze({ label: 'Support / resistance', anchorCount: 1 }),
+        channel: Object.freeze({ label: 'Parallel channel', anchorCount: 3 }),
+        triangle: Object.freeze({ label: 'Triangle', anchorCount: 3 }),
+        wedge: Object.freeze({ label: 'Wedge', anchorCount: 4 }),
+        fib: Object.freeze({ label: 'Fibonacci retracement', anchorCount: 2 })
+    });
+    let mobileChartDrawingStore = loadMobileChartDrawingStore();
+    let mobileChartDrawingPaletteOpen = false;
+    let mobileChartDrawingTool = null;
+    let mobileChartDrawingDraftAnchors = [];
+    let mobileChartDrawingPreviewAnchor = null;
+    let mobileChartSelectedDrawingId = null;
+    let mobileChartDrawingRenderCallback = null;
+    let mobileChartDrawingDragActive = false;
+    const mobileChartDrawingUndoStacks = {};
+
+    function isValidMobileChartDrawingTool(value) {
+        return Object.prototype.hasOwnProperty.call(MOBILE_CHART_DRAWING_TOOL_DEFINITIONS, value);
+    }
+
+    function getMobileChartDrawingScopeKey(
+        currencyCode = mobileSelectedCurrency,
+        range = mobileSelectedRange
+    ) {
+        const safeCurrency = isValidMobileCurrency(currencyCode) ? currencyCode : 'USD';
+        const safeRange = isValidMobileRange(range) ? range : 'day';
+        return `${safeCurrency}:${safeRange}`;
+    }
+
+    function normalizeMobileChartDrawingAnchor(anchor) {
+        const timeMs = Number(anchor?.timeMs);
+        const value = Number(anchor?.value);
+        if (!Number.isFinite(timeMs) || !Number.isFinite(value)) {
+            return null;
+        }
+
+        return { timeMs, value };
+    }
+
+    function normalizeMobileChartDrawing(drawing) {
+        if (!drawing || !isValidMobileChartDrawingTool(drawing.type)) {
+            return null;
+        }
+
+        const definition = MOBILE_CHART_DRAWING_TOOL_DEFINITIONS[drawing.type];
+        const anchors = (drawing.anchors || [])
+            .map(normalizeMobileChartDrawingAnchor)
+            .filter(Boolean);
+        const id = typeof drawing.id === 'string' ? drawing.id.trim() : '';
+        if (!id || anchors.length !== definition.anchorCount) {
+            return null;
+        }
+
+        const createdAt = Number(drawing.createdAt);
+        return {
+            id,
+            type: drawing.type,
+            anchors,
+            locked: drawing.locked === true,
+            createdAt: Number.isFinite(createdAt) ? createdAt : 0
+        };
+    }
+
+    function cloneMobileChartDrawings(drawings) {
+        return (drawings || []).map(drawing => ({
+            ...drawing,
+            anchors: drawing.anchors.map(anchor => ({ ...anchor }))
+        }));
+    }
+
+    function loadMobileChartDrawingStore() {
+        const emptyStore = { version: 1, scopes: {} };
+
+        try {
+            const rawValue = localStorage.getItem(getLocalStorageKey(MOBILE_CHART_DRAWING_STORAGE_KEY));
+            if (!rawValue) {
+                return emptyStore;
+            }
+
+            const parsedValue = JSON.parse(rawValue);
+            const nextScopes = {};
+            Object.entries(parsedValue?.scopes || {}).forEach(([scopeKey, drawings]) => {
+                const [currencyCode, range] = scopeKey.split(':');
+                if (!isValidMobileCurrency(currencyCode) || !isValidMobileRange(range) || !Array.isArray(drawings)) {
+                    return;
+                }
+
+                nextScopes[scopeKey] = drawings
+                    .map(normalizeMobileChartDrawing)
+                    .filter(Boolean)
+                    .slice(-MOBILE_CHART_DRAWING_MAX_PER_SCOPE);
+            });
+
+            return { version: 1, scopes: nextScopes };
+        } catch (error) {
+            console.warn('Failed to restore chart drawings.', error);
+            return emptyStore;
+        }
+    }
+
+    function saveMobileChartDrawingStore() {
+        try {
+            localStorage.setItem(
+                getLocalStorageKey(MOBILE_CHART_DRAWING_STORAGE_KEY),
+                JSON.stringify(mobileChartDrawingStore)
+            );
+        } catch (error) {
+            console.warn('Failed to save chart drawings.', error);
+        }
+    }
+
+    function getCurrentMobileChartDrawings() {
+        const scopeKey = getMobileChartDrawingScopeKey();
+        if (!Array.isArray(mobileChartDrawingStore.scopes[scopeKey])) {
+            mobileChartDrawingStore.scopes[scopeKey] = [];
+        }
+
+        return mobileChartDrawingStore.scopes[scopeKey];
+    }
+
+    function getMobileChartDrawingUndoStack(scopeKey = getMobileChartDrawingScopeKey()) {
+        if (!Array.isArray(mobileChartDrawingUndoStacks[scopeKey])) {
+            mobileChartDrawingUndoStacks[scopeKey] = [];
+        }
+
+        return mobileChartDrawingUndoStacks[scopeKey];
+    }
+
+    function pushMobileChartDrawingUndoSnapshot(
+        snapshot = getCurrentMobileChartDrawings(),
+        scopeKey = getMobileChartDrawingScopeKey()
+    ) {
+        const undoStack = getMobileChartDrawingUndoStack(scopeKey);
+        undoStack.push(cloneMobileChartDrawings(snapshot));
+        if (undoStack.length > MOBILE_CHART_DRAWING_UNDO_LIMIT) {
+            undoStack.splice(0, undoStack.length - MOBILE_CHART_DRAWING_UNDO_LIMIT);
+        }
+    }
+
+    function createMobileChartDrawingId() {
+        return `chart-drawing-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function getSelectedMobileChartDrawing() {
+        if (!mobileChartSelectedDrawingId) {
+            return null;
+        }
+
+        return getCurrentMobileChartDrawings()
+            .find(drawing => drawing.id === mobileChartSelectedDrawingId) || null;
+    }
+
+    function requestMobileChartDrawingRender() {
+        if (typeof mobileChartDrawingRenderCallback === 'function') {
+            mobileChartDrawingRenderCallback();
+        }
+        syncMobileChartDrawingControls();
+    }
+
+    function completeMobileChartDrawing(type, anchors) {
+        if (!isValidMobileChartDrawingTool(type)) {
+            return;
+        }
+
+        const definition = MOBILE_CHART_DRAWING_TOOL_DEFINITIONS[type];
+        const normalizedAnchors = anchors
+            .map(normalizeMobileChartDrawingAnchor)
+            .filter(Boolean);
+        if (normalizedAnchors.length !== definition.anchorCount) {
+            return;
+        }
+
+        const drawings = getCurrentMobileChartDrawings();
+        pushMobileChartDrawingUndoSnapshot(drawings);
+        const drawing = {
+            id: createMobileChartDrawingId(),
+            type,
+            anchors: normalizedAnchors,
+            locked: false,
+            createdAt: Date.now()
+        };
+        drawings.push(drawing);
+        if (drawings.length > MOBILE_CHART_DRAWING_MAX_PER_SCOPE) {
+            drawings.splice(0, drawings.length - MOBILE_CHART_DRAWING_MAX_PER_SCOPE);
+        }
+
+        mobileChartSelectedDrawingId = drawing.id;
+        mobileChartDrawingTool = null;
+        mobileChartDrawingDraftAnchors = [];
+        mobileChartDrawingPreviewAnchor = null;
+        saveMobileChartDrawingStore();
+        requestMobileChartDrawingRender();
+    }
+
+    function selectMobileChartDrawingTool(type) {
+        if (!isValidMobileChartDrawingTool(type)) {
+            return;
+        }
+
+        mobileChartDrawingTool = type;
+        mobileChartSelectedDrawingId = null;
+        mobileChartDrawingDraftAnchors = [];
+        mobileChartDrawingPreviewAnchor = null;
+        mobileChartDrawingPaletteOpen = false;
+        requestMobileChartDrawingRender();
+    }
+
+    function cancelMobileChartDrawing() {
+        mobileChartDrawingTool = null;
+        mobileChartDrawingDraftAnchors = [];
+        mobileChartDrawingPreviewAnchor = null;
+        requestMobileChartDrawingRender();
+    }
+
+    function deleteSelectedMobileChartDrawing() {
+        const selectedDrawing = getSelectedMobileChartDrawing();
+        if (!selectedDrawing) {
+            return;
+        }
+
+        const scopeKey = getMobileChartDrawingScopeKey();
+        const drawings = getCurrentMobileChartDrawings();
+        pushMobileChartDrawingUndoSnapshot(drawings, scopeKey);
+        mobileChartDrawingStore.scopes[scopeKey] = drawings
+            .filter(drawing => drawing.id !== selectedDrawing.id);
+        mobileChartSelectedDrawingId = null;
+        saveMobileChartDrawingStore();
+        requestMobileChartDrawingRender();
+    }
+
+    function toggleSelectedMobileChartDrawingLock() {
+        const selectedDrawing = getSelectedMobileChartDrawing();
+        if (!selectedDrawing) {
+            return;
+        }
+
+        pushMobileChartDrawingUndoSnapshot();
+        selectedDrawing.locked = !selectedDrawing.locked;
+        saveMobileChartDrawingStore();
+        requestMobileChartDrawingRender();
+    }
+
+    function undoMobileChartDrawingChange() {
+        const scopeKey = getMobileChartDrawingScopeKey();
+        const undoStack = getMobileChartDrawingUndoStack(scopeKey);
+        const previousDrawings = undoStack.pop();
+        if (!previousDrawings) {
+            return;
+        }
+
+        mobileChartDrawingStore.scopes[scopeKey] = cloneMobileChartDrawings(previousDrawings);
+        mobileChartSelectedDrawingId = null;
+        mobileChartDrawingTool = null;
+        mobileChartDrawingDraftAnchors = [];
+        mobileChartDrawingPreviewAnchor = null;
+        saveMobileChartDrawingStore();
+        requestMobileChartDrawingRender();
+    }
+
+    function resetMobileChartDrawingInteractionState() {
+        mobileChartDrawingPaletteOpen = false;
+        mobileChartDrawingTool = null;
+        mobileChartDrawingDraftAnchors = [];
+        mobileChartDrawingPreviewAnchor = null;
+        mobileChartSelectedDrawingId = null;
+        mobileChartDrawingDragActive = false;
+        mobileChartDrawingRenderCallback = null;
+        syncMobileChartDrawingControls();
+    }
+
+    function syncMobileChartDrawingControls() {
+        const drawings = getCurrentMobileChartDrawings();
+        const selectedDrawing = getSelectedMobileChartDrawing();
+        const activeDefinition = mobileChartDrawingTool
+            ? MOBILE_CHART_DRAWING_TOOL_DEFINITIONS[mobileChartDrawingTool]
+            : null;
+        const drawingToggle = document.querySelector('[data-mobile-chart-drawing-toggle]');
+        const drawingCount = document.getElementById('mobileChartDrawingCount');
+        const drawingPalette = document.getElementById('mobileChartDrawingPalette');
+        const undoButton = document.querySelector('[data-mobile-chart-drawing-undo]');
+        const cancelButton = document.querySelector('[data-mobile-chart-drawing-cancel]');
+        const lockButton = document.querySelector('[data-mobile-chart-drawing-lock]');
+        const deleteButton = document.querySelector('[data-mobile-chart-drawing-delete]');
+        const chartContainer = document.getElementById('mobilePrimaryChart');
+
+        if (drawingToggle) {
+            drawingToggle.setAttribute('aria-expanded', String(mobileChartDrawingPaletteOpen));
+            drawingToggle.classList.toggle('is-active', Boolean(activeDefinition));
+        }
+        if (drawingCount) {
+            drawingCount.textContent = String(drawings.length);
+        }
+        if (drawingPalette) {
+            drawingPalette.hidden = !mobileChartDrawingPaletteOpen;
+        }
+        document.querySelectorAll('[data-mobile-chart-drawing-tool]').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.mobileChartDrawingTool === mobileChartDrawingTool));
+        });
+
+        if (undoButton) {
+            undoButton.disabled = getMobileChartDrawingUndoStack().length === 0;
+        }
+        if (cancelButton) {
+            cancelButton.hidden = !activeDefinition;
+        }
+        if (lockButton) {
+            lockButton.hidden = !selectedDrawing;
+            lockButton.textContent = selectedDrawing?.locked ? 'Unlock' : 'Lock';
+            lockButton.setAttribute('aria-pressed', String(Boolean(selectedDrawing?.locked)));
+        }
+        if (deleteButton) {
+            deleteButton.hidden = !selectedDrawing;
+        }
+        if (chartContainer) {
+            chartContainer.dataset.drawingActive = String(Boolean(activeDefinition || mobileChartDrawingDragActive));
+        }
+        syncMobileChartAutoscanControls();
+    }
+
     function getTodayDate() {
         return new Date().toISOString().slice(0, 10);
     }
@@ -4673,6 +5704,77 @@
         });
 
         return valuesByDate;
+    }
+
+    function getHistoricalMarketDataEngine() {
+        const engine = window.BitcoinHistoricalMarketData;
+        if (!engine) {
+            throw new Error('Historical market data helper is unavailable.');
+        }
+        return engine;
+    }
+
+    async function fetchCoinGeckoHistoricalPriceSeries(currencyCode, rangeFrom, rangeTo) {
+        const normalizedCurrency = String(currencyCode || '').toLowerCase();
+        const response = await fetchWithTimeout(
+            `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=${normalizedCurrency}&from=${rangeFrom}&to=${rangeTo}`
+        );
+        if (!response.ok) {
+            throw new Error(`CoinGecko ${currencyCode} history request failed with status ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        const series = mapCoinGeckoPrices(responseData?.prices);
+        if (!getHistoricalMarketDataEngine().hasDailySeriesValues(series)) {
+            throw new Error(`CoinGecko ${currencyCode} history response contained no usable prices.`);
+        }
+        return { source: 'coingecko', series };
+    }
+
+    async function fetchKrakenHistoricalPriceSeries(currencyCode, startDate, endDate) {
+        const pair = getMobileChartAutoscanKrakenPair(currencyCode);
+        const response = await fetchWithTimeout(
+            `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=1440`
+        );
+        if (!response.ok) {
+            throw new Error(`Kraken ${currencyCode} history request failed with status ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        const engine = getHistoricalMarketDataEngine();
+        const series = engine.mapKrakenOhlcToDailySeries(responseData, { startDate, endDate });
+        if (!engine.hasDailySeriesValues(series)) {
+            throw new Error(`Kraken ${currencyCode} history response contained no usable committed prices.`);
+        }
+        return { source: 'kraken-ohlc', series };
+    }
+
+    async function fetchHistoricalPriceSeries(currencyCode, rangeFrom, rangeTo, startDate, endDate) {
+        try {
+            return await fetchCoinGeckoHistoricalPriceSeries(currencyCode, rangeFrom, rangeTo);
+        } catch (primaryError) {
+            console.warn(
+                `CoinGecko ${currencyCode} historical prices unavailable; using Kraken daily OHLC fallback.`,
+                primaryError
+            );
+            return await fetchKrakenHistoricalPriceSeries(currencyCode, startDate, endDate);
+        }
+    }
+
+    async function fetchHistoricalDifficultySeries(historyDays) {
+        const response = await fetchWithTimeout(
+            `https://api.blockchain.info/charts/difficulty?timespan=${historyDays}days&format=json&cors=true`
+        );
+        if (!response.ok) {
+            throw new Error(`Difficulty history request failed with status ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        const series = mapBlockchainChartValues(responseData?.values);
+        if (Object.keys(series).length === 0) {
+            throw new Error('Difficulty history response contained no usable values.');
+        }
+        return series;
     }
 
     function forwardFillDailySeries(dateRange, rawValues) {
@@ -4736,47 +5838,48 @@
         const rangeFrom = toUnixTimestamp(refreshStartDate);
         const rangeTo = toUnixTimestamp(endDate, true);
 
-        const [usdHistoryResponse, eurHistoryResponse, difficultyHistoryResponse] = await Promise.all([
-            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
-            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`),
-            fetch(`https://api.blockchain.info/charts/difficulty?timespan=${historyDays}days&format=json&cors=true`)
+        const [usdHistoryResult, eurHistoryResult, difficultyHistoryResult] = await Promise.allSettled([
+            fetchHistoricalPriceSeries('USD', rangeFrom, rangeTo, refreshStartDate, endDate),
+            fetchHistoricalPriceSeries('EUR', rangeFrom, rangeTo, refreshStartDate, endDate),
+            fetchHistoricalDifficultySeries(historyDays)
         ]);
 
-        const responses = [
-            usdHistoryResponse,
-            eurHistoryResponse,
-            difficultyHistoryResponse
+        const settledResults = [
+            { label: 'USD price', result: usdHistoryResult },
+            { label: 'EUR price', result: eurHistoryResult },
+            { label: 'difficulty', result: difficultyHistoryResult }
         ];
-
-        responses.forEach(response => {
-            if (!response.ok) {
-                throw new Error(`Historical data request failed with status ${response.status}`);
+        settledResults.forEach(({ label, result }) => {
+            if (result.status === 'rejected') {
+                console.warn(`Historical ${label} series unavailable; preserving cached values.`, result.reason);
             }
         });
 
-        const [usdHistoryData, eurHistoryData, difficultyHistoryData] = await Promise.all(
-            responses.map(response => response.json())
-        );
+        if (settledResults.every(({ result }) => result.status === 'rejected')) {
+            return existingHistory;
+        }
 
-        const usdSeries = forwardFillDailySeries(refreshDateRange, mapCoinGeckoPrices(usdHistoryData.prices));
-        const eurSeries = forwardFillDailySeries(refreshDateRange, mapCoinGeckoPrices(eurHistoryData.prices));
-        const difficultySeries = forwardFillDailySeries(refreshDateRange, mapBlockchainChartValues(difficultyHistoryData.values));
+        const usdRawSeries = usdHistoryResult.status === 'fulfilled'
+            ? usdHistoryResult.value.series
+            : {};
+        const eurRawSeries = eurHistoryResult.status === 'fulfilled'
+            ? eurHistoryResult.value.series
+            : {};
+        const difficultyRawSeries = difficultyHistoryResult.status === 'fulfilled'
+            ? difficultyHistoryResult.value
+            : {};
+        const usdSeries = forwardFillDailySeries(refreshDateRange, usdRawSeries);
+        const eurSeries = forwardFillDailySeries(refreshDateRange, eurRawSeries);
+        const difficultySeries = forwardFillDailySeries(refreshDateRange, difficultyRawSeries);
 
         const latestHistory = await getPriceHistory();
-        const nextHistory = {};
-
-        fullDateRange.forEach(date => {
-            const usdPrice = usdSeries[date] ?? latestHistory[date]?.USD ?? existingHistory[date]?.USD ?? null;
-            const eurPrice = eurSeries[date] ?? latestHistory[date]?.EUR ?? existingHistory[date]?.EUR ?? null;
-            const hashRate = latestHistory[date]?.HashRate ?? existingHistory[date]?.HashRate ?? null;
-            const difficulty = difficultySeries[date] ?? latestHistory[date]?.Difficulty ?? existingHistory[date]?.Difficulty ?? null;
-
-            nextHistory[date] = {
-                USD: usdPrice,
-                EUR: eurPrice,
-                HashRate: hashRate,
-                Difficulty: difficulty
-            };
+        const nextHistory = getHistoricalMarketDataEngine().mergeHistoricalPriceHistory({
+            dateRange: fullDateRange,
+            existingHistory,
+            latestHistory,
+            usdSeries,
+            eurSeries,
+            difficultySeries
         });
 
         await setStoredData('bitcoinPriceHistory', nextHistory);
@@ -4975,6 +6078,11 @@
     }
 
     function getKrakenOhlcRows(responseData) {
+        const historicalEngine = window.BitcoinHistoricalMarketData;
+        if (historicalEngine?.getKrakenOhlcRows) {
+            return historicalEngine.getKrakenOhlcRows(responseData);
+        }
+
         const errors = Array.isArray(responseData?.error) ? responseData.error : [];
         if (errors.length > 0) {
             throw new Error(`Kraken OHLC request failed: ${errors.join(', ')}`);
@@ -5024,8 +6132,8 @@
 
     async function refreshIntradayHistory(nowMs = Date.now()) {
         const [usdResponse, eurResponse] = await Promise.all([
-            fetch('https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5'),
-            fetch('https://api.kraken.com/0/public/OHLC?pair=XBTEUR&interval=5')
+            fetchWithTimeout('https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5'),
+            fetchWithTimeout('https://api.kraken.com/0/public/OHLC?pair=XBTEUR&interval=5')
         ]);
 
         [usdResponse, eurResponse].forEach(response => {
@@ -5430,8 +6538,22 @@
         });
     }
 
+    async function fetchWithTimeout(url, options = {}, timeoutMs = MARKET_FETCH_TIMEOUT_MS) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            return await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
     async function fetchJsonMetric(url, errorLabel) {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             throw new Error(`${errorLabel} request failed with status ${response.status}`);
         }
@@ -5440,7 +6562,7 @@
     }
 
     async function fetchTextMetric(url, errorLabel) {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url);
         if (!response.ok) {
             throw new Error(`${errorLabel} request failed with status ${response.status}`);
         }
@@ -5912,6 +7034,7 @@
         const priceTrendAnalysis = getMobileTrendAnalysis(priceRangeData);
         updateMobileRangeStats(priceStatsData, priceRangeData);
         updateMobileTrendBadge(priceTrendAnalysis);
+        updateMobileChartAutoscanForRangeData(priceRangeData);
 
         [
             {
@@ -5921,6 +7044,7 @@
                 valueFormatter: value => formatCurrencyValue(value, selectedCurrency),
                 interactive: true,
                 touchInteractive: true,
+                enableDrawings: true,
                 showTooltip: false,
                 scrubValueElementId: 'mobileBitcoinPriceUSD',
                 scrubMetaElementId: 'mobileAlternatePrice',
@@ -5967,7 +7091,29 @@
             containerId: 'mobileAdjustmentChart'
         });
     }
-    async function redrawAllCharts() {
+    function buildLivePriceFallbackChartData(price, nowMs = Date.now()) {
+        const normalizedPrice = Number(price);
+        if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+            return [];
+        }
+
+        return [
+            {
+                x: nowMs - INTRADAY_BUCKET_MS,
+                y: normalizedPrice,
+                high: normalizedPrice,
+                low: normalizedPrice
+            },
+            {
+                x: nowMs,
+                y: normalizedPrice,
+                high: normalizedPrice,
+                low: normalizedPrice
+            }
+        ];
+    }
+
+    async function redrawAllCharts({ fallbackPrices = mobileLatestPrices } = {}) {
         const chartData = {
             usd: await getDataForChart('USD'),
             eur: await getDataForChart('EUR'),
@@ -5981,6 +7127,20 @@
             monthlyUSD: await getMobileMonthlyChartData(),
             monthlyEUR: await getMobileMonthlyChartData('EUR')
         };
+
+        const fallbackTimestamp = Date.now();
+        if (chartData.intradayUSD.length < 2) {
+            chartData.intradayUSD = buildLivePriceFallbackChartData(
+                fallbackPrices?.USD,
+                fallbackTimestamp
+            );
+        }
+        if (chartData.intradayEUR.length < 2) {
+            chartData.intradayEUR = buildLivePriceFallbackChartData(
+                fallbackPrices?.EUR,
+                fallbackTimestamp
+            );
+        }
 
         renderMobileCharts(chartData);
     }
@@ -6037,7 +7197,7 @@
                 console.warn('Mobile monthly market cache is stale. Refreshing the trailing 30d range in the background.');
             }
 
-            const priceResponse = await fetch('https://blockchain.info/ticker');
+            const priceResponse = await fetchWithTimeout('https://blockchain.info/ticker');
             if (!priceResponse.ok) {
                 throw new Error(`Current price request failed with status ${priceResponse.status}`);
             }
@@ -6065,10 +7225,34 @@
                 setMetricText('mobileUsdEur', (1 / eurUsdRate).toFixed(4));
             }
 
+            updateLastUpdated();
+            await redrawAllCharts({
+                fallbackPrices: {
+                    USD: btcUSD,
+                    EUR: btcEUR
+                }
+            });
+
+            if (backgroundIntradayRefresh) {
+                const refreshedIntradayHistory = await backgroundIntradayRefresh;
+
+                if (refreshedIntradayHistory) {
+                    if (canPatchLiveChartPrices(
+                        btcUSD,
+                        btcEUR,
+                        getLatestFiniteSeriesValue(refreshedIntradayHistory.USD),
+                        getLatestFiniteSeriesValue(refreshedIntradayHistory.EUR)
+                    )) {
+                        await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
+                    }
+
+                    await redrawAllCharts();
+                }
+            }
+
             await blockHeightUpdatePromise;
             const networkMetrics = await networkPressurePromise;
             const hashRateTh = await hashRateUpdatePromise;
-            updateLastUpdated();
 
             const canPatchDailyHistory = !historyNeedsRefresh && canPatchLiveChartPrices(
                 btcUSD,
@@ -6130,23 +7314,6 @@
                     )) {
                         await updatePriceHistory(today, btcUSD, btcEUR, refreshedHashRate, networkMetrics?.difficulty ?? null);
                         await purgeOldPrices();
-                    }
-
-                    await redrawAllCharts();
-                }
-            }
-
-            if (backgroundIntradayRefresh) {
-                const refreshedIntradayHistory = await backgroundIntradayRefresh;
-
-                if (refreshedIntradayHistory) {
-                    if (canPatchLiveChartPrices(
-                        btcUSD,
-                        btcEUR,
-                        getLatestFiniteSeriesValue(refreshedIntradayHistory.USD),
-                        getLatestFiniteSeriesValue(refreshedIntradayHistory.EUR)
-                    )) {
-                        await patchIntradayHistory(Date.now(), btcUSD, btcEUR);
                     }
 
                     await redrawAllCharts();
@@ -6557,13 +7724,27 @@
 
             return plot.top + (((domainMax - value) / (domainMax - domainMin)) * plot.height);
         };
+        const xInvert = pixelX => {
+            const clampedX = Math.max(plot.left, Math.min(plot.right, Number(pixelX)));
+            return minTime + (((clampedX - plot.left) / plot.width) * timeSpan);
+        };
+        const yInvert = pixelY => {
+            const clampedY = Math.max(plot.top, Math.min(plot.bottom, Number(pixelY)));
+            return domainMax - (((clampedY - plot.top) / plot.height) * (domainMax - domainMin));
+        };
 
         return {
+            svgWidth,
+            svgHeight,
             domainMin,
             domainMax,
+            minTime,
+            maxTime,
             plot,
             xScale,
             yScale,
+            xInvert,
+            yInvert,
             renderedPoints: renderData.map(point => ({
                 ...point,
                 pixelX: xScale(point.timeMs),
@@ -6591,6 +7772,358 @@
                 pixelX: geometry.xScale(point.timeMs),
                 pixelY: geometry.yScale(point.y)
             }));
+    }
+
+    const CHART_SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
+    function createChartSvgElement(tagName) {
+        return document.createElementNS(CHART_SVG_NAMESPACE, tagName);
+    }
+
+    function getMobileChartDrawingAnchorFromPointer(event, svg, geometry) {
+        const rect = svg.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+            return null;
+        }
+
+        const touch = event.touches?.[0] || event.changedTouches?.[0];
+        const clientX = Number.isFinite(event.clientX) ? event.clientX : touch?.clientX;
+        const clientY = Number.isFinite(event.clientY) ? event.clientY : touch?.clientY;
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+            return null;
+        }
+
+        const pixelX = ((clientX - rect.left) / rect.width) * geometry.svgWidth;
+        const pixelY = ((clientY - rect.top) / rect.height) * geometry.svgHeight;
+        return {
+            timeMs: geometry.xInvert(pixelX),
+            value: geometry.yInvert(pixelY)
+        };
+    }
+
+    function projectMobileChartDrawingAnchor(anchor, geometry) {
+        return {
+            x: geometry.xScale(anchor.timeMs),
+            y: geometry.yScale(anchor.value),
+            anchor
+        };
+    }
+
+    function buildMobileChartDrawingPixelGeometry(drawing, geometry) {
+        const points = drawing.anchors.map(anchor => projectMobileChartDrawingAnchor(anchor, geometry));
+        const segments = [];
+        const labels = [];
+        let polygon = null;
+
+        const addSegment = (start, end, kind = 'line') => {
+            segments.push({ start, end, kind });
+        };
+
+        if (drawing.type === 'trend') {
+            addSegment(points[0], points[1]);
+        } else if (drawing.type === 'horizontal') {
+            const levelPoint = points[0];
+            addSegment(
+                { x: geometry.plot.left, y: levelPoint.y },
+                { x: geometry.plot.right, y: levelPoint.y }
+            );
+            labels.push({
+                x: geometry.plot.left + 7,
+                y: Math.max(geometry.plot.top + 12, levelPoint.y - 7),
+                text: formatCurrencyValue(levelPoint.anchor.value, mobileSelectedCurrency)
+            });
+        } else if (drawing.type === 'channel') {
+            const [first, second, offsetPoint] = points;
+            const vector = {
+                x: second.x - first.x,
+                y: second.y - first.y
+            };
+            const parallelEnd = {
+                x: offsetPoint.x + vector.x,
+                y: offsetPoint.y + vector.y
+            };
+            addSegment(first, second);
+            addSegment(offsetPoint, parallelEnd);
+            polygon = [first, second, parallelEnd, offsetPoint];
+        } else if (drawing.type === 'triangle') {
+            const [first, apex, third] = points;
+            addSegment(first, apex);
+            addSegment(third, apex);
+            polygon = [first, apex, third];
+        } else if (drawing.type === 'wedge') {
+            const [first, second, third, fourth] = points;
+            addSegment(first, second);
+            addSegment(third, fourth);
+            polygon = [first, second, fourth, third];
+        } else if (drawing.type === 'fib') {
+            const [first, second] = points;
+            const left = Math.min(first.x, second.x);
+            const right = Math.max(first.x, second.x);
+            const labelX = Math.min(geometry.plot.right - 26, right + 5);
+            [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1].forEach(level => {
+                const y = first.y + ((second.y - first.y) * level);
+                addSegment({ x: left, y }, { x: right, y }, 'fib');
+                labels.push({
+                    x: labelX,
+                    y: Math.max(geometry.plot.top + 10, Math.min(geometry.plot.bottom - 3, y - 4)),
+                    text: `${(level * 100).toFixed(level === 0 || level === 1 ? 0 : 1)}%`
+                });
+            });
+        }
+
+        return { points, segments, labels, polygon };
+    }
+
+    function appendMobileChartDrawingLine(group, segment, className) {
+        const line = createChartSvgElement('line');
+        line.setAttribute('x1', String(segment.start.x));
+        line.setAttribute('y1', String(segment.start.y));
+        line.setAttribute('x2', String(segment.end.x));
+        line.setAttribute('y2', String(segment.end.y));
+        line.setAttribute('class', className);
+        group.appendChild(line);
+        return line;
+    }
+
+    function appendMobileChartDrawingPolygon(group, points, isSelected, isAutoscan = false) {
+        if (!Array.isArray(points) || points.length < 3) {
+            return;
+        }
+
+        const polygon = createChartSvgElement('polygon');
+        polygon.setAttribute('points', points.map(point => `${point.x},${point.y}`).join(' '));
+        polygon.setAttribute('class', [
+            'chart-drawing-fill',
+            isSelected ? 'is-selected' : '',
+            isAutoscan ? 'is-autoscan' : ''
+        ].filter(Boolean).join(' '));
+        group.appendChild(polygon);
+    }
+
+    function appendMobileChartDrawingLabel(group, label) {
+        const text = createChartSvgElement('text');
+        text.setAttribute('x', String(label.x));
+        text.setAttribute('y', String(label.y));
+        text.setAttribute('class', 'chart-drawing-label');
+        text.textContent = label.text;
+        group.appendChild(text);
+    }
+
+    function beginMobileChartDrawingAnchorDrag(event, drawingId, anchorIndex, svg, geometry) {
+        if (event.button != null && event.button !== 0) {
+            return;
+        }
+
+        const drawing = getCurrentMobileChartDrawings().find(item => item.id === drawingId);
+        if (!drawing || drawing.locked) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') {
+            event.stopImmediatePropagation();
+        }
+
+        const scopeKey = getMobileChartDrawingScopeKey();
+        const originalSnapshot = cloneMobileChartDrawings(getCurrentMobileChartDrawings());
+        const activePointerId = event.pointerId;
+        let moved = false;
+        mobileChartSelectedDrawingId = drawingId;
+        mobileChartDrawingDragActive = true;
+        syncMobileChartDrawingControls();
+
+        const moveAnchor = moveEvent => {
+            if (activePointerId != null && moveEvent.pointerId != null && moveEvent.pointerId !== activePointerId) {
+                return;
+            }
+
+            const anchor = getMobileChartDrawingAnchorFromPointer(moveEvent, svg, geometry);
+            if (!anchor) {
+                return;
+            }
+
+            moveEvent.preventDefault();
+            if (!moved) {
+                pushMobileChartDrawingUndoSnapshot(originalSnapshot, scopeKey);
+                moved = true;
+            }
+
+            const activeDrawing = getCurrentMobileChartDrawings().find(item => item.id === drawingId);
+            if (!activeDrawing || activeDrawing.locked || !activeDrawing.anchors[anchorIndex]) {
+                return;
+            }
+
+            activeDrawing.anchors[anchorIndex] = anchor;
+            requestMobileChartDrawingRender();
+        };
+
+        const finishDrag = endEvent => {
+            if (activePointerId != null && endEvent.pointerId != null && endEvent.pointerId !== activePointerId) {
+                return;
+            }
+
+            window.removeEventListener('pointermove', moveAnchor);
+            window.removeEventListener('pointerup', finishDrag);
+            window.removeEventListener('pointercancel', finishDrag);
+            mobileChartDrawingDragActive = false;
+            if (moved) {
+                saveMobileChartDrawingStore();
+            }
+            requestMobileChartDrawingRender();
+        };
+
+        window.addEventListener('pointermove', moveAnchor, { passive: false });
+        window.addEventListener('pointerup', finishDrag);
+        window.addEventListener('pointercancel', finishDrag);
+    }
+
+    function appendMobileChartDrawingInteraction(
+        interactionGroup,
+        drawing,
+        pixelGeometry,
+        svg,
+        geometry,
+        isSelected
+    ) {
+        const selectDrawing = event => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+            }
+            mobileChartSelectedDrawingId = drawing.id;
+            requestMobileChartDrawingRender();
+        };
+
+        pixelGeometry.segments.forEach(segment => {
+            const hitLine = appendMobileChartDrawingLine(interactionGroup, segment, 'chart-drawing-hit-line');
+            hitLine.setAttribute('aria-label', `Select ${MOBILE_CHART_DRAWING_TOOL_DEFINITIONS[drawing.type].label}`);
+            if (typeof window.PointerEvent === 'function') {
+                hitLine.addEventListener('pointerdown', selectDrawing);
+            } else {
+                hitLine.addEventListener('click', selectDrawing);
+            }
+        });
+
+        if (!isSelected || drawing.locked) {
+            return;
+        }
+
+        pixelGeometry.points.forEach((point, anchorIndex) => {
+            const handle = createChartSvgElement('circle');
+            handle.setAttribute('cx', String(point.x));
+            handle.setAttribute('cy', String(point.y));
+            handle.setAttribute('r', '5.5');
+            handle.setAttribute('class', 'chart-drawing-handle');
+            handle.setAttribute('aria-label', `Move point ${anchorIndex + 1}`);
+            handle.addEventListener('pointerdown', event => {
+                beginMobileChartDrawingAnchorDrag(event, drawing.id, anchorIndex, svg, geometry);
+            });
+            interactionGroup.appendChild(handle);
+        });
+    }
+
+    function appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, isSelected) {
+        const drawingGroup = createChartSvgElement('g');
+        const isAutoscan = drawing.source === 'autoscan';
+        drawingGroup.dataset.drawingId = drawing.id;
+        drawingGroup.dataset.drawingSource = isAutoscan ? 'autoscan' : 'manual';
+        if (isAutoscan) {
+            const title = createChartSvgElement('title');
+            const confidence = Number.isFinite(Number(drawing.confidence))
+                ? `, ${Math.round(Number(drawing.confidence) * 100)}% confidence`
+                : '';
+            title.textContent = `${drawing.label || 'Automatic chart pattern'}${confidence}`;
+            drawingGroup.appendChild(title);
+        }
+        appendMobileChartDrawingPolygon(drawingGroup, pixelGeometry.polygon, isSelected, isAutoscan);
+
+        pixelGeometry.segments.forEach(segment => {
+            const baseClass = segment.kind === 'fib' ? 'chart-drawing-fib-line' : 'chart-drawing-line';
+            const classes = [
+                baseClass,
+                isSelected ? 'is-selected' : '',
+                drawing.locked ? 'is-locked' : '',
+                isAutoscan ? 'is-autoscan' : ''
+            ].filter(Boolean).join(' ');
+            appendMobileChartDrawingLine(drawingGroup, segment, classes);
+        });
+
+        if (isSelected) {
+            pixelGeometry.labels.forEach(label => appendMobileChartDrawingLabel(drawingGroup, label));
+        }
+        visualGroup.appendChild(drawingGroup);
+    }
+
+    function appendMobileChartDrawingDraft(draftGroup, geometry) {
+        if (!mobileChartDrawingTool || mobileChartDrawingDraftAnchors.length === 0) {
+            return;
+        }
+
+        const anchors = [...mobileChartDrawingDraftAnchors];
+        if (mobileChartDrawingPreviewAnchor) {
+            anchors.push(mobileChartDrawingPreviewAnchor);
+        }
+        const points = anchors.map(anchor => projectMobileChartDrawingAnchor(anchor, geometry));
+        for (let index = 1; index < points.length; index++) {
+            appendMobileChartDrawingLine(draftGroup, {
+                start: points[index - 1],
+                end: points[index]
+            }, 'chart-drawing-draft-line');
+        }
+
+        mobileChartDrawingDraftAnchors.forEach(anchor => {
+            const point = projectMobileChartDrawingAnchor(anchor, geometry);
+            const handle = createChartSvgElement('circle');
+            handle.setAttribute('cx', String(point.x));
+            handle.setAttribute('cy', String(point.y));
+            handle.setAttribute('r', '4.5');
+            handle.setAttribute('class', 'chart-drawing-draft-handle');
+            draftGroup.appendChild(handle);
+        });
+    }
+
+    function renderMobileChartDrawingLayers({
+        visualGroup,
+        interactionGroup,
+        draftGroup,
+        svg,
+        geometry
+    }) {
+        visualGroup.replaceChildren();
+        interactionGroup.replaceChildren();
+        draftGroup.replaceChildren();
+
+        const autoscanDrawings = getCurrentMobileChartAutoscanPatterns();
+        autoscanDrawings.forEach(drawing => {
+            const pixelGeometry = buildMobileChartDrawingPixelGeometry(drawing, geometry);
+            appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, false);
+        });
+
+        const drawings = getCurrentMobileChartDrawings();
+        const orderedDrawings = [
+            ...drawings.filter(drawing => drawing.id !== mobileChartSelectedDrawingId),
+            ...drawings.filter(drawing => drawing.id === mobileChartSelectedDrawingId)
+        ];
+        orderedDrawings.forEach(drawing => {
+            const isSelected = drawing.id === mobileChartSelectedDrawingId;
+            const pixelGeometry = buildMobileChartDrawingPixelGeometry(drawing, geometry);
+            appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, isSelected);
+            if (!mobileChartDrawingTool) {
+                appendMobileChartDrawingInteraction(
+                    interactionGroup,
+                    drawing,
+                    pixelGeometry,
+                    svg,
+                    geometry,
+                    isSelected
+                );
+            }
+        });
+
+        appendMobileChartDrawingDraft(draftGroup, geometry);
+        syncMobileChartDrawingControls();
     }
 
     function splitChartPointSegments(points, maxPointGapMs) {
@@ -6866,6 +8399,20 @@
     let enterKeyPressStart;
 
     document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && (
+            mobileChartDrawingPaletteOpen
+            || mobileChartDrawingTool
+            || mobileChartSelectedDrawingId
+        )) {
+            mobileChartDrawingPaletteOpen = false;
+            mobileChartDrawingTool = null;
+            mobileChartDrawingDraftAnchors = [];
+            mobileChartDrawingPreviewAnchor = null;
+            mobileChartSelectedDrawingId = null;
+            requestMobileChartDrawingRender();
+            return;
+        }
+
         if (event.key === "Enter" && !enterKeyPressStart) {
             enterKeyPressStart = event.timeStamp;
         }
@@ -6891,9 +8438,48 @@
             return;
         }
 
+        const drawingToggle = event.target.closest('[data-mobile-chart-drawing-toggle]');
+        if (drawingToggle) {
+            mobileChartDrawingPaletteOpen = !mobileChartDrawingPaletteOpen;
+            syncMobileChartDrawingControls();
+            return;
+        }
+
+        if (event.target.closest('[data-mobile-chart-autoscan-toggle]')) {
+            toggleMobileChartAutoscan();
+            return;
+        }
+
+        const drawingToolButton = event.target.closest('[data-mobile-chart-drawing-tool]');
+        if (drawingToolButton) {
+            selectMobileChartDrawingTool(drawingToolButton.dataset.mobileChartDrawingTool);
+            return;
+        }
+
+        if (event.target.closest('[data-mobile-chart-drawing-undo]')) {
+            undoMobileChartDrawingChange();
+            return;
+        }
+
+        if (event.target.closest('[data-mobile-chart-drawing-cancel]')) {
+            cancelMobileChartDrawing();
+            return;
+        }
+
+        if (event.target.closest('[data-mobile-chart-drawing-lock]')) {
+            toggleSelectedMobileChartDrawingLock();
+            return;
+        }
+
+        if (event.target.closest('[data-mobile-chart-drawing-delete]')) {
+            deleteSelectedMobileChartDrawing();
+            return;
+        }
+
         const currencyToggle = event.target.closest('[data-mobile-currency-toggle]');
         if (currencyToggle) {
             mobileSelectedCurrency = getOtherMobileCurrency(mobileSelectedCurrency);
+            resetMobileChartDrawingInteractionState();
             saveMobileSelectedCurrency(mobileSelectedCurrency);
             updateMobilePriceDisplay();
             redrawAllCharts().catch(error => console.error('Redrawing mobile currency failed:', error));
@@ -6911,6 +8497,7 @@
         }
 
         mobileSelectedRange = nextMobileRange;
+        resetMobileChartDrawingInteractionState();
         saveMobileSelectedRange(mobileSelectedRange);
         syncMobileRangeButtons();
         redrawAllCharts().catch(error => console.error('Redrawing mobile range failed:', error));
@@ -6957,11 +8544,16 @@
         maxPointGapMs = null,
         chartStyle = 'line',
         overlayData = null,
-        overlayColor = 'rgba(177, 222, 255, 0.72)'
+        overlayColor = 'rgba(177, 222, 255, 0.72)',
+        enableDrawings = false
     }) {
         const container = document.getElementById(containerId);
         if (!container) {
             return;
+        }
+        const drawingsEnabled = enableDrawings && containerId === 'mobilePrimaryChart';
+        if (drawingsEnabled) {
+            mobileChartDrawingRenderCallback = null;
         }
         const svgWidth = container.clientWidth;
         const svgHeight = container.clientHeight;
@@ -6981,6 +8573,9 @@
         });
 
         if (!geometry) {
+            if (drawingsEnabled) {
+                syncMobileChartDrawingControls();
+            }
             replaceElementChildren(container);
             return;
         }
@@ -6992,6 +8587,11 @@
         svg.setAttribute("preserveAspectRatio", "none");
         svg.setAttribute("width", "100%");
         svg.setAttribute("height", "100%");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", seriesLabel ? `${seriesLabel} chart` : 'Chart');
+        if (drawingsEnabled) {
+            container.removeAttribute('aria-hidden');
+        }
 
         const { renderedPoints, hoverPoints, plot } = geometry;
 
@@ -7066,6 +8666,17 @@
             svg.appendChild(overlayPath);
         }
 
+        let drawingVisualGroup = null;
+        let drawingDraftGroup = null;
+        if (drawingsEnabled) {
+            drawingVisualGroup = document.createElementNS(svgNS, 'g');
+            drawingVisualGroup.setAttribute('class', 'chart-drawing-visual-layer');
+            drawingDraftGroup = document.createElementNS(svgNS, 'g');
+            drawingDraftGroup.setAttribute('class', 'chart-drawing-draft-layer');
+            svg.appendChild(drawingVisualGroup);
+            svg.appendChild(drawingDraftGroup);
+        }
+
         const nextNodes = [svg];
 
         // Hover-only clients use mouse movement; the mobile price chart opts into touch scrubbing.
@@ -7111,6 +8722,109 @@
             hitArea.style.touchAction = 'pan-y';
         }
         svg.appendChild(hitArea);
+
+        if (drawingsEnabled) {
+            const drawingInteractionGroup = document.createElementNS(svgNS, 'g');
+            drawingInteractionGroup.setAttribute('class', 'chart-drawing-interaction-layer');
+            svg.appendChild(drawingInteractionGroup);
+
+            const renderDrawingLayers = () => {
+                const drawingActive = Boolean(mobileChartDrawingTool || mobileChartDrawingDragActive);
+                hitArea.style.touchAction = drawingActive ? 'none' : (touchCapable ? 'pan-y' : '');
+                svg.style.touchAction = drawingActive ? 'none' : (touchCapable ? 'pan-y' : '');
+                container.style.touchAction = drawingActive ? 'none' : (touchCapable ? 'pan-y' : '');
+                const drawingCount = getCurrentMobileChartDrawings().length;
+                const autoscanCount = getCurrentMobileChartAutoscanPatterns().length;
+                const annotations = drawingCount + autoscanCount;
+                svg.setAttribute(
+                    'aria-label',
+                    `${seriesLabel || 'Price'} chart${annotations ? ` with ${drawingCount} manual drawing${drawingCount === 1 ? '' : 's'} and ${autoscanCount} automatic pattern${autoscanCount === 1 ? '' : 's'}` : ''}`
+                );
+                renderMobileChartDrawingLayers({
+                    visualGroup: drawingVisualGroup,
+                    interactionGroup: drawingInteractionGroup,
+                    draftGroup: drawingDraftGroup,
+                    svg,
+                    geometry
+                });
+            };
+            mobileChartDrawingRenderCallback = renderDrawingLayers;
+
+            const stopDrawingEvent = event => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === 'function') {
+                    event.stopImmediatePropagation();
+                }
+            };
+
+            const placeDrawingAnchor = event => {
+                if (!mobileChartDrawingTool) {
+                    if (mobileChartSelectedDrawingId) {
+                        mobileChartSelectedDrawingId = null;
+                        requestMobileChartDrawingRender();
+                    }
+                    return;
+                }
+                if (event.button != null && event.button !== 0) {
+                    return;
+                }
+
+                const anchor = getMobileChartDrawingAnchorFromPointer(event, svg, geometry);
+                if (!anchor) {
+                    return;
+                }
+
+                stopDrawingEvent(event);
+                const activeTool = mobileChartDrawingTool;
+                const definition = MOBILE_CHART_DRAWING_TOOL_DEFINITIONS[activeTool];
+                const nextAnchors = [...mobileChartDrawingDraftAnchors, anchor];
+                mobileChartDrawingPreviewAnchor = null;
+                if (nextAnchors.length >= definition.anchorCount) {
+                    completeMobileChartDrawing(activeTool, nextAnchors.slice(0, definition.anchorCount));
+                    return;
+                }
+
+                mobileChartDrawingDraftAnchors = nextAnchors;
+                requestMobileChartDrawingRender();
+            };
+
+            const previewDrawingAnchor = event => {
+                if (!mobileChartDrawingTool || mobileChartDrawingDraftAnchors.length === 0) {
+                    return;
+                }
+
+                const anchor = getMobileChartDrawingAnchorFromPointer(event, svg, geometry);
+                if (!anchor) {
+                    return;
+                }
+
+                stopDrawingEvent(event);
+                mobileChartDrawingPreviewAnchor = anchor;
+                renderDrawingLayers();
+            };
+
+            const clearDrawingPreview = () => {
+                if (!mobileChartDrawingPreviewAnchor) {
+                    return;
+                }
+
+                mobileChartDrawingPreviewAnchor = null;
+                renderDrawingLayers();
+            };
+
+            if (typeof window.PointerEvent === 'function') {
+                hitArea.addEventListener('pointerdown', placeDrawingAnchor);
+                hitArea.addEventListener('pointermove', previewDrawingAnchor);
+                hitArea.addEventListener('pointerleave', clearDrawingPreview);
+            } else {
+                hitArea.addEventListener('click', placeDrawingAnchor);
+                hitArea.addEventListener('mousemove', previewDrawingAnchor);
+                hitArea.addEventListener('mouseleave', clearDrawingPreview);
+            }
+
+            renderDrawingLayers();
+        }
 
         const tooltip = document.createElement('div');
         tooltip.className = 'chart-tooltip';
@@ -7232,6 +8946,9 @@
         };
 
         const updateHover = event => {
+            if (drawingsEnabled && (mobileChartDrawingTool || mobileChartDrawingDragActive)) {
+                return;
+            }
             const rect = svg.getBoundingClientRect();
             if (rect.width <= 0 || rect.height <= 0) {
                 return;
@@ -7562,6 +9279,8 @@
     }
 
     syncMobileRangeButtons();
+    syncMobileChartDrawingControls();
+    syncMobileChartAutoscanControls();
     updateMobilePriceDisplay();
     initializeWearApp();
     setInterval(updateWearFreshnessAge, 60 * 1000);
