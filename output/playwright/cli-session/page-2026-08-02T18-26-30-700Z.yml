@@ -1,0 +1,109 @@
+- main "Bitcoin price tracker mobile view" [ref=e2]:
+  - region [ref=e3]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Bitcoin price tracker
+      - heading "BTC price today" [level=1] [ref=e7]
+    - article [ref=e8]:
+      - generic [ref=e9]:
+        - button "Switch BTC price to EUR" [ref=e10] [cursor=pointer]:
+          - paragraph [ref=e11]:
+            - generic [ref=e12]: BTC price
+            - generic [ref=e13]: USD
+          - generic [ref=e14]: Loading...
+          - paragraph [ref=e15]: EUR loading...
+        - generic:
+          - generic: Pending
+          - generic: Pending
+      - generic "Chart drawing controls" [ref=e18]:
+        - generic [ref=e19]:
+          - button "Draw 0" [ref=e20] [cursor=pointer]:
+            - text: Draw
+            - generic [ref=e21]: "0"
+          - button "Automatic chart scan on" [pressed] [ref=e22] [cursor=pointer]:
+            - text: Auto
+            - generic [ref=e23]: "0"
+          - button "Undo" [disabled] [ref=e25]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - paragraph [ref=e28]: 24h High
+          - strong [ref=e29]: Loading...
+        - generic [ref=e30]:
+          - paragraph [ref=e31]: 24h Low
+          - strong [ref=e32]: Loading...
+        - generic [ref=e33]:
+          - paragraph [ref=e34]: Updated
+          - strong [ref=e35]: Pending
+      - tablist "BTC price range" [ref=e36]:
+        - tab "Day" [selected] [ref=e37] [cursor=pointer]
+        - tab "Week" [ref=e38] [cursor=pointer]
+        - tab "Month" [ref=e39] [cursor=pointer]
+        - tab "Year" [ref=e40] [cursor=pointer]
+  - region [ref=e41]:
+    - generic [ref=e43]:
+      - paragraph [ref=e44]: Block clock
+      - heading "Network timing" [level=2] [ref=e45]
+    - generic [ref=e46]:
+      - paragraph [ref=e47]: Current block height
+      - generic [ref=e48]: Loading...
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - paragraph [ref=e57]: Last Sync
+        - strong [ref=e58]: Pending
+      - generic [ref=e59]:
+        - paragraph [ref=e64]: Average Cadence
+        - strong [ref=e65]: ~10 min
+      - generic [ref=e66]:
+        - paragraph [ref=e69]: Next Halving
+        - generic [ref=e70]:
+          - strong [ref=e71]: Loading...
+          - time [ref=e72]:
+            - generic [ref=e73]: Loading...
+    - generic [ref=e75]:
+      - paragraph [ref=e76]: Halving Progress
+      - strong [ref=e77]: Loading...
+  - region [ref=e78]:
+    - generic [ref=e79]:
+      - paragraph [ref=e80]: Network health
+      - heading "Difficulty and retarget" [level=2] [ref=e81]
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - paragraph [ref=e86]: Network Difficulty
+        - strong [ref=e87]: Loading...
+      - generic [ref=e88]:
+        - paragraph [ref=e89]: Next Retarget
+        - strong [ref=e90]: Loading...
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - paragraph [ref=e94]: Adjustment Pressure
+        - paragraph [ref=e95]: Recent retargets + projection
+      - strong [ref=e96]: Loading...
+    - generic [ref=e98]:
+      - generic [ref=e99]:
+        - paragraph [ref=e103]: Estimated Hash Rate
+        - strong [ref=e104]: Loading...
+      - generic [ref=e105]:
+        - paragraph [ref=e108]: Mempool Fee
+        - strong [ref=e109]: Loading...
+      - generic [ref=e110]:
+        - paragraph [ref=e113]: Block Height
+        - strong [ref=e114]: Loading...
+  - region [ref=e115]:
+    - generic [ref=e116]:
+      - paragraph [ref=e117]: Supporting context
+      - heading "FX and conversion rates" [level=2] [ref=e118]
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - paragraph [ref=e121]: Sats / USD
+        - strong [ref=e122]: Loading...
+      - generic [ref=e123]:
+        - paragraph [ref=e124]: Sats / EUR
+        - strong [ref=e125]: Loading...
+      - generic [ref=e126]:
+        - paragraph [ref=e127]: EUR / USD
+        - strong [ref=e128]: Loading...
+      - generic [ref=e129]:
+        - paragraph [ref=e130]: USD / EUR
+        - strong [ref=e131]: Loading...
+    - generic [ref=e133]:
+      - paragraph [ref=e134]: EUR / USD
+      - paragraph [ref=e135]: 365-day exchange rate

@@ -1,0 +1,119 @@
+[    1060ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://127.0.0.1:8765/favicon.ico:0
+[    1062ms] [WARNING] Historical market cache has gaps. Refreshing only the missing trailing range in the background. @ http://127.0.0.1:8765/clock.html:7089
+[    1062ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7093
+[    1062ms] [WARNING] Mobile weekly market cache is stale. Refreshing the trailing 7d range in the background. @ http://127.0.0.1:8765/clock.html:7097
+[    1062ms] [WARNING] Mobile monthly market cache is stale. Refreshing the trailing 30d range in the background. @ http://127.0.0.1:8765/clock.html:7101
+[    3527ms] [WARNING] Historical market cache has gaps. Refreshing only the missing trailing range in the background. @ http://127.0.0.1:8765/clock.html:7089
+[    3547ms] [ERROR] Access to fetch at 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=1754179200&to=1785715199' from origin 'http://127.0.0.1:8765' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:8765/clock.html:0
+[    3547ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=1754179200&to=1785715199:0
+[    3547ms] [ERROR] Refreshing historical market data failed: TypeError: Failed to fetch
+    at refreshHistoricalPriceHistory (http://127.0.0.1:8765/clock.html:5753:13) @ http://127.0.0.1:8765/clock.html:5802
+[    3567ms] [ERROR] Access to fetch at 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=1754179200&to=1785715199' from origin 'http://127.0.0.1:8765' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:8765/clock.html:0
+[    3567ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=1754179200&to=1785715199:0
+[    3611ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[    3611ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[    3692ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[    3693ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[   63700ms] [WARNING] Historical market cache has gaps. Refreshing only the missing trailing range in the background. @ http://127.0.0.1:8765/clock.html:7089
+[   63784ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[   63784ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[   63859ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[   63859ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[   63977ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[   63977ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  124078ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  124078ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  124177ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  124177ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  184267ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  184267ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  184346ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  184346ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  244448ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  244449ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  244528ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  244528ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  304615ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  304616ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  304698ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  304698ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  364795ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  364796ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  364870ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  364870ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  424991ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  424991ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  425066ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  425066ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  485171ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  485171ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  485243ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  485243ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  545325ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  545325ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  555249ms] [WARNING] Updating network difficulty retarget failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6448:55 @ http://127.0.0.1:8765/clock.html:6505
+[  555250ms] [WARNING] Updating network mempool fee failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6448:55 @ http://127.0.0.1:8765/clock.html:6519
+[  555274ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  555275ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  615282ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7093
+[  615282ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  615282ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTEUR&interval=5:0
+[  615283ms] [ERROR] Refreshing intraday market data failed: Error: Intraday market data request failed with status 503
+    at http://127.0.0.1:8765/clock.html:6046:23
+    at Array.forEach (<anonymous>)
+    at refreshIntradayHistory (http://127.0.0.1:8765/clock.html:6044:36) @ http://127.0.0.1:8765/clock.html:6065
+[  615364ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  615364ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  615439ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  615439ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  675451ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7093
+[  675451ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  675452ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTEUR&interval=5:0
+[  675452ms] [ERROR] Refreshing intraday market data failed: Error: Intraday market data request failed with status 503
+    at http://127.0.0.1:8765/clock.html:6046:23
+    at Array.forEach (<anonymous>)
+    at refreshIntradayHistory (http://127.0.0.1:8765/clock.html:6044:36) @ http://127.0.0.1:8765/clock.html:6065
+[  675530ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  675530ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  675788ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  675788ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  735801ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7093
+[  735802ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  735802ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTEUR&interval=5:0
+[  735802ms] [ERROR] Refreshing intraday market data failed: Error: Intraday market data request failed with status 503
+    at http://127.0.0.1:8765/clock.html:6046:23
+    at Array.forEach (<anonymous>)
+    at refreshIntradayHistory (http://127.0.0.1:8765/clock.html:6044:36) @ http://127.0.0.1:8765/clock.html:6065
+[  735885ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  735885ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208
+[  736094ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=5:0
+[  736094ms] [WARNING] Refreshing automatic chart scan data failed; using chart data when possible. Error: Automatic chart scan market data request failed with status 503
+    at fetchMobileChartAutoscanCandles (http://127.0.0.1:8765/clock.html:5147:19) @ http://127.0.0.1:8765/clock.html:5208

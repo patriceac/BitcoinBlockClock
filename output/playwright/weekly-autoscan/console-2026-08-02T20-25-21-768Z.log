@@ -1,0 +1,19 @@
+[    1089ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://127.0.0.1:8765/favicon.ico:0
+[    1110ms] [WARNING] Historical market cache has gaps. Refreshing only the missing trailing range in the background. @ http://127.0.0.1:8765/clock.html:7184
+[    1110ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7188
+[    1110ms] [WARNING] Mobile weekly market cache is stale. Refreshing the trailing 7d range in the background. @ http://127.0.0.1:8765/clock.html:7192
+[    1110ms] [WARNING] Mobile monthly market cache is stale. Refreshing the trailing 30d range in the background. @ http://127.0.0.1:8765/clock.html:7196
+[    1377ms] [ERROR] Failed to load resource: the server responded with a status of 429 () @ https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=1754179200&to=1785715199:0
+[    1377ms] [WARNING] CoinGecko USD historical prices unavailable; using Kraken daily OHLC fallback. Error: CoinGecko USD history request failed with status 429
+    at fetchCoinGeckoHistoricalPriceSeries (http://127.0.0.1:8765/clock.html:5723:19)
+    at async fetchHistoricalPriceSeries (http://127.0.0.1:8765/clock.html:5754:20)
+    at async Promise.allSettled (index 0)
+    at async refreshHistoricalPriceHistory (http://127.0.0.1:8765/clock.html:5841:79) @ http://127.0.0.1:8765/clock.html:5755
+[   11095ms] [WARNING] Updating network difficulty retarget failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6543:55 @ http://127.0.0.1:8765/clock.html:6600
+[   11096ms] [WARNING] Updating network mempool fee failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6543:55 @ http://127.0.0.1:8765/clock.html:6614
+[   81180ms] [WARNING] Updating network difficulty retarget failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6543:55 @ http://127.0.0.1:8765/clock.html:6600
+[   81181ms] [WARNING] Updating network mempool fee failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6543:55 @ http://127.0.0.1:8765/clock.html:6614

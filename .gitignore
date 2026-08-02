@@ -22,3 +22,6 @@ local.properties
 *.aab
 *.jks
 *.keystore
+
+# Generated GitHub Release artifacts
+/output/release-*/

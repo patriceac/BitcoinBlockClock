@@ -1,0 +1,111 @@
+- main "Bitcoin price tracker mobile view" [ref=f2e2]:
+  - region [ref=f2e3]:
+    - generic [ref=f2e5]:
+      - paragraph [ref=f2e6]: Bitcoin price tracker
+      - heading "BTC price today" [level=1] [ref=f2e7]
+    - article [ref=f2e8]:
+      - generic [ref=f2e9]:
+        - button "Switch BTC price to EUR" [ref=f2e10] [cursor=pointer]:
+          - paragraph [ref=f2e11]:
+            - generic [ref=f2e12]: BTC price
+            - generic [ref=f2e13]: USD
+          - generic [ref=f2e14]: Loading...
+          - paragraph [ref=f2e15]: EUR loading...
+        - generic:
+          - generic: Pending
+          - generic: Pending
+      - generic "Chart drawing controls" [ref=f2e18]:
+        - generic [ref=f2e19]:
+          - button "Draw 0" [ref=f2e20] [cursor=pointer]:
+            - text: Draw
+            - generic [ref=f2e21]: "0"
+          - button "Automatic chart scan off" [ref=f2e22] [cursor=pointer]:
+            - text: Auto
+            - generic [ref=f2e23]: "0"
+          - button "Undo" [disabled] [ref=f2e25]
+      - generic [ref=f2e26]:
+        - generic [ref=f2e27]:
+          - paragraph [ref=f2e28]: 24h High
+          - strong [ref=f2e29]: Loading...
+        - generic [ref=f2e30]:
+          - paragraph [ref=f2e31]: 24h Low
+          - strong [ref=f2e32]: Loading...
+        - generic [ref=f2e33]:
+          - paragraph [ref=f2e34]: Updated
+          - strong [ref=f2e35]: Pending
+      - tablist "BTC price range" [ref=f2e36]:
+        - tab "Day" [selected] [ref=f2e37]
+        - tab "Week" [ref=f2e38]
+        - tab "Month" [ref=f2e39]
+        - tab "Year" [ref=f2e40]
+  - region [ref=f2e41]:
+    - generic [ref=f2e43]:
+      - paragraph [ref=f2e44]: Block clock
+      - heading "Network timing" [level=2] [ref=f2e45]
+    - generic [ref=f2e46]:
+      - paragraph [ref=f2e47]: Current block height
+      - generic [ref=f2e48]: Loading...
+    - generic [ref=f2e49]:
+      - generic [ref=f2e50]:
+        - paragraph [ref=f2e57]: Last Sync
+        - strong [ref=f2e58]: Pending
+      - generic [ref=f2e59]:
+        - paragraph [ref=f2e64]: Average Cadence
+        - strong [ref=f2e65]: ~10 min
+      - generic [ref=f2e66]:
+        - paragraph [ref=f2e69]: Next Halving
+        - generic [ref=f2e70]:
+          - strong [ref=f2e71]: Loading...
+          - time [ref=f2e72]:
+            - generic [ref=f2e73]: Loading...
+    - generic [ref=f2e75]:
+      - paragraph [ref=f2e76]: Halving Progress
+      - strong [ref=f2e77]: Loading...
+  - region [ref=f2e78]:
+    - generic [ref=f2e79]:
+      - paragraph [ref=f2e80]: Network health
+      - heading "Difficulty and retarget" [level=2] [ref=f2e81]
+      - paragraph [ref=f2e82]: Protocol difficulty, projected retarget, fees, and estimated hashrate context.
+    - generic [ref=f2e85]:
+      - generic [ref=f2e86]:
+        - paragraph [ref=f2e87]: Network Difficulty
+        - strong [ref=f2e88]: Loading...
+      - generic [ref=f2e89]:
+        - paragraph [ref=f2e90]: Next Retarget
+        - strong [ref=f2e91]: Loading...
+    - generic [ref=f2e93]:
+      - generic [ref=f2e94]:
+        - paragraph [ref=f2e95]: Adjustment Pressure
+        - paragraph [ref=f2e96]: Recent retargets + projection
+      - strong [ref=f2e97]: Loading...
+    - generic [ref=f2e99]:
+      - generic [ref=f2e100]:
+        - paragraph [ref=f2e104]: Estimated Hash Rate
+        - strong [ref=f2e105]: 1.03 ZH/s
+      - generic [ref=f2e106]:
+        - paragraph [ref=f2e109]: Mempool Fee
+        - strong [ref=f2e110]: Loading...
+      - generic [ref=f2e111]:
+        - paragraph [ref=f2e114]: Block Height
+        - strong [ref=f2e115]: Loading...
+  - region [ref=f2e116]:
+    - generic [ref=f2e117]:
+      - paragraph [ref=f2e118]: Supporting context
+      - heading "FX and conversion rates" [level=2] [ref=f2e119]
+      - paragraph [ref=f2e120]: Useful, but deliberately below the Bitcoin price and network views.
+    - generic [ref=f2e121]:
+      - generic [ref=f2e122]:
+        - paragraph [ref=f2e123]: Sats / USD
+        - strong [ref=f2e124]: Loading...
+      - generic [ref=f2e125]:
+        - paragraph [ref=f2e126]: Sats / EUR
+        - strong [ref=f2e127]: Loading...
+      - generic [ref=f2e128]:
+        - paragraph [ref=f2e129]: EUR / USD
+        - strong [ref=f2e130]: Loading...
+      - generic [ref=f2e131]:
+        - paragraph [ref=f2e132]: USD / EUR
+        - strong [ref=f2e133]: Loading...
+    - generic [ref=f2e135]:
+      - paragraph [ref=f2e136]: EUR / USD
+      - paragraph [ref=f2e137]: 365-day exchange rate

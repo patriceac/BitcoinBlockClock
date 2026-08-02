@@ -1,0 +1,16 @@
+[    1144ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://127.0.0.1:8765/favicon.ico:0
+[    1164ms] [WARNING] Historical market cache has gaps. Refreshing only the missing trailing range in the background. @ http://127.0.0.1:8765/clock.html:7089
+[    1164ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7093
+[    1164ms] [WARNING] Mobile weekly market cache is stale. Refreshing the trailing 7d range in the background. @ http://127.0.0.1:8765/clock.html:7097
+[    1164ms] [WARNING] Mobile monthly market cache is stale. Refreshing the trailing 30d range in the background. @ http://127.0.0.1:8765/clock.html:7101
+[    2426ms] [ERROR] Failed to load resource: the server responded with a status of 429 () @ https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=1785090111&to=1785694911:0
+[    2426ms] [ERROR] Refreshing mobile weekly market data failed: Error: Mobile weekly market data request failed with status 429
+    at http://127.0.0.1:8765/clock.html:6161:23
+    at Array.forEach (<anonymous>)
+    at refreshMobileWeeklyHistory (http://127.0.0.1:8765/clock.html:6159:36) @ http://127.0.0.1:8765/clock.html:6180
+[   62506ms] [WARNING] Mobile weekly market cache is stale. Refreshing the trailing 7d range in the background. @ http://127.0.0.1:8765/clock.html:7097
+[  639347ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7104
+[  829887ms] [WARNING] Updating network difficulty retarget failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6459:55 @ http://127.0.0.1:8765/clock.html:6516
+[  829889ms] [WARNING] Updating network mempool fee failed: AbortError: signal is aborted without reason
+    at http://127.0.0.1:8765/clock.html:6459:55 @ http://127.0.0.1:8765/clock.html:6530

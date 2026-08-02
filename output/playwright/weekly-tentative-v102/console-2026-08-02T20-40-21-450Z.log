@@ -1,0 +1,11 @@
+[    1071ms] [WARNING] Historical market cache has gaps. Refreshing only the missing trailing range in the background. @ http://127.0.0.1:8765/clock.html:7211
+[    1071ms] [WARNING] Intraday market cache is stale. Refreshing the trailing 24h range in the background. @ http://127.0.0.1:8765/clock.html:7215
+[    1071ms] [WARNING] Mobile weekly market cache is stale. Refreshing the trailing 7d range in the background. @ http://127.0.0.1:8765/clock.html:7219
+[    1071ms] [WARNING] Mobile monthly market cache is stale. Refreshing the trailing 30d range in the background. @ http://127.0.0.1:8765/clock.html:7223
+[    1080ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://127.0.0.1:8765/favicon.ico:0
+[    1332ms] [ERROR] Failed to load resource: the server responded with a status of 429 () @ https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=1754179200&to=1785715199:0
+[    1332ms] [WARNING] CoinGecko EUR historical prices unavailable; using Kraken daily OHLC fallback. Error: CoinGecko EUR history request failed with status 429
+    at fetchCoinGeckoHistoricalPriceSeries (http://127.0.0.1:8765/clock.html:5750:19)
+    at async fetchHistoricalPriceSeries (http://127.0.0.1:8765/clock.html:5781:20)
+    at async Promise.allSettled (index 1)
+    at async refreshHistoricalPriceHistory (http://127.0.0.1:8765/clock.html:5868:79) @ http://127.0.0.1:8765/clock.html:5782

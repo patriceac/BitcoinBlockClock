@@ -1,0 +1,122 @@
+- main "Bitcoin price tracker mobile view" [ref=e2]:
+  - region [ref=e3]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Bitcoin price tracker
+      - heading "BTC price today" [level=1] [ref=e7]
+    - article [ref=e8]:
+      - generic [ref=e9]:
+        - button "Switch BTC price to USD" [ref=e309] [cursor=pointer]:
+          - paragraph [ref=e11]:
+            - generic [ref=e12]: BTC price
+            - generic [ref=e13]: EUR
+          - generic [ref=e14]: €54,846.08
+          - paragraph [ref=e15]: ~ $63,358.26
+        - generic:
+          - generic: Downtrend -43.4%
+          - generic: "-44.4%"
+      - img "BTC / EUR chart with 0 manual drawings, 3 confirmed automatic patterns, and 0 tentative automatic structures" [ref=e436]:
+        - generic [ref=e437]: 100.0K
+        - generic [ref=e438]: 50.0K
+        - generic:
+          - generic "Resistance, 91% confidence"
+          - generic "Rising support line, 87% confidence"
+          - generic "Support, 81% confidence"
+      - generic "Chart drawing controls" [ref=e18]:
+        - generic [ref=e19]:
+          - button "Draw 0" [ref=e20] [cursor=pointer]:
+            - text: Draw
+            - generic [ref=e21]: "0"
+          - button "Automatic chart scan on, 3 confirmed patterns" [pressed] [ref=e444] [cursor=pointer]:
+            - text: Auto
+            - generic [ref=e23]: "3"
+          - button "Undo" [disabled] [ref=e25]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - paragraph [ref=e28]: 1y High
+          - strong [ref=e29]: €106,275.90
+        - generic [ref=e30]:
+          - paragraph [ref=e31]: 1y Low
+          - strong [ref=e32]: €51,298.00
+        - generic [ref=e33]:
+          - paragraph [ref=e34]: Updated
+          - strong [ref=e35]: 10:44 PM
+      - tablist "BTC price range" [ref=e36]:
+        - tab "Day" [ref=e37] [cursor=pointer]
+        - tab "Week" [ref=e38] [cursor=pointer]
+        - tab "Month" [ref=e39] [cursor=pointer]
+        - tab "Year" [active] [selected] [ref=e40] [cursor=pointer]
+  - region [ref=e41]:
+    - generic [ref=e43]:
+      - paragraph [ref=e44]: Block clock
+      - heading "Network timing" [level=2] [ref=e45]
+    - generic [ref=e46]:
+      - paragraph [ref=e47]: Current block height
+      - generic [ref=e48]: 960,768
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - paragraph [ref=e57]: Last Sync
+        - strong [ref=e58]: 10:44 PM
+      - generic [ref=e59]:
+        - paragraph [ref=e64]: Average Cadence
+        - strong [ref=e65]: ~10 min
+      - generic [ref=e66]:
+        - paragraph [ref=e69]: Next Halving
+        - generic [ref=e70]:
+          - strong [ref=e71]: 619 days
+          - time [ref=e72]:
+            - generic [ref=e73]: Est. Apr 13, 2028
+            - generic [ref=e146]: · 02:44 PM GMT+2
+    - generic [ref=e75]:
+      - paragraph [ref=e76]: Halving Progress
+      - strong [ref=e77]: 57.5%
+  - region [ref=e78]:
+    - generic [ref=e79]:
+      - paragraph [ref=e80]: Network health
+      - heading "Difficulty and retarget" [level=2] [ref=e81]
+    - generic [ref=e85]:
+      - generic [ref=e86]:
+        - paragraph [ref=e87]: Network Difficulty
+        - strong [ref=e88]: 126.23T
+      - generic [ref=e89]:
+        - paragraph [ref=e90]: Next Retarget
+        - strong [ref=e91]: +1.2% / 864 blk
+    - generic [ref=e93]:
+      - generic [ref=e94]:
+        - paragraph [ref=e95]: Adjustment Pressure
+        - paragraph [ref=e96]: Recent retargets + projection
+      - strong [ref=e97]: Projected +1.2%
+    - generic [ref=e99]:
+      - generic [ref=e100]:
+        - paragraph [ref=e104]: Estimated Hash Rate
+        - strong [ref=e105]: 1.03 ZH/s
+      - generic [ref=e106]:
+        - paragraph [ref=e109]: Mempool Fee
+        - strong [ref=e110]: 3 sat/vB
+      - generic [ref=e111]:
+        - paragraph [ref=e114]: Block Height
+        - strong [ref=e115]: 960,768
+  - region [ref=e116]:
+    - generic [ref=e117]:
+      - paragraph [ref=e118]: Supporting context
+      - heading "FX and conversion rates" [level=2] [ref=e119]
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - paragraph [ref=e123]: Sats / USD
+        - strong [ref=e124]: 1,578
+      - generic [ref=e125]:
+        - paragraph [ref=e126]: Sats / EUR
+        - strong [ref=e127]: 1,823
+      - generic [ref=e128]:
+        - paragraph [ref=e129]: EUR / USD
+        - strong [ref=e130]: "1.1552"
+      - generic [ref=e131]:
+        - paragraph [ref=e132]: USD / EUR
+        - strong [ref=e133]: "0.8657"
+    - generic [ref=e134]:
+      - generic [ref=e135]:
+        - paragraph [ref=e136]: EUR / USD
+        - paragraph [ref=e137]: 365-day exchange rate
+      - img [ref=e459]:
+        - generic [ref=e460]: "1.30"
+        - generic [ref=e461]: "1.20"
+        - generic [ref=e462]: "1.10"
