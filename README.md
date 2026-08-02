@@ -48,7 +48,7 @@ The Android APK is a release-mode sideload build. Configure production signing b
 - Current block height and block timing.
 - Fee pressure and mempool-oriented network signals.
 - Hashrate and difficulty data.
-- Halving progress in a glanceable display.
+- Halving countdown, progress, and estimated local date and time.
 
 ## Run Locally
 

@@ -2601,6 +2601,78 @@
                 font-size: 18px;
             }
         }
+
+        .mobile-halving-timing-row {
+            position: relative;
+            grid-template-rows: 1fr;
+            min-height: 64px;
+            align-content: stretch;
+        }
+
+        .mobile-halving-timing-row > .mobile-timing-stat-icon {
+            grid-row: 1;
+            align-self: center;
+        }
+
+        .mobile-halving-timing-value {
+            display: contents;
+        }
+
+        .mobile-halving-timing-row > .mobile-label,
+        .mobile-halving-timing-value > .mobile-row-value {
+            grid-row: 1;
+            align-self: center;
+        }
+
+        .mobile-halving-timing-value > .mobile-row-value {
+            grid-column: 3;
+            justify-self: end;
+        }
+
+        .mobile-halving-estimate {
+            position: absolute;
+            right: 0;
+            bottom: 3px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 2px 5px;
+            max-width: 100%;
+            color: rgba(205, 215, 222, 0.7);
+            font-size: clamp(10px, 0.9vw, 12px);
+            font-weight: 720;
+            line-height: 1.25;
+            letter-spacing: 0.02em;
+            text-align: right;
+        }
+
+        .mobile-halving-estimate-date,
+        .mobile-halving-estimate-time {
+            white-space: nowrap;
+        }
+
+        @media (max-width: 420px) {
+            .mobile-halving-timing-row {
+                grid-template-columns: 25px minmax(76px, 1fr) minmax(0, auto);
+                min-height: 56px;
+            }
+
+            .mobile-halving-estimate {
+                font-size: 11px;
+            }
+        }
+
+        @media (min-width: 1080px) and (max-height: 760px) {
+            .mobile-halving-timing-row {
+                min-height: 60px;
+            }
+
+            .mobile-halving-estimate {
+                font-size: 10px;
+                line-height: 1.15;
+            }
+        }
+
         @media (max-width: 520px) and (max-height: 520px) {
             :root {
                 --wear-orange: #f6a21f;
@@ -3860,7 +3932,7 @@
                 <p class="mobile-label">Average Cadence</p>
                 <strong class="mobile-row-value">~10 min</strong>
             </div>
-            <div class="mobile-timing-stat-row">
+            <div class="mobile-timing-stat-row mobile-halving-timing-row">
                 <span class="mobile-timing-stat-icon mobile-timing-stat-icon-halving" aria-hidden="true">
                     <svg viewBox="0 0 24 24" focusable="false">
                         <path d="M4 6h16" />
@@ -3871,7 +3943,18 @@
                     </svg>
                 </span>
                 <p class="mobile-label">Next Halving</p>
-                <strong id="mobileNextHalving" class="mobile-row-value">Loading...</strong>
+                <div class="mobile-halving-timing-value">
+                    <strong id="mobileNextHalving" class="mobile-row-value">Loading...</strong>
+                    <time
+                        id="mobileHalvingEstimate"
+                        class="mobile-halving-estimate"
+                        title="Estimated from the current block height using a 10-minute average block interval. Actual time will vary. Shown in your device's local time."
+                        aria-label="Estimated halving date and time: Loading..."
+                    >
+                        <span id="mobileHalvingEstimateDate" class="mobile-halving-estimate-date">Loading...</span>
+                        <span id="mobileHalvingEstimateTime" class="mobile-halving-estimate-time" hidden></span>
+                    </time>
+                </div>
             </div>
         </div>
         <div class="mobile-halving-card">
@@ -5904,6 +5987,7 @@
 
     async function fetchBitcoinInfo() {
         const today = getTodayDate();
+        const blockHeightUpdatePromise = updateBlockHeightAndHalving();
         let networkPressurePromise = null;
         let hashRateUpdatePromise = null;
 
@@ -5981,16 +6065,7 @@
                 setMetricText('mobileUsdEur', (1 / eurUsdRate).toFixed(4));
             }
 
-            const blockResponse = await fetch('https://blockchain.info/q/getblockcount');
-            if (!blockResponse.ok) {
-                throw new Error(`Block count request failed with status ${blockResponse.status}`);
-            }
-
-            const blockCount = await blockResponse.text();
-            setMetricText('mobileBlockCounter', `${numberWithCommas(blockCount)}`);
-            setMetricText('mobileNetworkBlockCounter', `${numberWithCommas(blockCount)}`);
-            calculateTimeToNextHalving(blockCount);
-
+            await blockHeightUpdatePromise;
             const networkMetrics = await networkPressurePromise;
             const hashRateTh = await hashRateUpdatePromise;
             updateLastUpdated();
@@ -6118,6 +6193,7 @@
             setCarFreshness(wearLastSuccessfulUpdateAt ? 'stale' : 'error');
         } finally {
             await Promise.allSettled([
+                blockHeightUpdatePromise,
                 networkPressurePromise,
                 hashRateUpdatePromise
             ].filter(Boolean));
@@ -6651,13 +6727,120 @@
         return `${numberWithCommas(rate.toFixed(2))} ${units[index]}`;
     }
 
-    function calculateTimeToNextHalving(currentBlockCount) {
-        const blocksPerHalving = 210000;
-        const blockTimeMinutes = 10;
-        const currentHalvingIndex = Math.floor(currentBlockCount / blocksPerHalving);
-        const nextHalvingBlock = (currentHalvingIndex + 1) * blocksPerHalving;
-        const blocksUntilNextHalving = nextHalvingBlock - currentBlockCount;
-        const minutesUntilNextHalving = blocksUntilNextHalving * blockTimeMinutes;
+    const BLOCKS_PER_HALVING = 210000;
+    const AVERAGE_BLOCK_TIME_MINUTES = 10;
+    const HALVING_ESTIMATE_DESCRIPTION = "Estimated from the current block height using a 10-minute average block interval. Actual time will vary. Shown in your device's local time.";
+
+    function getNextHalvingProjection(currentBlockCount, observedAtMs = Date.now()) {
+        const blockHeight = Number(currentBlockCount);
+        const observationTime = Number(observedAtMs);
+        if (!Number.isInteger(blockHeight) || blockHeight < 0 || !Number.isFinite(observationTime)) {
+            return null;
+        }
+
+        const currentHalvingIndex = Math.floor(blockHeight / BLOCKS_PER_HALVING);
+        const nextHalvingBlock = (currentHalvingIndex + 1) * BLOCKS_PER_HALVING;
+        const blocksUntilNextHalving = nextHalvingBlock - blockHeight;
+        const minutesUntilNextHalving = blocksUntilNextHalving * AVERAGE_BLOCK_TIME_MINUTES;
+        const estimatedAtMs = observationTime + (minutesUntilNextHalving * 60 * 1000);
+        if (!Number.isFinite(estimatedAtMs)) {
+            return null;
+        }
+
+        return {
+            blockHeight,
+            nextHalvingBlock,
+            blocksUntilNextHalving,
+            minutesUntilNextHalving,
+            estimatedAt: new Date(estimatedAtMs)
+        };
+    }
+
+    function formatHalvingEstimate(estimatedAt) {
+        if (!(estimatedAt instanceof Date) || !Number.isFinite(estimatedAt.getTime())) {
+            return null;
+        }
+
+        const dateText = new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }).format(estimatedAt);
+        let timeText = new Intl.DateTimeFormat(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        }).format(estimatedAt);
+
+        if (timeText.length > 24) {
+            try {
+                timeText = new Intl.DateTimeFormat(undefined, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'shortOffset'
+                }).format(estimatedAt);
+            } catch (error) {
+                // Older WebViews may not support shortOffset; the short zone above remains usable.
+            }
+        }
+
+        return { dateText, timeText };
+    }
+
+    function setHalvingEstimate(estimatedAt) {
+        const estimateElement = document.getElementById('mobileHalvingEstimate');
+        const dateElement = document.getElementById('mobileHalvingEstimateDate');
+        const timeElement = document.getElementById('mobileHalvingEstimateTime');
+        if (!estimateElement || !dateElement || !timeElement) {
+            return;
+        }
+
+        const formattedEstimate = formatHalvingEstimate(estimatedAt);
+        estimateElement.title = HALVING_ESTIMATE_DESCRIPTION;
+        if (!formattedEstimate) {
+            dateElement.textContent = 'Estimate unavailable';
+            timeElement.textContent = '';
+            timeElement.hidden = true;
+            estimateElement.removeAttribute('datetime');
+            estimateElement.setAttribute('aria-label', `Estimated halving date and time unavailable. ${HALVING_ESTIMATE_DESCRIPTION}`);
+            return;
+        }
+
+        const fullEstimate = `${formattedEstimate.dateText}, ${formattedEstimate.timeText}`;
+        dateElement.textContent = `Est. ${formattedEstimate.dateText}`;
+        timeElement.textContent = `\u00b7 ${formattedEstimate.timeText}`;
+        timeElement.hidden = false;
+        estimateElement.setAttribute('datetime', estimatedAt.toISOString());
+        estimateElement.setAttribute('aria-label', `Estimated halving date and time: ${fullEstimate}. ${HALVING_ESTIMATE_DESCRIPTION}`);
+    }
+
+    async function updateBlockHeightAndHalving() {
+        try {
+            const blockCountText = await fetchTextMetric('https://blockchain.info/q/getblockcount', 'Block count');
+            const blockCount = Number(String(blockCountText).trim());
+            if (!Number.isInteger(blockCount) || blockCount < 0) {
+                throw new Error('Block count response did not include a valid block height.');
+            }
+
+            setMetricText('mobileBlockCounter', `${numberWithCommas(blockCount)}`);
+            setMetricText('mobileNetworkBlockCounter', `${numberWithCommas(blockCount)}`);
+            calculateTimeToNextHalving(blockCount, Date.now());
+            return blockCount;
+        } catch (error) {
+            console.warn('Updating block height and halving failed:', error);
+            setHalvingEstimate(null);
+            return null;
+        }
+    }
+
+    function calculateTimeToNextHalving(currentBlockCount, observedAtMs = Date.now()) {
+        const projection = getNextHalvingProjection(currentBlockCount, observedAtMs);
+        if (!projection) {
+            setHalvingEstimate(null);
+            return null;
+        }
+
+        const { blocksUntilNextHalving, minutesUntilNextHalving, estimatedAt } = projection;
         const days = Math.floor(minutesUntilNextHalving / (60 * 24));
         const hours = Math.floor((minutesUntilNextHalving % (60 * 24)) / 60);
         const minutes = minutesUntilNextHalving % 60;
@@ -6667,8 +6850,9 @@
             : `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
         setMetricText('mobileNextHalving', halvingText);
+        setHalvingEstimate(estimatedAt);
 
-        const totalBlocks = blocksPerHalving;
+        const totalBlocks = BLOCKS_PER_HALVING;
         const progressPercentage = (blocksUntilNextHalving / totalBlocks) * 100;
         const completedPercentage = Math.max(0, Math.min(100, 100 - progressPercentage));
         const mobileProgressElement = document.getElementById('mobileHalvingProgressFill');
@@ -6676,6 +6860,7 @@
             mobileProgressElement.style.width = `${completedPercentage}%`;
         }
         setMetricText('mobileHalvingPercent', `${completedPercentage.toFixed(1)}%`);
+        return projection;
     }
 
     let enterKeyPressStart;
