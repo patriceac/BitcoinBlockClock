@@ -2,6 +2,10 @@
   "name": "bitcoin-block-clock",
   "version": "1.0.1",
   "description": "Desktop Electron wrapper for Bitcoin Block Clock",
+  "author": {
+    "name": "patriceac",
+    "email": "patriceac@users.noreply.github.com"
+  },
   "main": "electron/main.js",
   "scripts": {
     "electron": "electron .",
