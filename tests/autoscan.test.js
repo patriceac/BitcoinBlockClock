@@ -125,6 +125,35 @@ test('allows a clean no-result state when there is no validated structure', () =
         autoscan.scanMarket(candles, { lookbackWindows: [30, 45, 60] }).patterns,
         []
     );
+    assert.deepEqual(autoscan.scanTentativePatterns(candles), []);
+});
+
+test('keeps lower-confidence structures separate from confirmed patterns', () => {
+    const candles = makeDescendingChannel();
+    const options = { qualityMultiplier: 0.8 };
+    const confirmed = autoscan.scanMarket(candles, options).patterns;
+    const tentative = autoscan.scanTentativePatterns(candles, options);
+
+    assert.ok(confirmed.some(pattern => pattern.variant === 'descending-channel'));
+    assert.ok(tentative.some(pattern => pattern.variant === 'resistance'));
+    assert.ok(tentative.length <= 2);
+    assert.ok(tentative.every(pattern => (
+        pattern.confidence >= 0.56
+        && pattern.confidence < 0.64
+        && pattern.source === 'autoscan-tentative'
+        && pattern.tentative
+        && pattern.confidenceBand === 'tentative'
+        && pattern.locked
+        && pattern.id.startsWith('autoscan-tentative-')
+    )));
+    assert.ok(tentative.every(pattern => (
+        Object.values(pattern.touches || {}).reduce((sum, count) => sum + count, 0) >= 3
+    )));
+    assert.equal(
+        new Set(tentative.map(pattern => `${pattern.type}|${pattern.variant}`)).size,
+        tentative.length
+    );
+    assert.deepEqual(tentative, autoscan.scanTentativePatterns(candles, options));
 });
 
 test('merges shorter lookback windows for a long-range chart without weakening confidence', () => {

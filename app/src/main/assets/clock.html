@@ -3879,6 +3879,13 @@
             stroke-opacity: 0.86;
         }
 
+        .chart-drawing-line.is-autoscan-tentative {
+            stroke: rgba(174, 197, 210, 0.76);
+            stroke-width: 1.25;
+            stroke-dasharray: 3 7;
+            stroke-opacity: 0.58;
+        }
+
         .chart-drawing-draft-line {
             stroke-dasharray: 5 5;
             stroke-opacity: 0.82;
@@ -3900,6 +3907,10 @@
 
         .chart-drawing-fill.is-autoscan {
             fill: rgba(69, 206, 198, 0.055);
+        }
+
+        .chart-drawing-fill.is-autoscan-tentative {
+            fill: rgba(160, 188, 202, 0.025);
         }
 
         .mobile-market-note {
@@ -5054,6 +5065,15 @@
         return Array.isArray(result?.patterns) ? result.patterns : [];
     }
 
+    function getCurrentMobileChartAutoscanTentativePatterns() {
+        if (!mobileChartAutoscanEnabled) {
+            return [];
+        }
+
+        const result = getCurrentMobileChartAutoscanResult();
+        return Array.isArray(result?.tentativePatterns) ? result.tentativePatterns : [];
+    }
+
     function getMobileChartAutoscanCandleSignature(candles, source) {
         if (!Array.isArray(candles) || candles.length === 0) {
             return `${source}:empty`;
@@ -5123,13 +5143,18 @@
             const scanStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const [, range] = scopeKey.split(':');
             const scanLookbackCandles = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[range]?.scanLookbackCandles;
-            const scanResult = engine.scanMarket(candles, {
+            const scanOptions = {
                 qualityMultiplier,
                 ...(Array.isArray(scanLookbackCandles) ? { lookbackWindows: scanLookbackCandles } : {})
-            });
+            };
+            const scanResult = engine.scanMarket(candles, scanOptions);
+            const tentativePatterns = typeof engine.scanTentativePatterns === 'function'
+                ? engine.scanTentativePatterns(candles, scanOptions)
+                : [];
             const scanFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const result = {
                 ...scanResult,
+                tentativePatterns,
                 source,
                 signature,
                 commentaryEligible,
@@ -5298,6 +5323,8 @@
         const button = document.querySelector('[data-mobile-chart-autoscan-toggle]');
         const countElement = document.getElementById('mobileChartAutoscanCount');
         const patterns = getCurrentMobileChartAutoscanPatterns();
+        const tentativePatterns = getCurrentMobileChartAutoscanTentativePatterns();
+        const patternCount = patterns.length + tentativePatterns.length;
         const busy = mobileChartAutoscanEnabled && mobileChartAutoscanBusyScopes.has(scopeKey);
 
         if (button) {
@@ -5305,11 +5332,11 @@
             button.setAttribute('aria-busy', String(busy));
             button.setAttribute(
                 'aria-label',
-                `Automatic chart scan ${mobileChartAutoscanEnabled ? 'on' : 'off'}${patterns.length ? `, ${patterns.length} pattern${patterns.length === 1 ? '' : 's'}` : ''}`
+                `Automatic chart scan ${mobileChartAutoscanEnabled ? 'on' : 'off'}${patterns.length ? `, ${patterns.length} confirmed pattern${patterns.length === 1 ? '' : 's'}` : ''}${tentativePatterns.length ? `, ${tentativePatterns.length} tentative structure${tentativePatterns.length === 1 ? '' : 's'}` : ''}`
             );
         }
         if (countElement) {
-            countElement.textContent = String(patterns.length);
+            countElement.textContent = String(patternCount);
         }
         updateMobileMarketNote();
     }
@@ -7885,7 +7912,7 @@
         return line;
     }
 
-    function appendMobileChartDrawingPolygon(group, points, isSelected, isAutoscan = false) {
+    function appendMobileChartDrawingPolygon(group, points, isSelected, isAutoscan = false, isTentative = false) {
         if (!Array.isArray(points) || points.length < 3) {
             return;
         }
@@ -7895,7 +7922,8 @@
         polygon.setAttribute('class', [
             'chart-drawing-fill',
             isSelected ? 'is-selected' : '',
-            isAutoscan ? 'is-autoscan' : ''
+            isAutoscan ? 'is-autoscan' : '',
+            isTentative ? 'is-autoscan-tentative' : ''
         ].filter(Boolean).join(' '));
         group.appendChild(polygon);
     }
@@ -8026,18 +8054,21 @@
 
     function appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, isSelected) {
         const drawingGroup = createChartSvgElement('g');
-        const isAutoscan = drawing.source === 'autoscan';
+        const isTentative = drawing.source === 'autoscan-tentative';
+        const isAutoscan = drawing.source === 'autoscan' || isTentative;
         drawingGroup.dataset.drawingId = drawing.id;
-        drawingGroup.dataset.drawingSource = isAutoscan ? 'autoscan' : 'manual';
+        drawingGroup.dataset.drawingSource = isTentative
+            ? 'autoscan-tentative'
+            : (isAutoscan ? 'autoscan' : 'manual');
         if (isAutoscan) {
             const title = createChartSvgElement('title');
             const confidence = Number.isFinite(Number(drawing.confidence))
                 ? `, ${Math.round(Number(drawing.confidence) * 100)}% confidence`
                 : '';
-            title.textContent = `${drawing.label || 'Automatic chart pattern'}${confidence}`;
+            title.textContent = `${isTentative ? 'Tentative ' : ''}${drawing.label || 'automatic chart pattern'}${confidence}`;
             drawingGroup.appendChild(title);
         }
-        appendMobileChartDrawingPolygon(drawingGroup, pixelGeometry.polygon, isSelected, isAutoscan);
+        appendMobileChartDrawingPolygon(drawingGroup, pixelGeometry.polygon, isSelected, isAutoscan, isTentative);
 
         pixelGeometry.segments.forEach(segment => {
             const baseClass = segment.kind === 'fib' ? 'chart-drawing-fib-line' : 'chart-drawing-line';
@@ -8045,7 +8076,8 @@
                 baseClass,
                 isSelected ? 'is-selected' : '',
                 drawing.locked ? 'is-locked' : '',
-                isAutoscan ? 'is-autoscan' : ''
+                isAutoscan ? 'is-autoscan' : '',
+                isTentative ? 'is-autoscan-tentative' : ''
             ].filter(Boolean).join(' ');
             appendMobileChartDrawingLine(drawingGroup, segment, classes);
         });
@@ -8095,8 +8127,14 @@
         interactionGroup.replaceChildren();
         draftGroup.replaceChildren();
 
-        const autoscanDrawings = getCurrentMobileChartAutoscanPatterns();
-        autoscanDrawings.forEach(drawing => {
+        const tentativeAutoscanDrawings = getCurrentMobileChartAutoscanTentativePatterns();
+        tentativeAutoscanDrawings.forEach(drawing => {
+            const pixelGeometry = buildMobileChartDrawingPixelGeometry(drawing, geometry);
+            appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, false);
+        });
+
+        const confirmedAutoscanDrawings = getCurrentMobileChartAutoscanPatterns();
+        confirmedAutoscanDrawings.forEach(drawing => {
             const pixelGeometry = buildMobileChartDrawingPixelGeometry(drawing, geometry);
             appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, false);
         });
@@ -8734,11 +8772,13 @@
                 svg.style.touchAction = drawingActive ? 'none' : (touchCapable ? 'pan-y' : '');
                 container.style.touchAction = drawingActive ? 'none' : (touchCapable ? 'pan-y' : '');
                 const drawingCount = getCurrentMobileChartDrawings().length;
-                const autoscanCount = getCurrentMobileChartAutoscanPatterns().length;
+                const confirmedAutoscanCount = getCurrentMobileChartAutoscanPatterns().length;
+                const tentativeAutoscanCount = getCurrentMobileChartAutoscanTentativePatterns().length;
+                const autoscanCount = confirmedAutoscanCount + tentativeAutoscanCount;
                 const annotations = drawingCount + autoscanCount;
                 svg.setAttribute(
                     'aria-label',
-                    `${seriesLabel || 'Price'} chart${annotations ? ` with ${drawingCount} manual drawing${drawingCount === 1 ? '' : 's'} and ${autoscanCount} automatic pattern${autoscanCount === 1 ? '' : 's'}` : ''}`
+                    `${seriesLabel || 'Price'} chart${annotations ? ` with ${drawingCount} manual drawing${drawingCount === 1 ? '' : 's'}, ${confirmedAutoscanCount} confirmed automatic pattern${confirmedAutoscanCount === 1 ? '' : 's'}, and ${tentativeAutoscanCount} tentative automatic structure${tentativeAutoscanCount === 1 ? '' : 's'}` : ''}`
                 );
                 renderMobileChartDrawingLayers({
                     visualGroup: drawingVisualGroup,

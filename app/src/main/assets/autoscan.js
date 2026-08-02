@@ -20,6 +20,11 @@
         confirmationCandles: 2,
         qualityMultiplier: 1
     });
+    const DEFAULT_TENTATIVE_OPTIONS = Object.freeze({
+        minConfidence: 0.56,
+        confirmedMinConfidence: DEFAULT_OPTIONS.minConfidence,
+        maxPatterns: 2
+    });
 
     function clamp(value, minimum, maximum) {
         return Math.min(maximum, Math.max(minimum, value));
@@ -1070,6 +1075,70 @@
         };
     }
 
+    function scanTentativePatterns(data, suppliedOptions = {}) {
+        const confirmedMinConfidenceValue = Number(suppliedOptions.confirmedMinConfidence);
+        const confirmedMinConfidence = clamp(
+            Number.isFinite(confirmedMinConfidenceValue)
+                ? confirmedMinConfidenceValue
+                : DEFAULT_TENTATIVE_OPTIONS.confirmedMinConfidence,
+            0.01,
+            0.99
+        );
+        const tentativeMinConfidenceValue = Number(suppliedOptions.tentativeMinConfidence);
+        const tentativeMinConfidence = clamp(
+            Number.isFinite(tentativeMinConfidenceValue)
+                ? tentativeMinConfidenceValue
+                : DEFAULT_TENTATIVE_OPTIONS.minConfidence,
+            0,
+            Math.max(0, confirmedMinConfidence - 0.01)
+        );
+        const maxPatternsValue = Number(suppliedOptions.maxTentativePatterns);
+        const maxPatterns = clamp(
+            Number.isFinite(maxPatternsValue)
+                ? Math.round(maxPatternsValue)
+                : DEFAULT_TENTATIVE_OPTIONS.maxPatterns,
+            0,
+            4
+        );
+        if (maxPatterns === 0 || tentativeMinConfidence >= confirmedMinConfidence) {
+            return [];
+        }
+
+        const {
+            confirmedMinConfidence: ignoredConfirmedMinConfidence,
+            tentativeMinConfidence: ignoredTentativeMinConfidence,
+            maxTentativePatterns: ignoredMaxTentativePatterns,
+            ...scanOptions
+        } = suppliedOptions;
+        const candidateResult = scanMarket(data, {
+            ...scanOptions,
+            minConfidence: tentativeMinConfidence,
+            maxPatterns: Math.max(DEFAULT_OPTIONS.maxPatterns + maxPatterns, Number(scanOptions.maxPatterns) || 0),
+            eventConfidence: 1
+        });
+
+        return candidateResult.patterns
+            .filter(pattern => (
+                pattern.confidence >= tentativeMinConfidence
+                && pattern.confidence < confirmedMinConfidence
+            ))
+            .sort((left, right) => {
+                if (Math.abs(right.confidence - left.confidence) > 0.001) {
+                    return right.confidence - left.confidence;
+                }
+                return left.variant.localeCompare(right.variant);
+            })
+            .slice(0, maxPatterns)
+            .map(pattern => ({
+                ...pattern,
+                id: pattern.id.replace(/^autoscan-/, 'autoscan-tentative-'),
+                source: 'autoscan-tentative',
+                tentative: true,
+                confidenceBand: 'tentative',
+                locked: true
+            }));
+    }
+
     function formatEventCommentary(event, context = {}) {
         if (!event) {
             return '';
@@ -1109,6 +1178,7 @@
         lineValueAtTime,
         normalizeCandles,
         scanMarket,
-        scanPatterns
+        scanPatterns,
+        scanTentativePatterns
     });
 }));
