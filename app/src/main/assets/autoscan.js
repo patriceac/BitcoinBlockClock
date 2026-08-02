@@ -463,6 +463,67 @@
         return patterns;
     }
 
+    function groupHorizontalChannel(patterns, context) {
+        const support = patterns.find(pattern => (
+            pattern?.type === 'horizontal' && pattern.variant === 'support'
+        ));
+        const resistance = patterns.find(pattern => (
+            pattern?.type === 'horizontal' && pattern.variant === 'resistance'
+        ));
+        const lower = support?.lines?.lower;
+        const upper = resistance?.lines?.upper;
+        if (!support || !resistance || !lower || !upper) {
+            return patterns;
+        }
+
+        const startTimeMs = Math.min(
+            support.formation.startTimeMs,
+            resistance.formation.startTimeMs
+        );
+        const endTimeMs = Math.max(
+            support.formation.endTimeMs,
+            resistance.formation.endTimeMs
+        );
+        const lowerStart = lineValueAtTime(lower, startTimeMs);
+        const upperStart = lineValueAtTime(upper, startTimeMs);
+        const lowerEnd = lineValueAtTime(lower, context.projectionTimeMs);
+        const upperEnd = lineValueAtTime(upper, context.projectionTimeMs);
+        if (![lowerStart, upperStart, lowerEnd, upperEnd].every(Number.isFinite)
+            || upperStart - lowerStart <= context.tolerance
+            || upperEnd - lowerEnd <= context.tolerance) {
+            return patterns;
+        }
+
+        const componentIds = [support.id, resistance.id].sort();
+        const channel = {
+            id: `autoscan-${hashString(['horizontal-channel', ...componentIds].join('|'))}`,
+            type: 'channel',
+            variant: 'horizontal-channel',
+            label: getPatternLabel({ variant: 'horizontal-channel' }),
+            confidence: Math.min(support.confidence, resistance.confidence),
+            anchors: [
+                { timeMs: startTimeMs, value: lowerStart },
+                { timeMs: context.projectionTimeMs, value: lowerEnd },
+                { timeMs: startTimeMs, value: upperStart }
+            ],
+            lines: { upper, lower },
+            touches: {
+                upper: Number(resistance.touches?.upper) || 0,
+                lower: Number(support.touches?.lower) || 0
+            },
+            formation: { startTimeMs, endTimeMs },
+            components: ['support', 'resistance'],
+            componentIds,
+            source: 'autoscan',
+            locked: true
+        };
+
+        return [
+            ...patterns.filter(pattern => pattern !== support && pattern !== resistance),
+            channel
+        ];
+    }
+
     function detectTrendPatterns(context, options) {
         const patterns = [];
         [
@@ -776,8 +837,12 @@
         const paired = getPairedBoundaryFits(context);
         const channel = detectChannelPattern(context, options, paired);
         const converging = detectConvergingPattern(context, options, paired);
+        const horizontalPatterns = groupHorizontalChannel(
+            detectHorizontalPatterns(context, options),
+            context
+        );
         return selectPatterns([
-            ...detectHorizontalPatterns(context, options),
+            ...horizontalPatterns,
             ...detectTrendPatterns(context, options),
             channel,
             converging

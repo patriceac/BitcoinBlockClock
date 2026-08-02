@@ -35,6 +35,40 @@ function makeDescendingChannel(count = 64) {
     return makeStructure(count, index => 110 - (index * 0.16), index => 98 - (index * 0.16));
 }
 
+function makeNoisyHorizontalRange(count = 96) {
+    let seed = 1;
+    const random = () => {
+        seed = ((seed * 1664525) + 1013904223) >>> 0;
+        return seed / 4294967296;
+    };
+    const candles = [];
+    let previousClose = 104;
+
+    for (let index = 0; index < count; index += 1) {
+        const center = 104 + (Math.sin(index * 0.43) * 4) + ((random() - 0.5) * 2);
+        const close = Math.max(97, Math.min(111, center));
+        const open = previousClose;
+        let high = Math.max(open, close) + 0.3 + (random() * 1.8);
+        let low = Math.min(open, close) - 0.3 - (random() * 1.8);
+        if (index % 13 === 6) {
+            high = 112;
+        }
+        if (index % 11 === 5) {
+            low = 96;
+        }
+        candles.push({
+            timeMs: START_TIME_MS + (index * INTERVAL_MS),
+            open,
+            high: Math.min(112, high),
+            low: Math.max(96, low),
+            close
+        });
+        previousClose = close;
+    }
+
+    return candles;
+}
+
 function appendChannelCloses(candles, closes) {
     closes.forEach((closeOrFactory, relativeIndex) => {
         const index = candles.length;
@@ -96,13 +130,28 @@ test('finds descending channels, symmetrical triangles, and rising wedges from w
     });
 });
 
-test('finds conservative support, resistance, and sloping trend lines', () => {
-    const horizontalRange = makeStructure(64, () => 112, () => 96);
+test('groups confirmed support and resistance into one horizontal channel', () => {
+    const horizontalRange = makeNoisyHorizontalRange();
     const rangePatterns = autoscan.scanPatterns(horizontalRange);
     const descendingPatterns = autoscan.scanPatterns(makeDescendingChannel());
+    const horizontalChannel = rangePatterns.find(pattern => (
+        pattern.type === 'channel' && pattern.variant === 'horizontal-channel'
+    ));
 
-    assert.ok(rangePatterns.some(pattern => pattern.variant === 'support' && pattern.touches.lower >= 3));
-    assert.ok(rangePatterns.some(pattern => pattern.variant === 'resistance' && pattern.touches.upper >= 3));
+    assert.ok(horizontalChannel);
+    assert.ok(horizontalChannel.lines.upper);
+    assert.ok(horizontalChannel.lines.lower);
+    assert.ok(horizontalChannel.touches.upper >= 3);
+    assert.ok(horizontalChannel.touches.lower >= 3);
+    assert.deepEqual(horizontalChannel.components, ['support', 'resistance']);
+    assert.equal(
+        rangePatterns.filter(pattern => pattern.variant === 'horizontal-channel').length,
+        1
+    );
+    assert.equal(
+        rangePatterns.some(pattern => ['support', 'resistance'].includes(pattern.variant)),
+        false
+    );
     assert.ok(descendingPatterns.some(pattern => (
         pattern.type === 'trend' && pattern.variant === 'falling-support'
     )));
@@ -135,7 +184,11 @@ test('keeps lower-confidence structures separate from confirmed patterns', () =>
     const tentative = autoscan.scanTentativePatterns(candles, options);
 
     assert.ok(confirmed.some(pattern => pattern.variant === 'descending-channel'));
-    assert.ok(tentative.some(pattern => pattern.variant === 'resistance'));
+    assert.ok(tentative.some(pattern => (
+        pattern.variant === 'horizontal-channel'
+        && pattern.components?.includes('support')
+        && pattern.components?.includes('resistance')
+    )));
     assert.ok(tentative.length <= 2);
     assert.ok(tentative.every(pattern => (
         pattern.confidence >= 0.56
