@@ -209,6 +209,30 @@ test('keeps lower-confidence structures separate from confirmed patterns', () =>
     assert.deepEqual(tentative, autoscan.scanTentativePatterns(candles, options));
 });
 
+test('combines shorter lookbacks with a range-specific tentative floor', () => {
+    const candles = makeDescendingChannel();
+    const options = {
+        qualityMultiplier: 0.65,
+        lookbackWindows: [30, 45, 60]
+    };
+    const defaultTentative = autoscan.scanTentativePatterns(candles, options);
+    const shortRangeTentative = autoscan.scanTentativePatterns(candles, {
+        ...options,
+        tentativeMinConfidence: 0.46
+    });
+
+    assert.deepEqual(defaultTentative, []);
+    assert.ok(shortRangeTentative.some(pattern => (
+        pattern.variant === 'horizontal-channel'
+        && pattern.scanWindowCandles === 30
+    )));
+    assert.ok(shortRangeTentative.every(pattern => (
+        pattern.confidence >= 0.46
+        && pattern.confidence < 0.64
+        && pattern.source === 'autoscan-tentative'
+    )));
+});
+
 test('merges shorter lookback windows for a long-range chart without weakening confidence', () => {
     const noisyHistory = Array.from({ length: 120 }, (_, index) => {
         const center = index % 2 === 0 ? 145 : 72;

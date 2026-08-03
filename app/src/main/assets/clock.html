@@ -4921,6 +4921,7 @@
             krakenIntervalMinutes: 5,
             bucketMs: INTRADAY_BUCKET_MS,
             windowMs: INTRADAY_WINDOW_MS,
+            scanLookbackCandles: Object.freeze([30, 45, 60, 90, 120]),
             candleLabel: '10-minute',
             cacheTtlMs: 5 * 60 * 1000
         }),
@@ -4929,6 +4930,8 @@
             krakenIntervalMinutes: 15,
             bucketMs: MOBILE_WEEKLY_BUCKET_MS,
             windowMs: MOBILE_WEEKLY_WINDOW_MS,
+            scanLookbackCandles: Object.freeze([30, 45, 60, 90, 120]),
+            tentativeMinConfidence: 0.46,
             candleLabel: 'hourly',
             cacheTtlMs: 15 * 60 * 1000
         }),
@@ -5142,14 +5145,19 @@
         try {
             const scanStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const [, range] = scopeKey.split(':');
-            const scanLookbackCandles = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[range]?.scanLookbackCandles;
+            const rangeConfig = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[range];
+            const scanLookbackCandles = rangeConfig?.scanLookbackCandles;
+            const tentativeMinConfidence = Number(rangeConfig?.tentativeMinConfidence);
             const scanOptions = {
                 qualityMultiplier,
                 ...(Array.isArray(scanLookbackCandles) ? { lookbackWindows: scanLookbackCandles } : {})
             };
             const scanResult = engine.scanMarket(candles, scanOptions);
             const tentativePatterns = typeof engine.scanTentativePatterns === 'function'
-                ? engine.scanTentativePatterns(candles, scanOptions)
+                ? engine.scanTentativePatterns(candles, {
+                    ...scanOptions,
+                    ...(Number.isFinite(tentativeMinConfidence) ? { tentativeMinConfidence } : {})
+                })
                 : [];
             const scanFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const result = {
