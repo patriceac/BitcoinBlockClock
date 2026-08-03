@@ -88,6 +88,20 @@ function appendChannelCloses(candles, closes) {
     return candles;
 }
 
+function getPatternTimeRange(pattern) {
+    return {
+        startTimeMs: Number(pattern.formation?.startTimeMs),
+        endTimeMs: Number(pattern.projectionTimeMs)
+    };
+}
+
+function getMaxConcurrentPatternCount(patterns, candles) {
+    return Math.max(...candles.map(candle => patterns.filter(pattern => {
+        const range = getPatternTimeRange(pattern);
+        return candle.timeMs >= range.startTimeMs && candle.timeMs <= range.endTimeMs;
+    }).length));
+}
+
 test('aggregateCandles preserves true OHLC values within each display bucket', () => {
     const raw = [
         { timeMs: START_TIME_MS, open: 100, high: 104, low: 99, close: 103 },
@@ -153,8 +167,276 @@ test('groups confirmed support and resistance into one horizontal channel', () =
         false
     );
     assert.ok(descendingPatterns.some(pattern => (
-        pattern.type === 'trend' && pattern.variant === 'falling-support'
+        pattern.type === 'channel' && pattern.variant === 'descending-channel'
     )));
+    assert.equal(
+        descendingPatterns.some(pattern => pattern.variant === 'falling-support'),
+        false
+    );
+});
+
+test('uses one slice-based visibility rule for boundaries and overlapping structures', () => {
+    const projectionTimeMs = START_TIME_MS + (60 * INTERVAL_MS);
+    const makeLine = (slope, intercept) => ({
+        slope,
+        intercept,
+        baseTimeMs: START_TIME_MS,
+        intervalMs: INTERVAL_MS
+    });
+    const makeBoundary = ({
+        id,
+        type = 'trend',
+        variant,
+        side,
+        slope = 0,
+        intercept,
+        confidence = 0.9,
+        source = 'autoscan',
+        tentative = false
+    }) => ({
+        id,
+        type,
+        variant,
+        confidence,
+        source,
+        tentative,
+        lines: { [side]: makeLine(slope, intercept) },
+        touches: { [side]: 5 },
+        formation: { startTimeMs: START_TIME_MS, endTimeMs: projectionTimeMs },
+        projectionTimeMs,
+        anchors: [{
+            timeMs: projectionTimeMs,
+            value: intercept + (slope * 60)
+        }]
+    });
+    const makeEnvelope = ({
+        id,
+        type = 'channel',
+        variant,
+        lowerSlope = 0,
+        lowerIntercept,
+        upperSlope = lowerSlope,
+        upperIntercept,
+        confidence,
+        touches,
+        scanWindowCandles,
+        source = 'autoscan',
+        tentative = false
+    }) => ({
+        id,
+        type,
+        variant,
+        confidence,
+        source,
+        tentative,
+        lines: {
+            upper: makeLine(upperSlope, upperIntercept),
+            lower: makeLine(lowerSlope, lowerIntercept)
+        },
+        touches,
+        scanWindowCandles,
+        formation: { startTimeMs: START_TIME_MS, endTimeMs: projectionTimeMs },
+        projectionTimeMs,
+        anchors: [{ timeMs: projectionTimeMs, value: lowerIntercept + (lowerSlope * 60) }]
+    });
+    const ascendingChannel = makeEnvelope({
+        id: 'ascending-channel',
+        variant: 'ascending-channel',
+        lowerSlope: 0.1,
+        lowerIntercept: 84,
+        upperSlope: 0.1,
+        upperIntercept: 94,
+        confidence: 0.88,
+        touches: { upper: 6, lower: 5 },
+        scanWindowCandles: 45
+    });
+    const nestedHorizontalChannel = makeEnvelope({
+        id: 'horizontal-channel',
+        variant: 'horizontal-channel',
+        lowerIntercept: 89,
+        upperIntercept: 99,
+        confidence: 0.79,
+        touches: { upper: 4, lower: 3 },
+        scanWindowCandles: 30
+    });
+    const crossingChannel = makeEnvelope({
+        id: 'crossing-channel',
+        variant: 'descending-channel',
+        lowerSlope: -0.5,
+        lowerIntercept: 120,
+        upperSlope: -0.5,
+        upperIntercept: 130,
+        confidence: 0.82,
+        touches: { upper: 5, lower: 5 },
+        scanWindowCandles: 45
+    });
+    const earlierChannel = {
+        ...makeEnvelope({
+            id: 'earlier-channel',
+            variant: 'horizontal-channel',
+            lowerIntercept: 89,
+            upperIntercept: 99,
+            confidence: 0.95,
+            touches: { upper: 6, lower: 6 },
+            scanWindowCandles: 60
+        }),
+        formation: {
+            startTimeMs: START_TIME_MS - (70 * INTERVAL_MS),
+            endTimeMs: START_TIME_MS - (10 * INTERVAL_MS)
+        },
+        projectionTimeMs: START_TIME_MS - (10 * INTERVAL_MS),
+        anchors: [{ timeMs: START_TIME_MS - (10 * INTERVAL_MS), value: 89 }]
+    };
+    const duplicateRisingSupport = makeBoundary({
+        id: 'duplicate-rising-support',
+        variant: 'rising-support',
+        side: 'lower',
+        slope: 0.1,
+        intercept: 84,
+        confidence: 0.91
+    });
+    const absorbedResistance = makeBoundary({
+        id: 'absorbed-resistance',
+        type: 'horizontal',
+        variant: 'resistance',
+        side: 'upper',
+        intercept: 96,
+        confidence: 0.97
+    });
+    const transientResistance = makeBoundary({
+        id: 'transient-resistance',
+        variant: 'rising-resistance',
+        side: 'upper',
+        slope: 0.8,
+        intercept: 70,
+        confidence: 0.83
+    });
+    const separateResistance = makeBoundary({
+        id: 'separate-resistance',
+        type: 'horizontal',
+        variant: 'resistance',
+        side: 'upper',
+        intercept: 112,
+        confidence: 0.84
+    });
+
+    const visible = autoscan.prioritizeVisiblePatterns([
+        duplicateRisingSupport,
+        absorbedResistance,
+        transientResistance,
+        nestedHorizontalChannel,
+        crossingChannel,
+        earlierChannel,
+        separateResistance,
+        ascendingChannel
+    ]);
+
+    assert.ok(visible.includes(ascendingChannel));
+    assert.equal(visible.includes(duplicateRisingSupport), false);
+    assert.equal(visible.includes(absorbedResistance), false);
+    assert.ok(visible.includes(transientResistance));
+    assert.equal(visible.includes(nestedHorizontalChannel), false);
+    assert.ok(visible.includes(crossingChannel));
+    assert.ok(visible.includes(earlierChannel));
+    assert.ok(visible.includes(separateResistance));
+});
+
+test('applies confirmation, completeness, confidence, touches, and scan depth to any auto type', () => {
+    const projectionTimeMs = START_TIME_MS + (60 * INTERVAL_MS);
+    const makeLine = (slope, intercept) => ({
+        slope,
+        intercept,
+        baseTimeMs: START_TIME_MS,
+        intervalMs: INTERVAL_MS
+    });
+    const makeEnvelope = ({
+        id,
+        type,
+        variant,
+        confidence,
+        touches,
+        scanWindowCandles,
+        tentative = false
+    }) => ({
+        id,
+        type,
+        variant,
+        confidence,
+        touches,
+        scanWindowCandles,
+        tentative,
+        source: tentative ? 'autoscan-tentative' : 'autoscan',
+        lines: {
+            lower: makeLine(0.04, 90),
+            upper: makeLine(0.04, 100)
+        },
+        formation: { startTimeMs: START_TIME_MS, endTimeMs: projectionTimeMs },
+        projectionTimeMs,
+        anchors: [{ timeMs: projectionTimeMs, value: 92.4 }]
+    });
+    const confirmedChannel = makeEnvelope({
+        id: 'confirmed-channel',
+        type: 'channel',
+        variant: 'ascending-channel',
+        confidence: 0.7,
+        touches: { upper: 3, lower: 3 },
+        scanWindowCandles: 30
+    });
+    const tentativeWedge = makeEnvelope({
+        id: 'tentative-wedge',
+        type: 'wedge',
+        variant: 'rising-wedge',
+        confidence: 0.9,
+        touches: { upper: 8, lower: 8 },
+        scanWindowCandles: 90,
+        tentative: true
+    });
+    const confirmedSupport = {
+        id: 'confirmed-support',
+        type: 'trend',
+        variant: 'rising-support',
+        confidence: 0.95,
+        touches: { lower: 7 },
+        scanWindowCandles: 90,
+        source: 'autoscan',
+        lines: { lower: makeLine(0.04, 90) },
+        formation: { startTimeMs: START_TIME_MS, endTimeMs: projectionTimeMs },
+        projectionTimeMs,
+        anchors: [{ timeMs: projectionTimeMs, value: 92.4 }]
+    };
+    const strongerTriangle = makeEnvelope({
+        id: 'stronger-triangle',
+        type: 'triangle',
+        variant: 'symmetrical-triangle',
+        confidence: 0.82,
+        touches: { upper: 4, lower: 4 },
+        scanWindowCandles: 45
+    });
+    const deeperTriangle = makeEnvelope({
+        id: 'deeper-triangle',
+        type: 'triangle',
+        variant: 'ascending-triangle',
+        confidence: 0.82,
+        touches: { upper: 6, lower: 5 },
+        scanWindowCandles: 60
+    });
+
+    assert.deepEqual(
+        autoscan.prioritizeVisiblePatterns([tentativeWedge, confirmedChannel]),
+        [confirmedChannel]
+    );
+    assert.deepEqual(
+        autoscan.prioritizeVisiblePatterns([confirmedSupport, tentativeWedge]),
+        [confirmedSupport]
+    );
+    assert.deepEqual(
+        autoscan.prioritizeVisiblePatterns([confirmedChannel, strongerTriangle]),
+        [strongerTriangle]
+    );
+    assert.deepEqual(
+        autoscan.prioritizeVisiblePatterns([strongerTriangle, deeperTriangle]),
+        [deeperTriangle]
+    );
 });
 
 test('allows a clean no-result state when there is no validated structure', () => {
@@ -177,13 +459,13 @@ test('allows a clean no-result state when there is no validated structure', () =
     assert.deepEqual(autoscan.scanTentativePatterns(candles), []);
 });
 
-test('keeps lower-confidence structures separate from confirmed patterns', () => {
-    const candles = makeDescendingChannel();
-    const options = { qualityMultiplier: 0.8 };
+test('keeps a distinct lower-confidence structure in the tentative band', () => {
+    const candles = makeNoisyHorizontalRange();
+    const options = { qualityMultiplier: 0.65 };
     const confirmed = autoscan.scanMarket(candles, options).patterns;
     const tentative = autoscan.scanTentativePatterns(candles, options);
 
-    assert.ok(confirmed.some(pattern => pattern.variant === 'descending-channel'));
+    assert.deepEqual(confirmed, []);
     assert.ok(tentative.some(pattern => (
         pattern.variant === 'horizontal-channel'
         && pattern.components?.includes('support')
@@ -209,10 +491,10 @@ test('keeps lower-confidence structures separate from confirmed patterns', () =>
     assert.deepEqual(tentative, autoscan.scanTentativePatterns(candles, options));
 });
 
-test('combines shorter lookbacks with a range-specific tentative floor', () => {
+test('uses a range-specific tentative floor without reintroducing redundant lookback structures', () => {
     const candles = makeDescendingChannel();
     const options = {
-        qualityMultiplier: 0.65,
+        qualityMultiplier: 0.55,
         lookbackWindows: [30, 45, 60]
     };
     const defaultTentative = autoscan.scanTentativePatterns(candles, options);
@@ -223,9 +505,13 @@ test('combines shorter lookbacks with a range-specific tentative floor', () => {
 
     assert.deepEqual(defaultTentative, []);
     assert.ok(shortRangeTentative.some(pattern => (
-        pattern.variant === 'horizontal-channel'
-        && pattern.scanWindowCandles === 30
+        pattern.variant === 'descending-channel'
+        && pattern.scanWindowCandles === candles.length
     )));
+    assert.equal(
+        shortRangeTentative.some(pattern => ['support', 'resistance'].includes(pattern.variant)),
+        false
+    );
     assert.ok(shortRangeTentative.every(pattern => (
         pattern.confidence >= 0.46
         && pattern.confidence < 0.64
@@ -258,15 +544,57 @@ test('merges shorter lookback windows for a long-range chart without weakening c
         && pattern.scanWindowCandles === 64
         && pattern.confidence >= 0.64
     )));
-    assert.ok(result.patterns.length <= 3);
-    assert.equal(
-        new Set(result.patterns.map(pattern => `${pattern.type}|${pattern.variant}`)).size,
-        result.patterns.length
-    );
+    assert.ok(result.diagnostics.segmentsScanned > result.diagnostics.windowsScanned.length);
+    assert.ok(result.patterns.every(pattern => pattern.episodeDetectionCount >= 2));
+    assert.ok(result.patterns.length <= 4);
+    assert.ok(getMaxConcurrentPatternCount(result.patterns, candles) <= 2);
     assert.deepEqual(
         result,
         autoscan.scanMarket(candles, { lookbackWindows: [64, 90, 120] })
     );
+});
+
+test('detects structures in historical tranches without displacing a later range', () => {
+    const earlyDescendingChannel = makeDescendingChannel(64);
+    const transition = Array.from({ length: 32 }, (_, index) => {
+        const center = index % 2 === 0 ? 145 : 72;
+        return {
+            timeMs: START_TIME_MS + ((64 + index) * INTERVAL_MS),
+            open: center,
+            high: center + 8 + (index % 5),
+            low: center - 8 - (index % 7),
+            close: center + ((index % 3) - 1)
+        };
+    });
+    const recentHorizontalRange = makeNoisyHorizontalRange().map((candle, index) => ({
+        ...candle,
+        timeMs: START_TIME_MS + ((96 + index) * INTERVAL_MS)
+    }));
+    const candles = [
+        ...earlyDescendingChannel,
+        ...transition,
+        ...recentHorizontalRange
+    ];
+    const result = autoscan.scanMarket(candles, {
+        lookbackWindows: [60, 64, 90, 96, 120]
+    });
+    const historicalDescending = result.patterns.find(pattern => (
+        pattern.variant === 'descending-channel'
+        && pattern.projectionTimeMs <= earlyDescendingChannel.at(-1).timeMs
+    ));
+    const recentHorizontal = result.patterns.find(pattern => (
+        pattern.variant === 'horizontal-channel'
+        && pattern.projectionTimeMs === candles.at(-1).timeMs
+    ));
+
+    assert.ok(historicalDescending);
+    assert.ok(recentHorizontal);
+    assert.ok(
+        historicalDescending.projectionTimeMs < recentHorizontal.formation.startTimeMs
+    );
+    assert.ok(result.patterns.every(pattern => pattern.episodeDetectionCount >= 2));
+    assert.ok(result.patterns.length <= 4);
+    assert.ok(getMaxConcurrentPatternCount(result.patterns, candles) <= 2);
 });
 
 test('requires two closed candles before reporting a descending-channel breakout', () => {

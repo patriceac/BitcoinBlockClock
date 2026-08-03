@@ -2459,21 +2459,32 @@
                 rgba(7, 15, 20, 0.7);
         }
 
+        .mobile-halving-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            justify-items: center;
+            gap: clamp(6px, 1.2vh, 12px);
+            width: 100%;
+        }
+
         .mobile-halving-card::before {
-            content: '';
-            position: absolute;
-            left: 16px;
-            right: 16px;
-            bottom: 22px;
+            content: none;
+        }
+
+        .mobile-halving-track {
+            position: relative;
+            width: 100%;
             height: 7px;
+            overflow: hidden;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.08);
         }
 
         .mobile-halving-fill {
-            inset: auto auto 22px 16px;
-            height: 7px;
-            max-width: calc(100% - 32px);
+            inset: 0 auto 0 0;
+            height: 100%;
+            max-width: 100%;
             border-radius: 999px;
             background: linear-gradient(90deg, #fbd21f, var(--accent));
             box-shadow: 0 0 22px rgba(246, 162, 31, 0.24);
@@ -4313,10 +4324,14 @@
             </div>
         </div>
         <div class="mobile-halving-card">
-            <div id="mobileHalvingProgressFill" class="mobile-halving-fill" aria-hidden="true"></div>
-            <div>
-                <p class="mobile-label">Halving Progress</p>
-                <strong id="mobileHalvingPercent" class="mobile-row-value mobile-accent">Loading...</strong>
+            <div class="mobile-halving-content">
+                <div>
+                    <p class="mobile-label">Halving Progress</p>
+                    <strong id="mobileHalvingPercent" class="mobile-row-value mobile-accent">Loading...</strong>
+                </div>
+                <div class="mobile-halving-track" aria-hidden="true">
+                    <div id="mobileHalvingProgressFill" class="mobile-halving-fill"></div>
+                </div>
             </div>
         </div>
     </section>
@@ -4940,6 +4955,7 @@
             krakenIntervalMinutes: 60,
             bucketMs: MOBILE_MONTHLY_BUCKET_MS,
             windowMs: MOBILE_MONTHLY_WINDOW_MS,
+            scanLookbackCandles: Object.freeze([30, 45, 60, 90, 120]),
             candleLabel: '6-hour',
             cacheTtlMs: 60 * 60 * 1000
         }),
@@ -5150,18 +5166,38 @@
             const tentativeMinConfidence = Number(rangeConfig?.tentativeMinConfidence);
             const scanOptions = {
                 qualityMultiplier,
+                maxPatterns: 2,
+                maxTotalPatterns: 4,
+                minEpisodeDetections: 2,
                 ...(Array.isArray(scanLookbackCandles) ? { lookbackWindows: scanLookbackCandles } : {})
             };
             const scanResult = engine.scanMarket(candles, scanOptions);
-            const tentativePatterns = typeof engine.scanTentativePatterns === 'function'
+            const scannedTentativePatterns = typeof engine.scanTentativePatterns === 'function'
                 ? engine.scanTentativePatterns(candles, {
                     ...scanOptions,
                     ...(Number.isFinite(tentativeMinConfidence) ? { tentativeMinConfidence } : {})
                 })
                 : [];
+            const tentativePatternIds = new Set(scannedTentativePatterns.map(pattern => pattern.id));
+            const visiblePatterns = typeof engine.selectVisiblePatterns === 'function'
+                ? engine.selectVisiblePatterns([
+                    ...scanResult.patterns,
+                    ...scannedTentativePatterns
+                ], { maxPatterns: 2, maxTotalPatterns: 4 })
+                : (typeof engine.prioritizeVisiblePatterns === 'function'
+                    ? engine.prioritizeVisiblePatterns([
+                        ...scanResult.patterns,
+                        ...scannedTentativePatterns
+                    ])
+                    : [...scanResult.patterns, ...scannedTentativePatterns]);
+            const patterns = visiblePatterns.filter(pattern => !tentativePatternIds.has(pattern.id));
+            const tentativePatterns = visiblePatterns.filter(pattern => tentativePatternIds.has(pattern.id));
+            const visibleConfirmedPatternIds = new Set(patterns.map(pattern => pattern.id));
             const scanFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const result = {
                 ...scanResult,
+                patterns,
+                events: scanResult.events.filter(event => visibleConfirmedPatternIds.has(event.patternId)),
                 tentativePatterns,
                 source,
                 signature,
@@ -7858,12 +7894,23 @@
             addSegment(points[0], points[1]);
         } else if (drawing.type === 'horizontal') {
             const levelPoint = points[0];
-            addSegment(
-                { x: geometry.plot.left, y: levelPoint.y },
-                { x: geometry.plot.right, y: levelPoint.y }
-            );
+            const isAutoscan = drawing.source === 'autoscan'
+                || drawing.source === 'autoscan-tentative';
+            const startTimeMs = Number(drawing.formation?.startTimeMs);
+            const endTimeMs = Number(drawing.projectionTimeMs);
+            const hasLocalTimeRange = isAutoscan
+                && Number.isFinite(startTimeMs)
+                && Number.isFinite(endTimeMs)
+                && endTimeMs > startTimeMs;
+            const segmentStart = hasLocalTimeRange
+                ? { x: geometry.xScale(startTimeMs), y: levelPoint.y }
+                : { x: geometry.plot.left, y: levelPoint.y };
+            const segmentEnd = hasLocalTimeRange
+                ? { x: geometry.xScale(endTimeMs), y: levelPoint.y }
+                : { x: geometry.plot.right, y: levelPoint.y };
+            addSegment(segmentStart, segmentEnd);
             labels.push({
-                x: geometry.plot.left + 7,
+                x: segmentStart.x + 7,
                 y: Math.max(geometry.plot.top + 12, levelPoint.y - 7),
                 text: formatCurrencyValue(levelPoint.anchor.value, mobileSelectedCurrency)
             });

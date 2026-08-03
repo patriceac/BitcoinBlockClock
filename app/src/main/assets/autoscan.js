@@ -13,7 +13,9 @@
 
     const DEFAULT_OPTIONS = Object.freeze({
         minCandles: 30,
-        maxPatterns: 3,
+        maxPatterns: 2,
+        maxTotalPatterns: 4,
+        minEpisodeDetections: 2,
         minConfidence: 0.64,
         eventConfidence: 0.72,
         eventLookbackCandles: 12,
@@ -25,6 +27,19 @@
         confirmedMinConfidence: DEFAULT_OPTIONS.minConfidence,
         maxPatterns: 2
     });
+    const PRICE_TOLERANCE_RATIO = 0.0016;
+    const STRUCTURE_BOUNDARY_WIDTH_TOLERANCE_RATIO = 0.12;
+    const VISIBILITY_SLICE_COUNT = 7;
+    const MIN_SHARED_SPAN_RATIO = 0.62;
+    const MIN_ENVELOPE_OVERLAP_RATIO = 0.62;
+    const MIN_REDUNDANT_SLICE_RATIO = 0.6;
+    const MIN_BOUNDARY_MATCH_SLICE_RATIO = 0.7;
+    const MIN_REDUNDANT_CONSECUTIVE_SLICES = 3;
+    const ROLLING_SCAN_STEP_RATIO = 0.25;
+    const MIN_EPISODE_SHARED_SPAN_RATIO = 0.45;
+    const EPISODE_BOUNDARY_DISTANCE_RATIO = 0.008;
+    const EPISODE_ENVELOPE_CENTER_WIDTH_RATIO = 0.72;
+    const MIN_TENTATIVE_ALTERNATIVE_OVERLAP_RATIO = 0.45;
 
     function clamp(value, minimum, maximum) {
         return Math.min(maximum, Math.max(minimum, value));
@@ -325,6 +340,7 @@
             id: `autoscan-${hashString(signature)}`,
             label: getPatternLabel(pattern),
             confidence,
+            projectionTimeMs: context.projectionTimeMs,
             source: 'autoscan',
             locked: true
         };
@@ -335,7 +351,7 @@
         const baseTimeMs = candles[0].timeMs;
         const volatility = getVolatility(candles);
         const priceScale = median(candles.map(candle => candle.close)) || 1;
-        const tolerance = Math.max(volatility * 0.78, priceScale * 0.0016);
+        const tolerance = Math.max(volatility * 0.78, priceScale * PRICE_TOLERANCE_RATIO);
         const structureLength = Math.min(
             candles.length,
             Math.max(36, Math.min(260, Math.round(candles.length * 0.82)))
@@ -512,6 +528,7 @@
                 lower: Number(support.touches?.lower) || 0
             },
             formation: { startTimeMs, endTimeMs },
+            projectionTimeMs: context.projectionTimeMs,
             components: ['support', 'resistance'],
             componentIds,
             source: 'autoscan',
@@ -783,43 +800,578 @@
     }
 
     function selectPatterns(patterns, options) {
-        const sorted = patterns
-            .filter(pattern => pattern && pattern.confidence >= options.minConfidence)
-            .sort((left, right) => {
-                if (Math.abs(right.confidence - left.confidence) > 0.001) {
-                    return right.confidence - left.confidence;
-                }
-                return left.variant.localeCompare(right.variant);
-            });
+        const eligiblePatterns = prioritizeVisiblePatterns(
+            suppressTentativePatternsWithConfirmedAlternatives(
+                patterns.filter(pattern => pattern && pattern.confidence >= options.minConfidence)
+            )
+        );
+        const sorted = eligiblePatterns
+            .map((pattern, index) => ({ pattern, index }))
+            .sort(comparePatternVisibilityPriority)
+            .map(entry => entry.pattern);
         const selected = [];
-        const typeCounts = {};
-        let structuralCount = 0;
 
         for (const pattern of sorted) {
-            const isStructural = ['channel', 'triangle', 'wedge'].includes(pattern.type);
-            if (pattern.type === 'horizontal' && (typeCounts.horizontal || 0) >= 2) {
-                continue;
-            }
-            if (pattern.type === 'trend' && (typeCounts.trend || 0) >= 1) {
-                continue;
-            }
-            if (isStructural && structuralCount >= 2) {
-                continue;
-            }
-            if (selected.some(item => item.type === pattern.type && item.variant === pattern.variant)) {
+            if (wouldExceedPatternTrancheLimits(pattern, selected, options)) {
                 continue;
             }
 
             selected.push(pattern);
-            typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
-            if (isStructural) {
-                structuralCount += 1;
+        }
+        return limitPatternsByTimeline(selected, options);
+    }
+
+    function getPatternProjectionTimeMs(pattern) {
+        const explicitProjectionTimeMs = Number(pattern?.projectionTimeMs);
+        if (Number.isFinite(explicitProjectionTimeMs)) {
+            return explicitProjectionTimeMs;
+        }
+
+        const apexTimeMs = Number(pattern?.formation?.apexTimeMs);
+        const times = [
+            Number(pattern?.formation?.endTimeMs),
+            ...(Array.isArray(pattern?.anchors)
+                ? pattern.anchors
+                    .map(anchor => Number(anchor?.timeMs))
+                    .filter(timeMs => !Number.isFinite(apexTimeMs) || timeMs !== apexTimeMs)
+                : [])
+        ].filter(Number.isFinite);
+        return times.length ? Math.max(...times) : NaN;
+    }
+
+    function getPatternTimeRange(pattern) {
+        const anchorTimes = Array.isArray(pattern?.anchors)
+            ? pattern.anchors.map(anchor => Number(anchor?.timeMs)).filter(Number.isFinite)
+            : [];
+        const formationStartTimeMs = Number(pattern?.formation?.startTimeMs);
+        const startTimeMs = Number.isFinite(formationStartTimeMs)
+            ? formationStartTimeMs
+            : (anchorTimes.length ? Math.min(...anchorTimes) : NaN);
+        const endTimeMs = getPatternProjectionTimeMs(pattern);
+        if (!Number.isFinite(startTimeMs)
+            || !Number.isFinite(endTimeMs)
+            || endTimeMs <= startTimeMs) {
+            return null;
+        }
+
+        return {
+            startTimeMs,
+            endTimeMs,
+            durationMs: endTimeMs - startTimeMs
+        };
+    }
+
+    function getPatternSlice(pattern, timeMs) {
+        const upperValue = pattern?.lines?.upper
+            ? lineValueAtTime(pattern.lines.upper, timeMs)
+            : NaN;
+        const lowerValue = pattern?.lines?.lower
+            ? lineValueAtTime(pattern.lines.lower, timeMs)
+            : NaN;
+        const hasUpper = Number.isFinite(upperValue);
+        const hasLower = Number.isFinite(lowerValue);
+        if (hasUpper && hasLower) {
+            const lower = Math.min(lowerValue, upperValue);
+            const upper = Math.max(lowerValue, upperValue);
+            const width = upper - lower;
+            if (width <= Number.EPSILON) {
+                return null;
             }
-            if (selected.length >= options.maxPatterns) {
-                break;
+            return { kind: 'envelope', lower, upper, width };
+        }
+
+        if (hasUpper) {
+            return { kind: 'boundary', side: 'upper', value: upperValue };
+        }
+        if (hasLower) {
+            return { kind: 'boundary', side: 'lower', value: lowerValue };
+        }
+        return null;
+    }
+
+    function getVisibilitySliceTimes(left, right, minimumSharedSpanRatio = MIN_SHARED_SPAN_RATIO) {
+        const leftRange = getPatternTimeRange(left);
+        const rightRange = getPatternTimeRange(right);
+        if (!leftRange || !rightRange) {
+            return [];
+        }
+
+        const sharedStartTimeMs = Math.max(leftRange.startTimeMs, rightRange.startTimeMs);
+        const sharedEndTimeMs = Math.min(leftRange.endTimeMs, rightRange.endTimeMs);
+        const sharedDurationMs = sharedEndTimeMs - sharedStartTimeMs;
+        const shorterDurationMs = Math.min(leftRange.durationMs, rightRange.durationMs);
+        if (sharedDurationMs <= 0
+            || sharedDurationMs / shorterDurationMs < minimumSharedSpanRatio) {
+            return [];
+        }
+
+        return Array.from({ length: VISIBILITY_SLICE_COUNT }, (_, index) => (
+            sharedStartTimeMs
+            + ((sharedDurationMs * index) / Math.max(1, VISIBILITY_SLICE_COUNT - 1))
+        ));
+    }
+
+    function getBoundaryProximity(leftValue, rightValue, envelopeWidth = Infinity) {
+        const referencePrice = Math.max(Math.abs(leftValue), Math.abs(rightValue), 1);
+        const priceProximity = referencePrice * PRICE_TOLERANCE_RATIO;
+        if (!Number.isFinite(envelopeWidth) || envelopeWidth <= 0) {
+            return priceProximity;
+        }
+        return Math.min(
+            priceProximity,
+            envelopeWidth * STRUCTURE_BOUNDARY_WIDTH_TOLERANCE_RATIO
+        );
+    }
+
+    function areBoundarySlicesRedundant(leftSlice, rightSlice) {
+        if (leftSlice.kind === 'boundary' && rightSlice.kind === 'boundary') {
+            const proximity = getBoundaryProximity(leftSlice.value, rightSlice.value);
+            return Math.abs(leftSlice.value - rightSlice.value) <= proximity;
+        }
+
+        const boundarySlice = leftSlice.kind === 'boundary' ? leftSlice : rightSlice;
+        const envelopeSlice = boundarySlice === leftSlice ? rightSlice : leftSlice;
+        const nearestEnvelopeValue = clamp(
+            boundarySlice.value,
+            envelopeSlice.lower,
+            envelopeSlice.upper
+        );
+        const proximity = getBoundaryProximity(
+            boundarySlice.value,
+            nearestEnvelopeValue,
+            envelopeSlice.width
+        );
+        return Math.abs(boundarySlice.value - nearestEnvelopeValue) <= proximity;
+    }
+
+    function getEnvelopeOverlapRatio(leftSlice, rightSlice) {
+        const overlap = Math.max(
+            0,
+            Math.min(leftSlice.upper, rightSlice.upper)
+                - Math.max(leftSlice.lower, rightSlice.lower)
+        );
+        const smallerWidth = Math.min(leftSlice.width, rightSlice.width);
+        return smallerWidth > 0 ? overlap / smallerWidth : 0;
+    }
+
+    function hasRedundantSliceRun(values, predicate) {
+        let runLength = 0;
+        for (const value of values) {
+            runLength = predicate(value) ? runLength + 1 : 0;
+            if (runLength >= MIN_REDUNDANT_CONSECUTIVE_SLICES) {
+                return true;
             }
         }
-        return selected;
+        return false;
+    }
+
+    function arePatternsRedundant(left, right) {
+        const sliceTimes = getVisibilitySliceTimes(left, right);
+        if (!sliceTimes.length) {
+            return false;
+        }
+
+        const slicePairs = sliceTimes
+            .map(timeMs => [getPatternSlice(left, timeMs), getPatternSlice(right, timeMs)])
+            .filter(([leftSlice, rightSlice]) => leftSlice && rightSlice);
+        if (slicePairs.length !== sliceTimes.length) {
+            return false;
+        }
+
+        const bothEnvelopes = slicePairs.every(([leftSlice, rightSlice]) => (
+            leftSlice.kind === 'envelope' && rightSlice.kind === 'envelope'
+        ));
+        if (bothEnvelopes) {
+            const overlapRatios = slicePairs.map(([leftSlice, rightSlice]) => (
+                getEnvelopeOverlapRatio(leftSlice, rightSlice)
+            ));
+            const overlappingSliceRatio = overlapRatios.filter(ratio => (
+                ratio >= MIN_ENVELOPE_OVERLAP_RATIO
+            )).length / overlapRatios.length;
+            return (median(overlapRatios) >= MIN_ENVELOPE_OVERLAP_RATIO
+                    && overlappingSliceRatio >= MIN_REDUNDANT_SLICE_RATIO)
+                || hasRedundantSliceRun(
+                    overlapRatios,
+                    ratio => ratio >= MIN_ENVELOPE_OVERLAP_RATIO
+                );
+        }
+
+        const hasOnlyBoundariesAndEnvelopes = slicePairs.every(([leftSlice, rightSlice]) => (
+            ['boundary', 'envelope'].includes(leftSlice.kind)
+            && ['boundary', 'envelope'].includes(rightSlice.kind)
+            && (leftSlice.kind === 'boundary' || rightSlice.kind === 'boundary')
+        ));
+        if (!hasOnlyBoundariesAndEnvelopes) {
+            return false;
+        }
+
+        const boundaryMatches = slicePairs.map(([leftSlice, rightSlice]) => (
+            areBoundarySlicesRedundant(leftSlice, rightSlice)
+        ));
+        const matchingSliceRatio = boundaryMatches.filter(Boolean).length / boundaryMatches.length;
+        return matchingSliceRatio >= MIN_BOUNDARY_MATCH_SLICE_RATIO
+            || hasRedundantSliceRun(boundaryMatches, Boolean);
+    }
+
+    function getPatternTimeOverlapRatio(left, right) {
+        const leftRange = getPatternTimeRange(left);
+        const rightRange = getPatternTimeRange(right);
+        if (!leftRange || !rightRange) {
+            return 0;
+        }
+
+        const overlapMs = Math.max(
+            0,
+            Math.min(leftRange.endTimeMs, rightRange.endTimeMs)
+                - Math.max(leftRange.startTimeMs, rightRange.startTimeMs)
+        );
+        const shorterDurationMs = Math.min(leftRange.durationMs, rightRange.durationMs);
+        return shorterDurationMs > 0 ? overlapMs / shorterDurationMs : 0;
+    }
+
+    function arePatternSlicesSimilarForEpisode(left, right) {
+        const sliceTimes = getVisibilitySliceTimes(
+            left,
+            right,
+            MIN_EPISODE_SHARED_SPAN_RATIO
+        );
+        if (!sliceTimes.length) {
+            return false;
+        }
+
+        const slicePairs = sliceTimes
+            .map(timeMs => [getPatternSlice(left, timeMs), getPatternSlice(right, timeMs)])
+            .filter(([leftSlice, rightSlice]) => leftSlice && rightSlice);
+        if (slicePairs.length !== sliceTimes.length) {
+            return false;
+        }
+
+        const bothEnvelopes = slicePairs.every(([leftSlice, rightSlice]) => (
+            leftSlice.kind === 'envelope' && rightSlice.kind === 'envelope'
+        ));
+        if (bothEnvelopes) {
+            return median(slicePairs.map(([leftSlice, rightSlice]) => {
+                const leftCenter = (leftSlice.lower + leftSlice.upper) / 2;
+                const rightCenter = (rightSlice.lower + rightSlice.upper) / 2;
+                const referenceWidth = Math.max(
+                    Math.min(leftSlice.width, rightSlice.width),
+                    Math.max(Math.abs(leftCenter), Math.abs(rightCenter), 1)
+                        * PRICE_TOLERANCE_RATIO
+                );
+                return Math.abs(leftCenter - rightCenter) / referenceWidth;
+            })) <= EPISODE_ENVELOPE_CENTER_WIDTH_RATIO;
+        }
+
+        const bothBoundaries = slicePairs.every(([leftSlice, rightSlice]) => (
+            leftSlice.kind === 'boundary' && rightSlice.kind === 'boundary'
+        ));
+        if (!bothBoundaries) {
+            return false;
+        }
+
+        return median(slicePairs.map(([leftSlice, rightSlice]) => {
+            const referencePrice = Math.max(
+                Math.abs(leftSlice.value),
+                Math.abs(rightSlice.value),
+                1
+            );
+            return Math.abs(leftSlice.value - rightSlice.value) / referencePrice;
+        })) <= EPISODE_BOUNDARY_DISTANCE_RATIO;
+    }
+
+    function arePatternsInSameEpisode(left, right) {
+        return left?.type === right?.type
+            && left?.variant === right?.variant
+            && getPatternTimeOverlapRatio(left, right) >= MIN_EPISODE_SHARED_SPAN_RATIO
+            && (arePatternsRedundant(left, right)
+                || arePatternSlicesSimilarForEpisode(left, right));
+    }
+
+    function getPatternBoundaryCount(pattern) {
+        return ['upper', 'lower'].filter(side => pattern?.lines?.[side]).length;
+    }
+
+    function getPatternTouchCount(pattern) {
+        return Object.values(pattern?.touches || {}).reduce((sum, value) => {
+            const count = Number(value);
+            return sum + (Number.isFinite(count) ? count : 0);
+        }, 0);
+    }
+
+    function isTentativePattern(pattern) {
+        return pattern?.tentative === true
+            || pattern?.confidenceBand === 'tentative'
+            || pattern?.source === 'autoscan-tentative';
+    }
+
+    function comparePatternVisibilityPriority(leftEntry, rightEntry) {
+        const left = leftEntry.pattern;
+        const right = rightEntry.pattern;
+        const confirmationDifference = Number(isTentativePattern(left)) - Number(isTentativePattern(right));
+        if (confirmationDifference !== 0) {
+            return confirmationDifference;
+        }
+
+        const boundaryDifference = getPatternBoundaryCount(right) - getPatternBoundaryCount(left);
+        if (boundaryDifference !== 0) {
+            return boundaryDifference;
+        }
+
+        const confidenceDifference = Number(right.confidence || 0) - Number(left.confidence || 0);
+        if (Math.abs(confidenceDifference) > 0.001) {
+            return confidenceDifference;
+        }
+
+        const touchDifference = getPatternTouchCount(right) - getPatternTouchCount(left);
+        if (touchDifference !== 0) {
+            return touchDifference;
+        }
+
+        const scanWindowDifference = Number(right.scanWindowCandles || 0)
+            - Number(left.scanWindowCandles || 0);
+        if (scanWindowDifference !== 0) {
+            return scanWindowDifference;
+        }
+
+        const leftDurationMs = getPatternTimeRange(left)?.durationMs || 0;
+        const rightDurationMs = getPatternTimeRange(right)?.durationMs || 0;
+        if (rightDurationMs !== leftDurationMs) {
+            return rightDurationMs - leftDurationMs;
+        }
+
+        const variantDifference = String(left.variant || '').localeCompare(String(right.variant || ''));
+        return variantDifference || leftEntry.index - rightEntry.index;
+    }
+
+    function suppressTentativePatternsWithConfirmedAlternatives(patterns) {
+        const confirmedPatterns = patterns.filter(pattern => !isTentativePattern(pattern));
+        if (!confirmedPatterns.length) {
+            return patterns;
+        }
+
+        return patterns.filter(pattern => (
+            !isTentativePattern(pattern)
+            || !confirmedPatterns.some(confirmed => (
+                getPatternTimeOverlapRatio(pattern, confirmed)
+                    >= MIN_TENTATIVE_ALTERNATIVE_OVERLAP_RATIO
+            ))
+        ));
+    }
+
+    function getPatternScanKey(pattern) {
+        const windowSize = Number(pattern?.scanWindowCandles);
+        const startIndex = Number(pattern?.scanStartIndex);
+        const endIndex = Number(pattern?.scanEndIndex);
+        if (![windowSize, startIndex, endIndex].every(Number.isFinite)) {
+            return null;
+        }
+        return `${windowSize}:${startIndex}:${endIndex}`;
+    }
+
+    function consolidatePersistentPatternEpisodes(patterns, options) {
+        const requestedDetectionCount = Math.round(Number(options.minEpisodeDetections));
+        const minEpisodeDetections = clamp(
+            Number.isFinite(requestedDetectionCount)
+                ? requestedDetectionCount
+                : DEFAULT_OPTIONS.minEpisodeDetections,
+            1,
+            6
+        );
+        const episodes = [];
+
+        (patterns || []).filter(Boolean).forEach(pattern => {
+            const matchingIndexes = episodes
+                .map((episode, index) => (
+                    episode.some(member => arePatternsInSameEpisode(pattern, member))
+                        ? index
+                        : -1
+                ))
+                .filter(index => index >= 0);
+            if (!matchingIndexes.length) {
+                episodes.push([pattern]);
+                return;
+            }
+
+            const mergedEpisode = [pattern];
+            [...matchingIndexes].reverse().forEach(index => {
+                mergedEpisode.push(...episodes[index]);
+                episodes.splice(index, 1);
+            });
+            episodes.push(mergedEpisode);
+        });
+
+        return episodes
+            .map((episode, episodeIndex) => {
+                const scanKeys = new Set(episode.map(getPatternScanKey).filter(Boolean));
+                const currentMembers = episode.filter(pattern => pattern.scanIsCurrent === true);
+                const representativePool = currentMembers.length ? currentMembers : episode;
+                const representative = representativePool
+                    .map((pattern, index) => ({ pattern, index }))
+                    .sort(comparePatternVisibilityPriority)[0]?.pattern;
+                return {
+                    representative,
+                    episodeIndex,
+                    detectionCount: scanKeys.size,
+                    windowSizes: [...new Set(episode
+                        .map(pattern => Number(pattern.scanWindowCandles))
+                        .filter(Number.isFinite))]
+                        .sort((left, right) => left - right)
+                };
+            })
+            .filter(episode => (
+                episode.representative
+                && episode.detectionCount >= minEpisodeDetections
+            ))
+            .map(episode => ({
+                ...episode.representative,
+                episodeDetectionCount: episode.detectionCount,
+                episodeWindowSizes: episode.windowSizes
+            }));
+    }
+
+    function isPatternActiveAtTime(pattern, timeMs) {
+        const range = getPatternTimeRange(pattern);
+        return range
+            ? timeMs >= range.startTimeMs && timeMs <= range.endTimeMs
+            : false;
+    }
+
+    function wouldExceedPatternTrancheLimits(candidate, selected, options) {
+        const candidateRange = getPatternTimeRange(candidate);
+        if (!candidateRange) {
+            return selected.length >= options.maxPatterns;
+        }
+
+        const overlappingRanges = selected
+            .map(pattern => ({ pattern, range: getPatternTimeRange(pattern) }))
+            .filter(entry => entry.range
+                && entry.range.endTimeMs >= candidateRange.startTimeMs
+                && entry.range.startTimeMs <= candidateRange.endTimeMs);
+        const sampleTimes = new Set([candidateRange.startTimeMs]);
+        overlappingRanges.forEach(({ range }) => {
+            if (range.startTimeMs >= candidateRange.startTimeMs
+                && range.startTimeMs <= candidateRange.endTimeMs) {
+                sampleTimes.add(range.startTimeMs);
+            }
+        });
+
+        return [...sampleTimes].some(timeMs => {
+            const activePatterns = [
+                candidate,
+                ...overlappingRanges
+                    .map(entry => entry.pattern)
+                    .filter(pattern => isPatternActiveAtTime(pattern, timeMs))
+            ];
+            const structuralCount = activePatterns.filter(pattern => (
+                ['channel', 'triangle', 'wedge'].includes(pattern.type)
+            )).length;
+            const trendCount = activePatterns.filter(pattern => pattern.type === 'trend').length;
+            const horizontalCount = activePatterns.filter(pattern => pattern.type === 'horizontal').length;
+            return activePatterns.length > options.maxPatterns
+                || structuralCount > 2
+                || trendCount > 1
+                || horizontalCount > 2;
+        });
+    }
+
+    function limitPatternsByTimeline(patterns, options) {
+        const requestedMaxTotal = Math.round(Number(options.maxTotalPatterns));
+        const maxTotalPatterns = clamp(
+            Number.isFinite(requestedMaxTotal)
+                ? requestedMaxTotal
+                : DEFAULT_OPTIONS.maxTotalPatterns,
+            1,
+            12
+        );
+        if (patterns.length <= maxTotalPatterns) {
+            return patterns;
+        }
+
+        const patternRanges = patterns
+            .map(pattern => ({ pattern, range: getPatternTimeRange(pattern) }))
+            .filter(entry => entry.range);
+        const suppliedStartTimeMs = Number(options.displayStartTimeMs);
+        const suppliedEndTimeMs = Number(options.displayEndTimeMs);
+        const startTimeMs = Number.isFinite(suppliedStartTimeMs)
+            ? suppliedStartTimeMs
+            : Math.min(...patternRanges.map(entry => entry.range.startTimeMs));
+        const endTimeMs = Number.isFinite(suppliedEndTimeMs)
+            ? suppliedEndTimeMs
+            : Math.max(...patternRanges.map(entry => entry.range.endTimeMs));
+        if (!Number.isFinite(startTimeMs)
+            || !Number.isFinite(endTimeMs)
+            || endTimeMs <= startTimeMs) {
+            return patterns.slice(0, maxTotalPatterns);
+        }
+
+        const durationMs = endTimeMs - startTimeMs;
+        const chosenPatterns = new Set();
+        for (let binIndex = 0; binIndex < maxTotalPatterns; binIndex += 1) {
+            const binStartTimeMs = startTimeMs + ((durationMs * binIndex) / maxTotalPatterns);
+            const binEndTimeMs = startTimeMs + ((durationMs * (binIndex + 1)) / maxTotalPatterns);
+            const candidates = patternRanges
+                .filter(entry => {
+                    const midpointTimeMs = entry.range.startTimeMs + (entry.range.durationMs / 2);
+                    return midpointTimeMs >= binStartTimeMs
+                        && (binIndex === maxTotalPatterns - 1
+                            ? midpointTimeMs <= binEndTimeMs
+                            : midpointTimeMs < binEndTimeMs);
+                })
+                .map((entry, index) => ({ pattern: entry.pattern, index }))
+                .sort(comparePatternVisibilityPriority);
+            if (candidates[0]) {
+                chosenPatterns.add(candidates[0].pattern);
+            }
+        }
+
+        patterns.forEach(pattern => {
+            if (chosenPatterns.size < maxTotalPatterns) {
+                chosenPatterns.add(pattern);
+            }
+        });
+        return patterns.filter(pattern => chosenPatterns.has(pattern));
+    }
+
+    function prioritizeVisiblePatterns(patterns) {
+        const availableEntries = (patterns || [])
+            .map((pattern, index) => ({ pattern, index }))
+            .filter(entry => entry.pattern);
+        const priorityOrder = [...availableEntries].sort(comparePatternVisibilityPriority);
+        const visibleEntries = [];
+
+        priorityOrder.forEach(entry => {
+            if (visibleEntries.some(visibleEntry => (
+                arePatternsRedundant(entry.pattern, visibleEntry.pattern)
+            ))) {
+                return;
+            }
+            visibleEntries.push(entry);
+        });
+
+        const visibleIndexes = new Set(visibleEntries.map(entry => entry.index));
+        return availableEntries
+            .filter(entry => visibleIndexes.has(entry.index))
+            .map(entry => entry.pattern);
+    }
+
+    function selectVisiblePatterns(patterns, suppliedOptions = {}) {
+        const requestedMaxPatterns = Math.round(Number(suppliedOptions.maxPatterns));
+        const maxPatterns = clamp(
+            Number.isFinite(requestedMaxPatterns)
+                ? requestedMaxPatterns
+                : DEFAULT_OPTIONS.maxPatterns,
+            1,
+            12
+        );
+        const requestedMinConfidence = Number(suppliedOptions.minConfidence);
+        return selectPatterns(patterns || [], {
+            ...DEFAULT_OPTIONS,
+            ...suppliedOptions,
+            minConfidence: Number.isFinite(requestedMinConfidence)
+                ? requestedMinConfidence
+                : 0,
+            maxPatterns
+        });
     }
 
     function scanPatterns(data, suppliedOptions = {}) {
@@ -1071,6 +1623,48 @@
             .sort((left, right) => left - right);
     }
 
+    function getScanWindowSegments(candles, options) {
+        const windowSizes = getScanWindowSizes(candles, options);
+        if (windowSizes.length === 1) {
+            return [{
+                windowSize: candles.length,
+                startIndex: 0,
+                endIndex: candles.length,
+                isCurrent: true
+            }];
+        }
+
+        return windowSizes
+            .flatMap(windowSize => {
+                if (windowSize >= candles.length) {
+                    return [{
+                        windowSize: candles.length,
+                        startIndex: 0,
+                        endIndex: candles.length,
+                        isCurrent: true
+                    }];
+                }
+
+                const step = Math.max(1, Math.floor(windowSize * ROLLING_SCAN_STEP_RATIO));
+                const endIndexes = [];
+                for (let endIndex = windowSize; endIndex < candles.length; endIndex += step) {
+                    endIndexes.push(endIndex);
+                }
+                endIndexes.push(candles.length);
+                return [...new Set(endIndexes)].map(endIndex => ({
+                    windowSize,
+                    startIndex: endIndex - windowSize,
+                    endIndex,
+                    isCurrent: endIndex === candles.length
+                }));
+            })
+            .sort((left, right) => (
+                left.endIndex - right.endIndex
+                || left.windowSize - right.windowSize
+                || left.startIndex - right.startIndex
+            ));
+    }
+
     function compareSignificantEvents(left, right) {
         if (right.priority !== left.priority) {
             return right.priority - left.priority;
@@ -1091,34 +1685,54 @@
             return scanMarketWindow(candles, options);
         }
 
-        const windowSizes = getScanWindowSizes(candles, options);
-        if (windowSizes.length === 1) {
+        const windowSegments = getScanWindowSegments(candles, options);
+        if (windowSegments.length === 1) {
             return scanMarketWindow(candles, options);
         }
 
-        const windowResults = windowSizes.map(windowSize => {
-            const result = scanMarketWindow(candles.slice(-windowSize), options);
+        const windowResults = windowSegments.map(segment => {
+            const segmentCandles = candles.slice(segment.startIndex, segment.endIndex);
+            const result = scanMarketWindow(segmentCandles, options);
+            const scanStartTimeMs = segmentCandles[0]?.timeMs ?? null;
+            const scanEndTimeMs = segmentCandles[segmentCandles.length - 1]?.timeMs ?? null;
             return {
-                windowSize,
+                ...segment,
                 result,
                 patterns: result.patterns.map(pattern => ({
                     ...pattern,
-                    scanWindowCandles: windowSize
+                    scanWindowCandles: segment.windowSize,
+                    scanStartIndex: segment.startIndex,
+                    scanEndIndex: segment.endIndex,
+                    scanIsCurrent: segment.isCurrent,
+                    scanStartTimeMs,
+                    scanEndTimeMs
                 })),
                 events: result.events.map(event => ({
                     ...event,
-                    scanWindowCandles: windowSize
+                    scanWindowCandles: segment.windowSize,
+                    scanStartTimeMs,
+                    scanEndTimeMs
                 }))
             };
         });
-        const patterns = selectPatterns(
+        const selectionOptions = {
+            ...options,
+            displayStartTimeMs: candles[0]?.timeMs,
+            displayEndTimeMs: candles[candles.length - 1]?.timeMs
+        };
+        const persistentPatterns = consolidatePersistentPatternEpisodes(
             windowResults.flatMap(windowResult => windowResult.patterns),
-            options
+            selectionOptions
+        );
+        const patterns = selectPatterns(
+            persistentPatterns,
+            selectionOptions
         );
         const selectedPatternVariants = new Set(
             patterns.map(pattern => `${pattern.type}|${pattern.variant}`)
         );
         const events = windowResults
+            .filter(windowResult => windowResult.isCurrent)
             .flatMap(windowResult => windowResult.events)
             .filter(event => selectedPatternVariants.has(`${event.patternType}|${event.patternVariant}`))
             .sort(compareSignificantEvents)
@@ -1127,7 +1741,10 @@
             ));
         const fullWindowResult = windowResults.find(windowResult => (
             windowResult.windowSize === candles.length
+            && windowResult.startIndex === 0
+            && windowResult.endIndex === candles.length
         ));
+        const windowSizes = getScanWindowSizes(candles, options);
 
         return {
             candles,
@@ -1135,7 +1752,9 @@
             events,
             diagnostics: {
                 ...fullWindowResult.result.diagnostics,
-                windowsScanned: windowSizes
+                windowsScanned: windowSizes,
+                segmentsScanned: windowSegments.length,
+                persistentEpisodes: persistentPatterns.length
             }
         };
     }
@@ -1182,18 +1801,17 @@
             eventConfidence: 1
         });
 
-        return candidateResult.patterns
+        const tentativeCandidates = candidateResult.patterns
             .filter(pattern => (
                 pattern.confidence >= tentativeMinConfidence
                 && pattern.confidence < confirmedMinConfidence
-            ))
-            .sort((left, right) => {
-                if (Math.abs(right.confidence - left.confidence) > 0.001) {
-                    return right.confidence - left.confidence;
-                }
-                return left.variant.localeCompare(right.variant);
-            })
-            .slice(0, maxPatterns)
+            ));
+        return selectPatterns(tentativeCandidates, {
+            ...DEFAULT_OPTIONS,
+            ...scanOptions,
+            minConfidence: tentativeMinConfidence,
+            maxPatterns
+        })
             .map(pattern => ({
                 ...pattern,
                 id: pattern.id.replace(/^autoscan-/, 'autoscan-tentative-'),
@@ -1242,8 +1860,10 @@
         getPatternLabel,
         lineValueAtTime,
         normalizeCandles,
+        prioritizeVisiblePatterns,
         scanMarket,
         scanPatterns,
-        scanTentativePatterns
+        scanTentativePatterns,
+        selectVisiblePatterns
     });
 }));
