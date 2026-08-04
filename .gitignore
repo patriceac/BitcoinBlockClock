@@ -25,3 +25,8 @@ local.properties
 
 # Generated GitHub Release artifacts
 /output/release-*/
+
+# Local QA evidence and site packaging output
+/output/playwright/
+/output/sites/
+/site/
