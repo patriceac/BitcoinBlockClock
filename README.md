@@ -42,7 +42,7 @@ Release installers and the Android APK are attached to GitHub releases. The work
 
 The Android APK is a release-mode sideload build. Configure production signing before using it for app-store distribution.
 
-## Price alerts (v1.1.1)
+## Price alerts (v1.1.2)
 
 Opening the desktop or phone app, including tapping a price notification, opens the regular Bitcoin dashboard. The original phone widget is retained. Price notifications appear only for a qualifying movement; there is no standing monitoring notification or routine price update.
 
@@ -53,7 +53,9 @@ Opening the desktop or phone app, including tapping a price notification, opens 
 - **Every alert resets the percentage reference**, including a level-only alert. The notification reports the price, movement direction, change from the prior reference and any crossed levels.
 - Reference, previous quote, blocked levels, latest alert and pending delivery survive app restarts. Pausing and starting again establishes a fresh reference. A missed fetch never resets the reference.
 
-Both platforms use Kraken XBT/USD's last traded price. Desktop checks run approximately every **30 seconds**. Android checks run every **30 seconds while the dashboard is visible**; in the background an Android JobScheduler job checks about every **15 minutes or later**, as the OS permits. This avoids a foreground service and its mandatory persistent notification. Crossings are detected between successful samples, so a price that crosses and returns between checks can be missed. Coalescing applies to conditions observed in the same sample. Each installation maintains its own reference; there is no cross-device alert deduplication or cloud account.
+Both platforms use Kraken XBT/USD's last traded price. After an initial check when monitoring starts, desktop and Android price-alert checks run **once an hour**. Android's background JobScheduler job may run later, as the OS permits; updates migrate any existing 15-minute job to the hourly interval. This avoids a foreground service and its mandatory persistent notification. Crossings are detected between successful samples, so a price that crosses and returns between checks can be missed. Coalescing applies to conditions observed in the same sample. Each installation maintains its own reference; there is no cross-device alert deduplication or cloud account.
+
+While the app is visible, the regular dashboard refreshes its displayed price **every minute**. It also refreshes immediately when reopened. This display refresh is independent of hourly alert monitoring and pauses when the dashboard is hidden.
 
 Windows monitoring runs in the main process while the window is closed to the tray. Enable **Start at Login** in the tray to resume at sign-in. Quitting or sleeping the computer stops checks until it resumes.
 

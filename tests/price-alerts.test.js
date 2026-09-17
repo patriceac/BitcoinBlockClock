@@ -41,6 +41,33 @@ function harness(prices) {
     return { monitor: new PriceMonitor(options), options, notifications, saved: () => saved };
 }
 
+test('automatic monitoring checks at startup and then hourly, with no checks between', async t => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    const h = harness([80000, 81600, 83232]);
+    const quote = t.mock.fn(h.monitor.quote);
+    h.monitor.quote = quote;
+    t.after(() => h.monitor.stop());
+
+    h.monitor.start();
+    h.monitor.start(); // Starting twice must not create a second hourly timer.
+    await h.monitor.queue;
+    assert.equal(quote.mock.callCount(), 1);
+    assert.equal(h.notifications.length, 0);
+
+    t.mock.timers.tick(3_600_000 - 1);
+    await h.monitor.queue;
+    assert.equal(quote.mock.callCount(), 1);
+    t.mock.timers.tick(1);
+    await h.monitor.queue;
+    assert.equal(quote.mock.callCount(), 2);
+    assert.equal(h.notifications.length, 1);
+
+    await h.monitor.stop();
+    t.mock.timers.tick(3_600_000);
+    await h.monitor.queue;
+    assert.equal(quote.mock.callCount(), 2);
+});
+
 test('monitor delivers one combined alert and resumes from persisted state', async () => {
     const h = harness([78400, 80050, 80051]);
     await h.monitor.load();

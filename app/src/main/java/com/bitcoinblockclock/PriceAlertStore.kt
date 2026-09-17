@@ -32,6 +32,7 @@ internal object PriceAlertStore {
         if (data.optBoolean("enabled", true) != enabled) {
             data.remove("engine")
             data.remove("lastCheckAt")
+            data.remove("lastAttemptAt")
             data.remove("pending")
         }
         data.put("enabled", enabled)
@@ -40,6 +41,22 @@ internal object PriceAlertStore {
     }
 
     @Synchronized fun enabled(context: Context) = read(context).optBoolean("enabled", true)
+
+    private fun nextCheckDelay(data: JSONObject, now: Long) = PriceAlertSchedule.remainingDelayMs(
+        data.optLong("lastAttemptAt", data.optLong("lastCheckAt", 0)), now)
+
+    @Synchronized fun nextCheckDelay(context: Context): Long = try {
+        nextCheckDelay(read(context), System.currentTimeMillis())
+    } catch (_: Exception) { PriceAlertSchedule.INTERVAL_MS }
+
+    @Synchronized fun claimCheck(context: Context): Boolean {
+        val data = read(context)
+        val now = System.currentTimeMillis()
+        if (nextCheckDelay(data, now) > 0) return false
+        // Persist attempts too, so errors and activity restarts do not cause extra checks.
+        save(context, data.put("lastAttemptAt", now))
+        return true
+    }
 
     @Synchronized fun deliverPending(context: Context) {
         val data = read(context)
@@ -70,7 +87,7 @@ internal object PriceAlertStore {
         return try {
             val data = read(context)
             val enabled = data.optBoolean("enabled", true)
-            val stale = data.has("lastCheckAt") && System.currentTimeMillis() - data.optLong("lastCheckAt") > 2 * PriceAlertService.BACKGROUND_INTERVAL_MS
+            val stale = data.has("lastCheckAt") && System.currentTimeMillis() - data.optLong("lastCheckAt") > 2 * PriceAlertService.CHECK_INTERVAL_MS
             val scheduled = context.getSystemService(android.app.job.JobScheduler::class.java).getPendingJob(PriceAlertService.JOB_ID) != null
             val allowed = PriceAlertService.notificationsAllowed(context)
             val state = when {
@@ -81,7 +98,7 @@ internal object PriceAlertStore {
                 else -> "monitoring"
             }
             JSONObject().put("enabled", enabled).put("status", state).put("platform", "android")
-                .put("message", if (!allowed && enabled) "Allow Bitcoin price notifications to receive alerts." else error ?: if (enabled && stale) "Android has delayed background checks. Opening the dashboard checks now." else if (enabled && !running) "Background checks run about every 15 minutes or later, without a status notification." else JSONObject.NULL)
+                .put("message", if (!allowed && enabled) "Allow Bitcoin price notifications to receive alerts." else error ?: if (enabled && stale) "Android has delayed background checks. Opening the dashboard checks now." else if (enabled && !running) "Background checks run about every hour or later, without a status notification." else JSONObject.NULL)
                 .put("lastCheckAt", data.opt("lastCheckAt") ?: JSONObject.NULL)
                 .put("lastAlert", data.optJSONObject("lastAlert") ?: JSONObject.NULL).toString()
         } catch (_: Exception) {

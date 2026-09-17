@@ -60,7 +60,7 @@ class PriceAlertService : JobService() {
         const val ALERT_CHANNEL = "bitcoin-price-movements"
         const val ACTION_OPEN_DASHBOARD = "com.bitcoinblockclock.OPEN_DASHBOARD"
         const val JOB_ID = 7100
-        const val BACKGROUND_INTERVAL_MS = 15 * 60 * 1000L
+        const val CHECK_INTERVAL_MS = PriceAlertSchedule.INTERVAL_MS
         private val checkMutex = Mutex()
 
         fun createChannels(context: Context) {
@@ -86,11 +86,11 @@ class PriceAlertService : JobService() {
                 scheduler.cancel(JOB_ID)
                 return
             }
-            // KEEP the existing job so reopening the dashboard does not postpone it.
-            if (scheduler.getPendingJob(JOB_ID) == null) {
+            // Preserve hourly jobs on reopen, but migrate an older polling interval.
+            if (scheduler.getPendingJob(JOB_ID)?.intervalMillis != CHECK_INTERVAL_MS) {
                 val job = JobInfo.Builder(JOB_ID, ComponentName(context, PriceAlertService::class.java))
                     .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                    .setPeriodic(BACKGROUND_INTERVAL_MS)
+                    .setPeriodic(CHECK_INTERVAL_MS)
                     .setPersisted(true)
                     .build()
                 if (scheduler.schedule(job) != JobScheduler.RESULT_SUCCESS) PriceAlertStore.error = "Background checks could not be scheduled."
@@ -103,6 +103,8 @@ class PriceAlertService : JobService() {
             checkMutex.withLock {
                 if (!PriceAlertStore.enabled(context) || !notificationsAllowed(context)) return@withLock
                 try {
+                    // The activity and background job share one hourly cadence.
+                    if (!PriceAlertStore.claimCheck(context)) return@withLock
                     PriceAlertStore.deliverPending(context)
                     val price = fetchPrice(network)
                     coroutineContext.ensureActive()

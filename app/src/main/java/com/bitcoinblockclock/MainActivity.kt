@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
                     try {
                         while (isActive) {
                             PriceAlertService.checkPrice(applicationContext)
-                            delay(30_000)
+                            delay(PriceAlertStore.nextCheckDelay(applicationContext).coerceAtLeast(PriceAlertService.CHECK_INTERVAL_MS / 60))
                         }
                     } finally { PriceAlertStore.running = false }
                 }

@@ -5,7 +5,7 @@ const path = require('node:path');
 const { evaluate, initialState, normalizeState, validPrice, formatAlert } = require('./price-alert-engine');
 
 const QUOTE_URL = 'https://api.kraken.com/0/public/Ticker?pair=XBTUSD';
-const POLL_MS = 30_000;
+const POLL_MS = 60 * 60 * 1000;
 
 async function fetchPrice() {
     // One provider on both platforms avoids spurious crossings on source switches.
