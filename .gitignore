@@ -29,4 +29,6 @@ local.properties
 # Local QA evidence and site packaging output
 /output/playwright/
 /output/sites/
+/output/alerts-qa/
+/.playwright-cli/
 /site/

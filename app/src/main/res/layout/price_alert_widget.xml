@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/alert_widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center_vertical" android:padding="16dp" android:background="@drawable/widget_background">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/price_alerts_label" android:textColor="#EAB567" android:textSize="11sp" android:textStyle="bold" />
+    <TextView android:id="@+id/alert_widget_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:text="@string/price_alerts_open" android:textColor="#F4F0E8" android:textSize="18sp" android:maxLines="2" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+        android:text="@string/price_alerts_rules" android:textColor="#9CAA95" android:textSize="11sp" />
+</LinearLayout>

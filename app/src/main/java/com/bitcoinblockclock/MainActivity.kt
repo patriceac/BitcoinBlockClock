@@ -1,6 +1,7 @@
 package com.bitcoinblockclock
 
 import android.content.Context
+import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -15,6 +16,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -71,6 +74,36 @@ import kotlin.math.min
 import kotlin.math.sin
 
 class MainActivity : AppCompatActivity() {
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) PriceAlertService.start(this)
+    }
+
+    fun setPriceAlertsEnabled(enabled: Boolean) {
+        PriceAlertStore.setEnabled(this, enabled)
+        if (!enabled) {
+            stopService(Intent(this, PriceAlertService::class.java))
+        } else if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (!getPreferences(MODE_PRIVATE).getBoolean("notificationAsked", false) || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                getPreferences(MODE_PRIVATE).edit().putBoolean("notificationAsked", true).apply()
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                openNotificationSettings()
+            }
+        } else if (!PriceAlertService.notificationsAllowed(this)) {
+            openNotificationSettings()
+        } else {
+            PriceAlertService.start(this)
+        }
+    }
+
+    private fun openNotificationSettings() {
+        startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!isWearDevice() && !isAutomotiveDevice()) PriceAlertService.start(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,9 +125,22 @@ class MainActivity : AppCompatActivity() {
 
         val myWebView: WebView = findViewById(R.id.webview)
 
-        myWebView.addJavascriptInterface(WebAppInterface(this), "Android")
         myWebView.setBackgroundColor(Color.BLACK)
-        configureClockWebView(myWebView, isAutomotive)
+        if (isAutomotive) {
+            myWebView.addJavascriptInterface(WebAppInterface(this), "Android")
+            configureClockWebView(myWebView, true)
+        } else {
+            myWebView.settings.javaScriptEnabled = true
+            myWebView.settings.allowFileAccess = false
+            myWebView.settings.allowContentAccess = false
+            myWebView.addJavascriptInterface(PriceAlertBridge(this), "AndroidAlerts")
+            myWebView.webViewClient = object : android.webkit.WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest) = true
+            }
+            myWebView.loadUrl("file:///android_asset/alerts.html")
+            PriceAlertService.createChannels(this)
+            if (PriceAlertStore.enabled(this) && !getPreferences(MODE_PRIVATE).getBoolean("notificationAsked", false)) setPriceAlertsEnabled(true)
+        }
     }
 }
 

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell, Tray, Menu } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu, Notification, ipcMain } = require('electron');
+const { PriceMonitor, fileStore } = require('./price-monitor');
 const { execFileSync } = require('node:child_process');
 const http = require('node:http');
 const fs = require('node:fs/promises');
@@ -30,6 +31,9 @@ let staticServer = null;
 let windowStateSaveTimer = null;
 let isQuitting = false;
 let shouldMaximizeOnShow = false;
+let priceMonitor = null;
+const verificationArg = process.argv.find(arg => arg.startsWith('--verify-price-alerts='));
+const verificationDirectory = verificationArg ? path.resolve(verificationArg.slice('--verify-price-alerts='.length)) : null;
 
 function getAssetRoot() {
     return path.join(app.getAppPath(), 'app', 'src', 'main', 'assets');
@@ -334,6 +338,14 @@ function updateTrayMenu() {
             click: menuItem => {
                 setStartAtLoginEnabled(menuItem.checked);
             }
+        },
+        {
+            label: 'Price alerts',
+            type: 'checkbox',
+            checked: priceMonitor?.data.enabled === true,
+            click: menuItem => {
+                priceMonitor?.setEnabled(menuItem.checked).then(updateTrayMenu).catch(console.error);
+            }
         }
     ];
 
@@ -429,7 +441,7 @@ function getClockUrl(server) {
         throw new Error('Static server did not expose a TCP port.');
     }
 
-    const clockUrl = new URL(`http://127.0.0.1:${address.port}/clock.html`);
+    const clockUrl = new URL(`http://127.0.0.1:${address.port}/alerts.html`);
     clockUrl.searchParams.set('v', String(Date.now()));
 
     return clockUrl.toString();
@@ -452,17 +464,23 @@ async function createMainWindow() {
         show: false,
         title: 'Bitcoin Block Clock',
         webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             sandbox: true
         }
     });
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (!/^https?:\/\//i.test(url)) return { action: 'deny' };
         shell.openExternal(url).catch(error => {
             console.error('Opening external URL failed:', error);
         });
 
         return { action: 'deny' };
+    });
+
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (!url.startsWith(`http://127.0.0.1:${STATIC_PORT}/alerts.html`)) event.preventDefault();
     });
 
     mainWindow.once('ready-to-show', () => {
@@ -550,10 +568,61 @@ async function closeStaticServer() {
 
 app.setAppUserModelId('com.bitcoinblockclock.desktop');
 
+function showPriceNotification(alert) {
+    return new Promise((resolve, reject) => {
+        if (!Notification.isSupported()) return reject(new Error('Notifications unavailable'));
+        const notification = new Notification({
+            title: alert.title,
+            body: alert.body,
+            icon: getWindowIconPath(),
+            timeoutType: 'default'
+        });
+        const timer = setTimeout(() => reject(new Error('Notification acknowledgement timed out')), 10_000);
+        notification.once('show', () => { clearTimeout(timer); resolve(); });
+        notification.once('failed', (_, error) => { clearTimeout(timer); reject(new Error(error)); });
+        notification.on('click', showMainWindow);
+        notification.show();
+    });
+}
+
+function assertTrustedFrame(event) {
+    const url = new URL(event.senderFrame.url);
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame ||
+        url.origin !== `http://127.0.0.1:${STATIC_PORT}` || url.pathname !== '/alerts.html') {
+        throw new Error('Untrusted alert request');
+    }
+}
+
+const hasSingleInstance = app.requestSingleInstanceLock();
+if (!hasSingleInstance) app.quit();
+app.on('second-instance', showMainWindow);
+
 app.whenReady().then(async () => {
-    repairStartAtLoginRegistration();
+    if (!hasSingleInstance) return;
+    const samples = [79900, 80000, 80010, 80800, 80000, 78400, 80050];
+    let delivered = 0;
+    priceMonitor = new PriceMonitor({
+        store: fileStore(path.join(verificationDirectory || app.getPath('userData'), 'price-alerts.json')),
+        ...(verificationDirectory ? { quote: async () => samples.shift() } : {}),
+        notify: async alert => { await showPriceNotification(alert); delivered++; }
+    });
+    await priceMonitor.load();
+    ipcMain.handle('alerts:status', event => { assertTrustedFrame(event); return priceMonitor.status(); });
+    ipcMain.handle('alerts:set-enabled', async (event, enabled) => {
+        assertTrustedFrame(event);
+        const status = await priceMonitor.setEnabled(enabled === true);
+        updateTrayMenu();
+        return status;
+    });
+    if (!verificationDirectory) repairStartAtLoginRegistration();
     createTray();
     await createMainWindow();
+
+    if (verificationDirectory) {
+        await require('./verify-alerts').verify({ priceMonitor, mainWindow, samples, delivered: () => delivered, directory: verificationDirectory });
+    } else {
+        priceMonitor.start();
+    }
 
     app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -579,7 +648,7 @@ app.on('before-quit', event => {
 
     if (staticServer) {
         event.preventDefault();
-        closeStaticServer().finally(() => {
+        Promise.all([priceMonitor?.stop(), closeStaticServer()]).finally(() => {
             app.exit();
         });
     }

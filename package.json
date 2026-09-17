@@ -1,6 +1,6 @@
 {
   "name": "bitcoin-block-clock",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Desktop Electron wrapper for Bitcoin Block Clock",
   "author": {
     "name": "patriceac",
@@ -14,7 +14,8 @@
     "build:electron:mac": "electron-builder --mac dmg --universal --publish never",
     "build:electron:linux": "electron-builder --linux AppImage deb --publish never",
     "pack:electron": "electron-builder --dir",
-    "test": "npm run test:autoscan && npm run test:history",
+    "test": "node --test tests/*.test.js",
+    "test:alerts": "node --test tests/price-alerts.test.js",
     "test:autoscan": "node --test tests/autoscan.test.js",
     "test:history": "node --test tests/history-feed.test.js"
   },

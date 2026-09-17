@@ -1,0 +1,18 @@
+[
+  {"name":"initial quote is silent","prices":[80000],"alerts":[],"reference":80000},
+  {"name":"exact upward 2 percent and new reference","prices":[80000,81599.99,81600,83232],"alerts":[{"index":2,"levels":[],"percentage":true,"direction":"up"},{"index":3,"levels":[],"percentage":true,"direction":"up"}],"reference":83232},
+  {"name":"exact downward 2 percent","prices":[80000,78400,76832],"alerts":[{"index":1,"levels":[],"percentage":true,"direction":"down"},{"index":2,"levels":[],"percentage":true,"direction":"down"}],"reference":76832},
+  {"name":"level only resets reference","prices":[79900,80000,80001,81599,81600],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"up"},{"index":4,"levels":[],"percentage":true,"direction":"up"}],"reference":81600},
+  {"name":"immediate fluctuations stay quiet","prices":[79999,80000,80001,79999,80001,79999,80000],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"up"}],"reference":80000},
+  {"name":"exact 1 percent rearm on upper side","prices":[79900,80000,80799.99,79999,80800,80000],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"up"},{"index":5,"levels":[80000],"percentage":false,"direction":"down"}],"reference":80000},
+  {"name":"exact 1 percent rearm on lower side","prices":[80100,80000,79200.01,80001,79200,80000],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"down"},{"index":5,"levels":[80000],"percentage":false,"direction":"up"}],"reference":80000},
+  {"name":"blocked crossing cannot rearm retroactively","prices":[79900,80000,80010,79100,80000],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"up"},{"index":4,"levels":[80000],"percentage":false,"direction":"up"}],"reference":80000},
+  {"name":"overshoot is far enough for subsequent crossing","prices":[79900,81000,79999],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"up"},{"index":2,"levels":[80000],"percentage":false,"direction":"down"}],"reference":79999},
+  {"name":"upward combined notification","prices":[78400,80050],"alerts":[{"index":1,"levels":[80000],"percentage":true,"direction":"up"}],"reference":80050},
+  {"name":"downward combined notification","prices":[81700,79900],"alerts":[{"index":1,"levels":[80000],"percentage":true,"direction":"down"}],"reference":79900},
+  {"name":"jump over several dynamic levels combines","prices":[104900,125100],"alerts":[{"index":1,"levels":[105000,110000,115000,120000,125000],"percentage":true,"direction":"up"}],"reference":125100},
+  {"name":"fall through multiple dynamic levels","prices":[104900,84900],"alerts":[{"index":1,"levels":[100000,95000,90000,85000],"percentage":true,"direction":"down"}],"reference":84900},
+  {"name":"starting on a boundary does not invent crossing","prices":[80000,80001],"alerts":[],"reference":80000},
+  {"name":"touch then reverse alerts once","prices":[80001,80000,80001,80000,79999],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"down"}],"reference":80000},
+  {"name":"percentage still alerts while level is blocked","prices":[79800,80000,79800,81600],"alerts":[{"index":1,"levels":[80000],"percentage":false,"direction":"up"},{"index":3,"levels":[],"percentage":true,"direction":"up"}],"reference":81600}
+]

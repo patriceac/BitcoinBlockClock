@@ -5,7 +5,7 @@
 <h1 align="center">Bitcoin Block Clock</h1>
 
 <p align="center">
-  A Bitcoin dashboard for live price, block height, fee pressure, hashrate, and halving progress.
+  Quiet Bitcoin price alerts on desktop and Android, with a separate block-clock dashboard for web, Wear OS, and car screens.
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
   <a href="https://github.com/patriceac/BitcoinBlockClock/actions/workflows/release-installers.yml">Installer workflow</a>
 </p>
 
-![Bitcoin Block Clock dashboard preview](docs/assets/bitcoin-block-clock-preview.png)
+![Bitcoin Price Alerts preview](docs/assets/bitcoin-price-alerts-preview.png)
 
 ## Install
 
@@ -42,7 +42,32 @@ Release installers and the Android APK are attached to GitHub releases. The work
 
 The Android APK is a release-mode sideload build. Configure production signing before using it for app-store distribution.
 
-## What It Shows
+## Price alerts (v1.1)
+
+Desktop and phone open a quiet alert screen, with no continuously displayed price. The phone widget displays monitoring status only.
+
+- A move of **±2%** from the reference triggers an alert. The first fresh quote establishes the initial reference.
+- Crossing **any positive $5,000 boundary** triggers an alert in either direction, including exact touches and multiple levels in a jump.
+- A triggered level remains blocked until a sampled price is **at least 1% away**. That sample rearms the level for a subsequent crossing; small oscillations stay silent. An initial crossing that already overshoots 1% establishes this distance immediately.
+- Both rules run on the same quote. If they trigger together, all reasons and crossed levels appear in **one notification**.
+- **Every alert resets the percentage reference**, including a level-only alert. The notification reports the price, movement direction, change from the prior reference and any crossed levels.
+- Reference, previous quote, blocked levels, latest alert and pending delivery survive app restarts. Pausing and starting again establishes a fresh reference. A missed fetch never resets the reference.
+
+Both platforms sample Kraken XBT/USD approximately every **30 seconds**, using the last traded price. Crossings are detected between successful samples, so a price that crosses and returns between checks can be missed. Coalescing applies to conditions observed in the same sample. Each installation maintains its own reference; there is no cross-device alert deduplication or cloud account.
+
+Windows monitoring runs in the main process while the window is closed to the tray. Enable **Start at Login** in the tray to resume at sign-in. Quitting or sleeping the computer stops checks until it resumes.
+
+Android requests notification permission and uses a foreground service with a **silent, price-free status notification** and a Pause action. Monitoring continues after leaving the activity and resumes after reboot or an app update if previously enabled. Battery restrictions, Doze, force-stop, missing connectivity or disabled notifications can delay or prevent alerts. The app explicitly reports interrupted monitoring when open. No routine price notifications are sent.
+
+Android is currently built as a release-mode sideload APK with the existing local signing identity so updates preserve installed data. Store distribution needs a managed production signing key and review of the foreground-service declaration.
+
+### Verification
+
+`npm test` covers the JavaScript reducer, monitor persistence, offline recovery, delivery retry and concurrent polls, plus existing dashboard tests. `./gradlew testReleaseUnitTest lintRelease assembleRelease` tests and builds Android. Both reducers run `app/src/test/resources/price-alert-vectors.json` to prevent rule drift.
+
+The Windows package has an explicit isolated-QA entry point: `--verify-price-alerts=<evidence-directory>`. It runs synthetic quotes through the real main-process monitor and native notifications, checks tray/hidden-window processing and the rendered screen, and writes `alerts-result.json`. Use the executable test harness for this mode; it never contacts the quote provider.
+
+## Separate block-clock surfaces
 
 - Live BTC price with recent market context.
 - Current block height and block timing.
