@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Tray, Menu, Notification, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu, Notification } = require('electron');
 const { PriceMonitor, fileStore } = require('./price-monitor');
 const { execFileSync } = require('node:child_process');
 const http = require('node:http');
@@ -441,7 +441,7 @@ function getClockUrl(server) {
         throw new Error('Static server did not expose a TCP port.');
     }
 
-    const clockUrl = new URL(`http://127.0.0.1:${address.port}/alerts.html`);
+    const clockUrl = new URL(`http://127.0.0.1:${address.port}/clock.html`);
     clockUrl.searchParams.set('v', String(Date.now()));
 
     return clockUrl.toString();
@@ -464,7 +464,6 @@ async function createMainWindow() {
         show: false,
         title: 'Bitcoin Block Clock',
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             sandbox: true
         }
@@ -480,7 +479,8 @@ async function createMainWindow() {
     });
 
     mainWindow.webContents.on('will-navigate', (event, url) => {
-        if (!url.startsWith(`http://127.0.0.1:${STATIC_PORT}/alerts.html`)) event.preventDefault();
+        const target = new URL(url);
+        if (target.origin !== `http://127.0.0.1:${STATIC_PORT}` || target.pathname !== '/clock.html') event.preventDefault();
     });
 
     mainWindow.once('ready-to-show', () => {
@@ -568,6 +568,7 @@ async function closeStaticServer() {
 
 app.setAppUserModelId('com.bitcoinblockclock.desktop');
 
+let lastPriceNotification = null;
 function showPriceNotification(alert) {
     return new Promise((resolve, reject) => {
         if (!Notification.isSupported()) return reject(new Error('Notifications unavailable'));
@@ -577,20 +578,13 @@ function showPriceNotification(alert) {
             icon: getWindowIconPath(),
             timeoutType: 'default'
         });
+        lastPriceNotification = notification;
         const timer = setTimeout(() => reject(new Error('Notification acknowledgement timed out')), 10_000);
         notification.once('show', () => { clearTimeout(timer); resolve(); });
         notification.once('failed', (_, error) => { clearTimeout(timer); reject(new Error(error)); });
         notification.on('click', showMainWindow);
         notification.show();
     });
-}
-
-function assertTrustedFrame(event) {
-    const url = new URL(event.senderFrame.url);
-    if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame ||
-        url.origin !== `http://127.0.0.1:${STATIC_PORT}` || url.pathname !== '/alerts.html') {
-        throw new Error('Untrusted alert request');
-    }
 }
 
 const hasSingleInstance = app.requestSingleInstanceLock();
@@ -607,19 +601,12 @@ app.whenReady().then(async () => {
         notify: async alert => { await showPriceNotification(alert); delivered++; }
     });
     await priceMonitor.load();
-    ipcMain.handle('alerts:status', event => { assertTrustedFrame(event); return priceMonitor.status(); });
-    ipcMain.handle('alerts:set-enabled', async (event, enabled) => {
-        assertTrustedFrame(event);
-        const status = await priceMonitor.setEnabled(enabled === true);
-        updateTrayMenu();
-        return status;
-    });
     if (!verificationDirectory) repairStartAtLoginRegistration();
     createTray();
     await createMainWindow();
 
     if (verificationDirectory) {
-        await require('./verify-alerts').verify({ priceMonitor, mainWindow, samples, delivered: () => delivered, directory: verificationDirectory });
+        await require('./verify-alerts').verify({ priceMonitor, mainWindow, samples, delivered: () => delivered, openLastNotification: () => lastPriceNotification.emit('click'), directory: verificationDirectory });
     } else {
         priceMonitor.start();
     }

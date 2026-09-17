@@ -18,6 +18,9 @@ import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -81,7 +84,7 @@ class MainActivity : AppCompatActivity() {
     fun setPriceAlertsEnabled(enabled: Boolean) {
         PriceAlertStore.setEnabled(this, enabled)
         if (!enabled) {
-            stopService(Intent(this, PriceAlertService::class.java))
+            PriceAlertService.stop(this)
         } else if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             if (!getPreferences(MODE_PRIVATE).getBoolean("notificationAsked", false) || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
                 getPreferences(MODE_PRIVATE).edit().putBoolean("notificationAsked", true).apply()
@@ -105,6 +108,13 @@ class MainActivity : AppCompatActivity() {
         if (!isWearDevice() && !isAutomotiveDevice()) PriceAlertService.start(this)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == PriceAlertService.ACTION_OPEN_DASHBOARD && !isWearDevice()) {
+            configureClockWebView(findViewById(R.id.webview), isAutomotiveDevice())
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.BLACK
@@ -126,20 +136,22 @@ class MainActivity : AppCompatActivity() {
         val myWebView: WebView = findViewById(R.id.webview)
 
         myWebView.setBackgroundColor(Color.BLACK)
-        if (isAutomotive) {
-            myWebView.addJavascriptInterface(WebAppInterface(this), "Android")
-            configureClockWebView(myWebView, true)
-        } else {
-            myWebView.settings.javaScriptEnabled = true
-            myWebView.settings.allowFileAccess = false
-            myWebView.settings.allowContentAccess = false
-            myWebView.addJavascriptInterface(PriceAlertBridge(this), "AndroidAlerts")
-            myWebView.webViewClient = object : android.webkit.WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: android.webkit.WebResourceRequest) = true
-            }
-            myWebView.loadUrl("file:///android_asset/alerts.html")
+        myWebView.addJavascriptInterface(WebAppInterface(this), "Android")
+        configureClockWebView(myWebView, isAutomotive)
+        if (!isAutomotive) {
             PriceAlertService.createChannels(this)
             if (PriceAlertStore.enabled(this) && !getPreferences(MODE_PRIVATE).getBoolean("notificationAsked", false)) setPriceAlertsEnabled(true)
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    PriceAlertStore.running = true
+                    try {
+                        while (isActive) {
+                            PriceAlertService.checkPrice(applicationContext)
+                            delay(30_000)
+                        }
+                    } finally { PriceAlertStore.running = false }
+                }
+            }
         }
     }
 }

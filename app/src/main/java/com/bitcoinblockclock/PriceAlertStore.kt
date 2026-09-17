@@ -37,7 +37,6 @@ internal object PriceAlertStore {
         data.put("enabled", enabled)
         save(context, data)
         error = null
-        BitcoinBlockClockWidgetProvider.refreshAll(context)
     }
 
     @Synchronized fun enabled(context: Context) = read(context).optBoolean("enabled", true)
@@ -71,17 +70,18 @@ internal object PriceAlertStore {
         return try {
             val data = read(context)
             val enabled = data.optBoolean("enabled", true)
-            val stale = data.has("lastCheckAt") && System.currentTimeMillis() - data.optLong("lastCheckAt") > 90_000
+            val stale = data.has("lastCheckAt") && System.currentTimeMillis() - data.optLong("lastCheckAt") > 2 * PriceAlertService.BACKGROUND_INTERVAL_MS
+            val scheduled = context.getSystemService(android.app.job.JobScheduler::class.java).getPendingJob(PriceAlertService.JOB_ID) != null
             val allowed = PriceAlertService.notificationsAllowed(context)
             val state = when {
                 !enabled -> "paused"
                 !allowed -> "permission"
-                error != null || stale || !running -> "interrupted"
+                error != null || stale || (!running && !scheduled) -> "interrupted"
                 engine(data).reference == null -> "connecting"
                 else -> "monitoring"
             }
             JSONObject().put("enabled", enabled).put("status", state).put("platform", "android")
-                .put("message", if (!allowed && enabled) "Allow Bitcoin price notifications to receive alerts." else error ?: if (enabled && (!running || stale)) "Waiting for monitoring to resume. Reopen the app if this persists." else JSONObject.NULL)
+                .put("message", if (!allowed && enabled) "Allow Bitcoin price notifications to receive alerts." else error ?: if (enabled && stale) "Android has delayed background checks. Opening the dashboard checks now." else if (enabled && !running) "Background checks run about every 15 minutes or later, without a status notification." else JSONObject.NULL)
                 .put("lastCheckAt", data.opt("lastCheckAt") ?: JSONObject.NULL)
                 .put("lastAlert", data.optJSONObject("lastAlert") ?: JSONObject.NULL).toString()
         } catch (_: Exception) {

@@ -4,121 +4,72 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
+import android.app.job.JobInfo
+import android.app.job.JobParameters
+import android.app.job.JobScheduler
+import android.app.job.JobService
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.IBinder
-import android.os.PowerManager
+import android.net.Network
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.coroutines.coroutineContext
 
-class PriceAlertService : Service() {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var started = false
+/** Short, OS-scheduled checks. No foreground service or routine notification. */
+class PriceAlertService : JobService() {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var task: Job? = null
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onStartJob(params: JobParameters): Boolean {
+        task = scope.launch {
+            checkPrice(applicationContext, if (Build.VERSION.SDK_INT >= 28) params.network else null)
+            jobFinished(params, false)
+        }
+        return true
+    }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_PAUSE) {
-            PriceAlertStore.setEnabled(this, false)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        if (!PriceAlertStore.enabled(this) || !notificationsAllowed(this)) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        createChannels(this)
-        val pause = PendingIntent.getService(this, 2, Intent(this, PriceAlertService::class.java).setAction(ACTION_PAUSE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        startForeground(STATUS_ID, NotificationCompat.Builder(this, STATUS_CHANNEL)
-            .setSmallIcon(R.drawable.ic_price_alert)
-            .setContentTitle("Bitcoin alerts active")
-            .setContentText("Watching for ±2% moves and $5,000 crossings.")
-            .setContentIntent(openApp(this))
-            .setOngoing(true).setSilent(true).setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(0, "Pause", pause).build())
-        PriceAlertStore.running = true
-        BitcoinBlockClockWidgetProvider.refreshAll(this)
-        if (!started) {
-            started = true
-            scope.launch {
-                while (isActive && PriceAlertStore.enabled(this@PriceAlertService)) {
-                    val wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BitcoinBlockClock:quote")
-                    val previousStatus = JSONObject(PriceAlertStore.status(this@PriceAlertService)).optString("status")
-                    try {
-                        check(notificationsAllowed(this@PriceAlertService)) { "Notifications disabled" }
-                        wakeLock.acquire(25_000)
-                        PriceAlertStore.deliverPending(this@PriceAlertService)
-                        val price = fetchPrice()
-                        PriceAlertStore.accept(this@PriceAlertService, price)
-                    } catch (_: Exception) {
-                        PriceAlertStore.error = "Monitoring interrupted. Retrying when connection and notifications are available."
-                    } finally {
-                        if (wakeLock.isHeld) wakeLock.release()
-                        if (previousStatus != JSONObject(PriceAlertStore.status(this@PriceAlertService)).optString("status")) BitcoinBlockClockWidgetProvider.refreshAll(this@PriceAlertService)
-                    }
-                    delay(30_000)
-                }
-                stopSelf()
-            }
-        }
-        return START_STICKY
+    override fun onStopJob(params: JobParameters): Boolean {
+        task?.cancel()
+        return true
     }
 
     override fun onDestroy() {
-        PriceAlertStore.running = false
         scope.cancel()
-        BitcoinBlockClockWidgetProvider.refreshAll(this)
         super.onDestroy()
-    }
-
-    private fun fetchPrice(): Double {
-        val connection = URL("https://api.kraken.com/0/public/Ticker?pair=XBTUSD").openConnection() as HttpURLConnection
-        connection.connectTimeout = 12_000
-        connection.readTimeout = 12_000
-        connection.useCaches = false
-        try {
-            check(connection.responseCode in 200..299) { "Quote unavailable" }
-            val data = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            check(data.getJSONArray("error").length() == 0) { "Invalid quote" }
-            val result = data.getJSONObject("result")
-            return result.getJSONObject(result.keys().next()).getJSONArray("c").getString(0).toDouble().also {
-                check(PriceAlertEngine.validPrice(it)) { "Invalid price" }
-            }
-        } finally { connection.disconnect() }
     }
 
     companion object {
         const val ALERT_CHANNEL = "bitcoin-price-movements"
-        private const val STATUS_CHANNEL = "bitcoin-price-monitor"
-        private const val STATUS_ID = 7100
-        private const val ACTION_PAUSE = "com.bitcoinblockclock.PAUSE_ALERTS"
+        const val ACTION_OPEN_DASHBOARD = "com.bitcoinblockclock.OPEN_DASHBOARD"
+        const val JOB_ID = 7100
+        const val BACKGROUND_INTERVAL_MS = 15 * 60 * 1000L
+        private val checkMutex = Mutex()
 
         fun createChannels(context: Context) {
             val manager = context.getSystemService(NotificationManager::class.java)
+            // Remove the standing status notification/channel created by v1.1.0.
+            manager.cancel(7100)
+            manager.deleteNotificationChannel("bitcoin-price-monitor")
             manager.createNotificationChannel(NotificationChannel(ALERT_CHANNEL, "Bitcoin price movements", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Meaningful price movements only: ±2% and $5,000 crossings."
-            })
-            manager.createNotificationChannel(NotificationChannel(STATUS_CHANNEL, "Monitoring status", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Silent status for background monitoring. No price updates."
-                setSound(null, null)
-                enableVibration(false)
-                setShowBadge(false)
             })
         }
 
@@ -130,13 +81,61 @@ class PriceAlertService : Service() {
 
         fun start(context: Context) {
             createChannels(context)
-            if (PriceAlertStore.enabled(context) && notificationsAllowed(context)) {
-                try { ContextCompat.startForegroundService(context, Intent(context, PriceAlertService::class.java)) }
-                catch (_: Exception) { PriceAlertStore.error = "Open the app to resume monitoring." }
+            val scheduler = context.getSystemService(JobScheduler::class.java)
+            if (!PriceAlertStore.enabled(context) || !notificationsAllowed(context)) {
+                scheduler.cancel(JOB_ID)
+                return
+            }
+            // KEEP the existing job so reopening the dashboard does not postpone it.
+            if (scheduler.getPendingJob(JOB_ID) == null) {
+                val job = JobInfo.Builder(JOB_ID, ComponentName(context, PriceAlertService::class.java))
+                    .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                    .setPeriodic(BACKGROUND_INTERVAL_MS)
+                    .setPersisted(true)
+                    .build()
+                if (scheduler.schedule(job) != JobScheduler.RESULT_SUCCESS) PriceAlertStore.error = "Background checks could not be scheduled."
             }
         }
 
-        private fun openApp(context: Context) = PendingIntent.getActivity(context, 1, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        fun stop(context: Context) { context.getSystemService(JobScheduler::class.java).cancel(JOB_ID) }
+
+        suspend fun checkPrice(context: Context, network: Network? = null) = withContext(Dispatchers.IO) {
+            checkMutex.withLock {
+                if (!PriceAlertStore.enabled(context) || !notificationsAllowed(context)) return@withLock
+                try {
+                    PriceAlertStore.deliverPending(context)
+                    val price = fetchPrice(network)
+                    coroutineContext.ensureActive()
+                    PriceAlertStore.accept(context, price)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    PriceAlertStore.error = "Monitoring interrupted. The next scheduled check will retry."
+                }
+            }
+        }
+
+        private fun fetchPrice(network: Network?): Double {
+            val url = URL("https://api.kraken.com/0/public/Ticker?pair=XBTUSD")
+            val connection = (network?.openConnection(url) ?: url.openConnection()) as HttpURLConnection
+            connection.connectTimeout = 12_000
+            connection.readTimeout = 12_000
+            connection.useCaches = false
+            try {
+                check(connection.responseCode in 200..299) { "Quote unavailable" }
+                val data = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                check(data.getJSONArray("error").length() == 0) { "Invalid quote" }
+                val result = data.getJSONObject("result")
+                return result.getJSONObject(result.keys().next()).getJSONArray("c").getString(0).toDouble().also {
+                    check(PriceAlertEngine.validPrice(it)) { "Invalid price" }
+                }
+            } finally { connection.disconnect() }
+        }
+
+        private fun openApp(context: Context) = PendingIntent.getActivity(context, 1,
+            Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_DASHBOARD)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
         internal fun deliver(context: Context, alert: JSONObject) {
             check(notificationsAllowed(context)) { "Notifications disabled" }

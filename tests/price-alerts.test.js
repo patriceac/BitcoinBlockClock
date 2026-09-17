@@ -101,6 +101,13 @@ test('overlapping polls serialize to avoid duplicate alerts', async () => {
     assert.equal(h.notifications.length, 1);
 });
 
+test('ordinary price checks and connectivity failures never send status notifications', async () => {
+    const h = harness([80001, 80100, 80150, new Error('offline'), 80100, 80002]);
+    for (let i = 0; i < 6; i++) await h.monitor.poll();
+    assert.equal(h.notifications.length, 0);
+    assert.equal(h.monitor.data.engine.reference, 80001);
+});
+
 test('failed persistence prevents notification and reference advance', async () => {
     const h = harness([80000, 81600]);
     await h.monitor.poll();

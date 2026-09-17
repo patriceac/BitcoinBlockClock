@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 // Explicit packaged QA entry point, run only in the isolated executable harness.
-exports.verify = async ({ priceMonitor, mainWindow, samples, delivered, directory }) => {
+exports.verify = async ({ priceMonitor, mainWindow, samples, delivered, openLastNotification, directory }) => {
     const checks = {};
     try {
         await priceMonitor.poll();
@@ -17,9 +17,10 @@ exports.verify = async ({ priceMonitor, mainWindow, samples, delivered, director
         checks.persisted = saved.engine.reference === 80050 && saved.pending === null;
         await priceMonitor.setEnabled(false);
         checks.paused = priceMonitor.status().status === 'paused';
-        mainWindow.show();
+        openLastNotification();
+        checks.notificationOpensWindow = mainWindow.isVisible();
         await new Promise(resolve => setTimeout(resolve, 2300));
-        checks.screen = await mainWindow.webContents.executeJavaScript(`document.title === 'Bitcoin Price Alerts' && document.querySelector('#status').textContent === 'Monitoring paused' && document.querySelector('#alert-title').textContent.includes('80,050') && !document.querySelector('canvas')`);
+        checks.screen = await mainWindow.webContents.executeJavaScript(`location.pathname === '/clock.html' && !!document.querySelector('[data-mobile-range="day"]') && !!document.querySelector('[data-mobile-currency-toggle]') && !document.querySelector('#toggle')`);
     } catch (error) {
         checks.error = error.message;
     }
