@@ -1,5 +1,6 @@
-const { app, BrowserWindow, shell, Tray, Menu, Notification } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu } = require('electron');
 const { PriceMonitor, fileStore } = require('./price-monitor');
+const { TrayAttention } = require('./tray-attention');
 const { execFileSync } = require('node:child_process');
 const http = require('node:http');
 const fs = require('node:fs/promises');
@@ -32,6 +33,7 @@ let windowStateSaveTimer = null;
 let isQuitting = false;
 let shouldMaximizeOnShow = false;
 let priceMonitor = null;
+let trayAttention = null;
 const verificationArg = process.argv.find(arg => arg.startsWith('--verify-price-alerts='));
 const verificationDirectory = verificationArg ? path.resolve(verificationArg.slice('--verify-price-alerts='.length)) : null;
 
@@ -41,6 +43,22 @@ function getAssetRoot() {
 
 function getWindowIconPath() {
     return path.join(app.getAppPath(), 'electron', 'assets', 'bitcoin-logo.ico');
+}
+
+function getTrayIconPath() {
+    if (!trayAttention?.alert) return getWindowIconPath();
+    return path.join(app.getAppPath(), 'electron', 'assets', process.platform === 'win32' ? 'bitcoin-alert.ico' : 'bitcoin-alert.png');
+}
+
+function acknowledgeTrayAttention() {
+    trayAttention?.acknowledge().catch(error => console.error('Acknowledging price alert failed:', error));
+}
+
+function updateTrayAttention() {
+    if (!tray) return;
+    tray.setImage(getTrayIconPath());
+    tray.setToolTip(trayAttention.tooltip());
+    updateTrayMenu();
 }
 
 function getWindowStatePath() {
@@ -132,6 +150,7 @@ function showMainWindow() {
     }
 
     mainWindow.focus();
+    acknowledgeTrayAttention();
 }
 
 function hideMainWindowToTray() {
@@ -148,7 +167,7 @@ function hideMainWindowToTray() {
 }
 
 function toggleMainWindowFromTray() {
-    if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible() || mainWindow.isMinimized()) {
+    if (trayAttention?.alert || !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible() || mainWindow.isMinimized()) {
         showMainWindow();
         return;
     }
@@ -349,6 +368,14 @@ function updateTrayMenu() {
         }
     ];
 
+    if (trayAttention?.alert) {
+        menuTemplate.splice(1, 0,
+            { label: trayAttention.alert.title, enabled: false },
+            { label: trayAttention.alert.body, enabled: false },
+            { type: 'separator' }
+        );
+    }
+
     menuTemplate.push(
         { type: 'separator' },
         {
@@ -366,9 +393,8 @@ function createTray() {
     }
 
     // Keep Windows notification-area identity stable across rebuilds and launch paths.
-    tray = new Tray(getWindowIconPath(), WINDOWS_TRAY_GUID);
-    tray.setToolTip('Bitcoin Block Clock');
-    updateTrayMenu();
+    tray = new Tray(getTrayIconPath(), WINDOWS_TRAY_GUID);
+    updateTrayAttention();
 
     tray.on('click', toggleMainWindowFromTray);
     tray.on('double-click', showMainWindow);
@@ -497,6 +523,8 @@ async function createMainWindow() {
         mainWindow.show();
     });
 
+    mainWindow.on('focus', acknowledgeTrayAttention);
+
     mainWindow.on('resize', () => {
         if (!mainWindow.isMaximized()) {
             scheduleWindowStateSave(mainWindow);
@@ -568,25 +596,6 @@ async function closeStaticServer() {
 
 app.setAppUserModelId('com.bitcoinblockclock.desktop');
 
-let lastPriceNotification = null;
-function showPriceNotification(alert) {
-    return new Promise((resolve, reject) => {
-        if (!Notification.isSupported()) return reject(new Error('Notifications unavailable'));
-        const notification = new Notification({
-            title: alert.title,
-            body: alert.body,
-            icon: getWindowIconPath(),
-            timeoutType: 'default'
-        });
-        lastPriceNotification = notification;
-        const timer = setTimeout(() => reject(new Error('Notification acknowledgement timed out')), 10_000);
-        notification.once('show', () => { clearTimeout(timer); resolve(); });
-        notification.once('failed', (_, error) => { clearTimeout(timer); reject(new Error(error)); });
-        notification.on('click', showMainWindow);
-        notification.show();
-    });
-}
-
 const hasSingleInstance = app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
 app.on('second-instance', showMainWindow);
@@ -595,10 +604,15 @@ app.whenReady().then(async () => {
     if (!hasSingleInstance) return;
     const samples = [79900, 80000, 80010, 80800, 80000, 78400, 80050];
     let delivered = 0;
+    trayAttention = new TrayAttention({
+        store: fileStore(path.join(verificationDirectory || app.getPath('userData'), 'tray-attention.json')),
+        render: updateTrayAttention
+    });
+    await trayAttention.load();
     priceMonitor = new PriceMonitor({
         store: fileStore(path.join(verificationDirectory || app.getPath('userData'), 'price-alerts.json')),
         ...(verificationDirectory ? { quote: async () => samples.shift() } : {}),
-        notify: async alert => { await showPriceNotification(alert); delivered++; }
+        notify: async alert => { await trayAttention.mark(alert); delivered++; }
     });
     await priceMonitor.load();
     if (!verificationDirectory) repairStartAtLoginRegistration();
@@ -606,7 +620,7 @@ app.whenReady().then(async () => {
     await createMainWindow();
 
     if (verificationDirectory) {
-        await require('./verify-alerts').verify({ priceMonitor, mainWindow, samples, delivered: () => delivered, openLastNotification: () => lastPriceNotification.emit('click'), directory: verificationDirectory });
+        await require('./verify-alerts').verify({ priceMonitor, mainWindow, tray, trayAttention, getTrayIconPath, samples, delivered: () => delivered, directory: verificationDirectory });
     } else {
         priceMonitor.start();
     }
@@ -635,7 +649,7 @@ app.on('before-quit', event => {
 
     if (staticServer) {
         event.preventDefault();
-        Promise.all([priceMonitor?.stop(), closeStaticServer()]).finally(() => {
+        Promise.all([priceMonitor?.stop(), trayAttention?.queue, closeStaticServer()]).finally(() => {
             app.exit();
         });
     }

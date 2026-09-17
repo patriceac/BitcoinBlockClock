@@ -42,15 +42,15 @@ Release installers and the Android APK are attached to GitHub releases. The work
 
 The Android APK is a release-mode sideload build. Configure production signing before using it for app-store distribution.
 
-## Price alerts (v1.1.2)
+## Price alerts
 
-Opening the desktop or phone app, including tapping a price notification, opens the regular Bitcoin dashboard. The original phone widget is retained. Price notifications appear only for a qualifying movement; there is no standing monitoring notification or routine price update.
+Opening the desktop tray icon or a phone notification opens the regular Bitcoin dashboard. On desktop, a **red dot on the tray icon** signals an unread price alert, without a notification popup or sound. Hover over the icon or open its context menu for the alert details. The dot survives restarts and clears when you open or focus the dashboard; a later qualifying movement marks it again. Android continues to use movement notifications. There is no standing monitoring notification or routine price notification.
 
 - A move of **±2%** from the reference triggers an alert. The first fresh quote establishes the initial reference.
 - Crossing **any positive $5,000 boundary** triggers an alert in either direction, including exact touches and multiple levels in a jump.
 - A triggered level remains blocked until a sampled price is **at least 1% away**. That sample rearms the level for a subsequent crossing; small oscillations stay silent. An initial crossing that already overshoots 1% establishes this distance immediately.
-- Both rules run on the same quote. If they trigger together, all reasons and crossed levels appear in **one notification**.
-- **Every alert resets the percentage reference**, including a level-only alert. The notification reports the price, movement direction, change from the prior reference and any crossed levels.
+- Both rules run on the same quote. If they trigger together, all reasons and crossed levels appear in **one alert**.
+- **Every alert resets the percentage reference**, including a level-only alert. Alert details report the price, movement direction, change from the prior reference and any crossed levels.
 - Reference, previous quote, blocked levels, latest alert and pending delivery survive app restarts. Pausing and starting again establishes a fresh reference. A missed fetch never resets the reference.
 
 Both platforms use Kraken XBT/USD's last traded price. After an initial check when monitoring starts, desktop and Android price-alert checks run **once an hour**. Android's background JobScheduler job may run later, as the OS permits; updates migrate any existing 15-minute job to the hourly interval. This avoids a foreground service and its mandatory persistent notification. Crossings are detected between successful samples, so a price that crosses and returns between checks can be missed. Coalescing applies to conditions observed in the same sample. Each installation maintains its own reference; there is no cross-device alert deduplication or cloud account.
@@ -67,7 +67,7 @@ Android is currently built as a release-mode sideload APK with the existing loca
 
 `npm test` covers the JavaScript reducer, monitor persistence, offline recovery, delivery retry and concurrent polls, plus existing dashboard tests. `./gradlew testReleaseUnitTest lintRelease assembleRelease` tests and builds Android. Both reducers run `app/src/test/resources/price-alert-vectors.json` to prevent rule drift.
 
-The Windows package has an explicit isolated-QA entry point: `--verify-price-alerts=<evidence-directory>`. It runs synthetic quotes through the real main-process monitor and native notifications, checks tray/hidden-window processing, dispatches the notification click event and verifies that the regular dashboard opens. It writes `alerts-result.json`. Use the executable test harness for this mode; its alert monitor never contacts the quote provider.
+The Windows package has an explicit isolated-QA entry point: `--verify-price-alerts=<evidence-directory>`. It runs synthetic quotes through the real main-process monitor and tray badge, checks hidden-window processing and persisted unread state, dispatches the tray click event, and verifies dashboard opening and badge clearing. It writes `alerts-result.json` and exposes a `tray-attention-ready.json` phase for capturing the badged icon. Use the executable test harness for this mode; its alert monitor never contacts the quote provider. The Windows badge icon can be regenerated with `scripts/generate-tray-attention.ps1`.
 
 ## Dashboard
 
