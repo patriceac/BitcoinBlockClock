@@ -1,6 +1,6 @@
 {
   "name": "bitcoin-block-clock",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Desktop Electron wrapper for Bitcoin Block Clock",
   "author": {
     "name": "patriceac",
