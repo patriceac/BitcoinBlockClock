@@ -80,22 +80,27 @@ test('returns byte-for-byte stable merged history for identical inputs', () => {
     );
 });
 
-test('50-week MA uses 49 completed Sunday closes and the current plotted price', () => {
+test('50-week MA smoothly interpolates weekly values without following intraday noise', () => {
     const monday = Date.UTC(2026, 8, 21);
     const sundayCloses = {};
-    for (let week = 1; week < 50; week++) {
+    for (let week = 1; week <= 51; week++) {
         sundayCloses[new Date(monday - (week * 7 - 6) * 86400000).toISOString().slice(0, 10)] = 100;
     }
-    const points = [
-        { x: monday, y: 200 },
-        { x: monday + 86400000, y: 250 }
-    ];
-
-    assert.deepEqual(historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points), [
-        { x: monday, y: 102 },
-        { x: monday + 86400000, y: 103 }
-    ]);
+    const points = Array.from({ length: 97 }, (_, hour) => ({
+        x: monday + hour * 3600000,
+        y: hour % 2 ? 500 : 50
+    }));
+    const latest = { x: points.at(-1).x, y: 200 };
+    const smoothed = historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points, latest);
+    assert.equal(smoothed.length, points.length);
+    assert.equal(smoothed[0].y, 100);
+    assert.ok(smoothed.at(-1).y > 100 && smoothed.at(-1).y < 102);
+    assert.ok(smoothed.every((point, i) => i === 0 || point.y >= smoothed[i - 1].y));
+    assert.deepEqual(
+        historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points.slice(48), latest),
+        smoothed.slice(48)
+    );
 
     delete sundayCloses[new Date(monday - 86400000).toISOString().slice(0, 10)];
-    assert.deepEqual(historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points), []);
+    assert.deepEqual(historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points, latest), []);
 });

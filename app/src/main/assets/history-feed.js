@@ -83,7 +83,7 @@
         return nextHistory;
     }
 
-    function buildFiftyWeekMovingAverage(dailyCloses, chartPoints) {
+    function buildFiftyWeekMovingAverage(dailyCloses, chartPoints, latestPoint = null) {
         const dayMs = 24 * 60 * 60 * 1000;
         const weekMs = 7 * dayMs;
         const weekStart = timeMs => {
@@ -101,23 +101,61 @@
             }
         });
 
-        return (chartPoints || []).flatMap(point => {
-            const timeMs = typeof point.x === 'number' ? point.x : Date.parse(point.x);
-            const price = Number(point.y);
-            if (!Number.isFinite(timeMs) || !Number.isFinite(price) || price <= 0) {
-                return [];
-            }
+        const pointTime = point => typeof point?.x === 'number' ? point.x : Date.parse(point?.x);
+        const isValidPoint = point => Number.isFinite(pointTime(point)) &&
+            Number.isFinite(Number(point?.y)) && Number(point.y) > 0;
+        const latest = isValidPoint(latestPoint)
+            ? latestPoint
+            : (chartPoints || []).filter(isValidPoint).reduce((last, point) => (
+                !last || pointTime(point) > pointTime(last) ? point : last
+            ), null);
+        if (!latest) {
+            return [];
+        }
+        const currentWeek = weekStart(pointTime(latest));
+        const weeklyPrices = [...sundayCloses].filter(([week]) => week < currentWeek);
+        weeklyPrices.push([currentWeek, Number(latest.y)]);
+        weeklyPrices.sort(([left], [right]) => left - right);
 
-            const currentWeek = weekStart(timeMs);
+        // Keep the true 50-week averages at weekly boundaries, then interpolate
+        // between them instead of reproducing the chart's short-term price noise.
+        const anchors = weeklyPrices.flatMap(([week, price]) => {
             let sum = price;
             for (let previousWeek = 1; previousWeek < 50; previousWeek++) {
-                const close = sundayCloses.get(currentWeek - previousWeek * weekMs);
+                const close = sundayCloses.get(week - previousWeek * weekMs);
                 if (close == null) {
                     return [];
                 }
                 sum += close;
             }
-            return [{ x: point.x, y: sum / 50 }];
+            return [{ x: week + weekMs, y: sum / 50 }];
+        });
+        const slopes = anchors.slice(1).map((point, i) => (point.y - anchors[i].y) / (point.x - anchors[i].x));
+        const tangents = anchors.map((point, i) => {
+            if (i === 0) return slopes[0] || 0;
+            if (i === anchors.length - 1) return slopes[i - 1] || 0;
+            const before = slopes[i - 1];
+            const after = slopes[i];
+            return before * after > 0 ? 2 * before * after / (before + after) : 0;
+        });
+
+        return (chartPoints || []).flatMap(point => {
+            const timeMs = pointTime(point);
+            const right = anchors.findIndex(anchor => anchor.x >= timeMs);
+            if (right < 0) return [];
+            if (anchors[right].x === timeMs) return [{ x: point.x, y: anchors[right].y }];
+            if (right === 0) return [];
+            const left = right - 1;
+            const span = anchors[right].x - anchors[left].x;
+            if (span > weekMs) return [];
+            const t = (timeMs - anchors[left].x) / span;
+            const t2 = t * t;
+            const t3 = t2 * t;
+            const y = (2 * t3 - 3 * t2 + 1) * anchors[left].y
+                + (t3 - 2 * t2 + t) * span * tangents[left]
+                + (-2 * t3 + 3 * t2) * anchors[right].y
+                + (t3 - t2) * span * tangents[right];
+            return [{ x: point.x, y }];
         });
     }
 

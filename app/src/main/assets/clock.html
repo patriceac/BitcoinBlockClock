@@ -6950,7 +6950,7 @@
         const latest = data[data.length - 1];
         element.hidden = !latest;
         element.textContent = latest ? `50W MA ${formatCompactPrice(latest.y)}` : '50W MA';
-        element.title = `50-week simple moving average in ${currencyCode}: 49 completed weekly Kraken closes plus the plotted price for the current week.`;
+        element.title = `Smoothed 50-week simple moving average in ${currencyCode}, interpolated between weekly closes. The current week uses the latest price.`;
         element.classList.add('is-neutral');
     }
 
@@ -7078,7 +7078,8 @@
         const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
         const movingAverageData = getHistoricalMarketDataEngine().buildFiftyWeekMovingAverage(
             selectedCurrency === 'EUR' ? chartData.fiftyWeekHistory?.EUR : chartData.fiftyWeekHistory?.USD,
-            priceRangeData
+            priceRangeData,
+            { x: Date.now(), y: mobileLatestPrices[selectedCurrency] }
         );
         const priceValues = priceRangeData.map(point => Number(point.y)).filter(Number.isFinite);
         const priceDomain = priceValues.length
