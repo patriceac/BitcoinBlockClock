@@ -15,6 +15,7 @@
 /captures
 /renders
 /tmp
+/work/
 .externalNativeBuild
 .cxx
 local.properties

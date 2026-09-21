@@ -142,6 +142,19 @@
         return median(intervals) || 60 * 1000;
     }
 
+    function aggregateClosedCandles(data, bucketMs, sourceIntervalMs, nowMs = Date.now()) {
+        const expected = bucketMs / sourceIntervalMs;
+        if (!Number.isInteger(expected) || expected < 1) return [];
+        const candles = normalizeCandles(data);
+        const times = new Set(candles.map(candle => candle.timeMs));
+        return aggregateCandles(candles, bucketMs).filter(candle => (
+            candle.timeMs + bucketMs <= nowMs
+            && Array.from({ length: expected }, (_, index) => (
+                times.has(candle.timeMs + index * sourceIntervalMs)
+            )).every(Boolean)
+        ));
+    }
+
     function getTrueRanges(candles) {
         return candles.map((candle, index) => {
             if (index === 0) {
@@ -340,6 +353,7 @@
             id: `autoscan-${hashString(signature)}`,
             label: getPatternLabel(pattern),
             confidence,
+            availableTimeMs: context.candles[context.candles.length - 1].timeMs + context.intervalMs,
             projectionTimeMs: context.projectionTimeMs,
             source: 'autoscan',
             locked: true
@@ -528,6 +542,7 @@
                 lower: Number(support.touches?.lower) || 0
             },
             formation: { startTimeMs, endTimeMs },
+            availableTimeMs: Math.max(support.availableTimeMs, resistance.availableTimeMs),
             projectionTimeMs: context.projectionTimeMs,
             components: ['support', 'resistance'],
             componentIds,
@@ -1434,6 +1449,7 @@
         const crossings = [];
 
         for (let index = startIndex; index < candles.length; index += 1) {
+            if (candles[index - confirmations + 1].timeMs < (pattern.availableTimeMs || 0)) continue;
             let confirmed = true;
             for (let offset = 0; offset < confirmations; offset += 1) {
                 if (!isOutsidePattern(pattern, candles[index - offset], direction, buffer)) {
@@ -1461,9 +1477,7 @@
             return [];
         }
 
-        const volatility = getVolatility(candles);
         const latest = candles[candles.length - 1];
-        const buffer = Math.max(volatility * 0.38, latest.close * 0.0011);
         const events = [];
 
         (patterns || [])
@@ -1476,6 +1490,10 @@
                 return pattern?.confidence >= minimumConfidence;
             })
             .forEach(pattern => {
+                const availableTimeMs = pattern.availableTimeMs || pattern.formation.endTimeMs + getMedianIntervalMs(candles);
+                const formation = candles.filter(candle => candle.timeMs < availableTimeMs);
+                const referencePrice = formation[formation.length - 1]?.close || candles[0].close;
+                const buffer = Math.max(getVolatility(formation) * 0.38, referencePrice * 0.0011);
                 getPatternDirections(pattern).forEach(direction => {
                     const crossings = findConfirmedCrossings(pattern, candles, direction, buffer, options);
                     const crossing = crossings[crossings.length - 1];
@@ -1484,12 +1502,13 @@
                     }
 
                     const boundaryLine = direction === 'up' ? pattern.lines.upper : pattern.lines.lower;
-                    const boundaryNow = lineValueAtTime(boundaryLine, latest.timeMs);
-                    const distancePercent = Math.abs((latest.close - boundaryNow) / boundaryNow) * 100;
                     const candlesAfterConfirmation = candles.slice(crossing.confirmIndex + 1);
-                    const latestTwo = candles.slice(-2);
-                    const failed = candlesAfterConfirmation.length >= 2
-                        && latestTwo.every(candle => isBackInsidePattern(pattern, candle, direction, buffer));
+                    const failedIndex = candles.findIndex((candle, index) => (
+                        index >= crossing.confirmIndex + 2
+                        && isBackInsidePattern(pattern, candle, direction, buffer)
+                        && isBackInsidePattern(pattern, candles[index - 1], direction, buffer)
+                    ));
+                    const failed = failedIndex >= 0;
                     let retestIndex = -1;
 
                     if (!failed && candlesAfterConfirmation.length > 0 && isOutsidePattern(pattern, latest, direction, buffer)) {
@@ -1498,7 +1517,7 @@
                             const touched = direction === 'up'
                                 ? candle.low <= boundary + buffer && candle.close > boundary + buffer
                                 : candle.high >= boundary - buffer && candle.close < boundary - buffer;
-                            if (touched) {
+                            if (touched && retestIndex < 0) {
                                 retestIndex = crossing.confirmIndex + 1 + relativeIndex;
                             }
                         });
@@ -1510,9 +1529,11 @@
                             ? 'retest-held'
                             : (direction === 'up' ? 'breakout' : 'breakdown'));
                     const eventIndex = failed
-                        ? candles.length - 1
+                        ? failedIndex
                         : (retestIndex >= 0 ? retestIndex : crossing.confirmIndex);
                     const eventTimeMs = candles[eventIndex].timeMs;
+                    const eventClose = candles[eventIndex].close;
+                    const eventBoundary = lineValueAtTime(boundaryLine, eventTimeMs);
                     const fingerprint = [pattern.type, pattern.variant, direction, kind, eventTimeMs].join('|');
 
                     events.push({
@@ -1526,9 +1547,10 @@
                         patternLabel: getPatternLabel(pattern),
                         confidence: pattern.confidence,
                         eventTimeMs,
-                        close: latest.close,
-                        boundary: boundaryNow,
-                        distancePercent,
+                        close: eventClose,
+                        boundary: eventBoundary,
+                        distancePercent: Math.abs((eventClose - eventBoundary) / eventBoundary) * 100,
+                        availableTimeMs: pattern.availableTimeMs,
                         confirmationCandles: options.confirmationCandles,
                         priority: failed ? 3 : (retestIndex >= 0 ? 2 : 1),
                         structurePriority: ['channel', 'triangle', 'wedge'].includes(pattern.type)
@@ -1598,6 +1620,7 @@
         return {
             candles,
             patterns: mergeEventPattern(patterns, eventPatterns, events, options),
+            currentPatterns: patterns,
             events,
             diagnostics: {
                 sufficientData: true,
@@ -1728,13 +1751,9 @@
             persistentPatterns,
             selectionOptions
         );
-        const selectedPatternVariants = new Set(
-            patterns.map(pattern => `${pattern.type}|${pattern.variant}`)
-        );
         const events = windowResults
             .filter(windowResult => windowResult.isCurrent)
             .flatMap(windowResult => windowResult.events)
-            .filter(event => selectedPatternVariants.has(`${event.patternType}|${event.patternVariant}`))
             .sort(compareSignificantEvents)
             .filter((event, index, all) => (
                 all.findIndex(item => item.fingerprint === event.fingerprint) === index
@@ -1749,6 +1768,8 @@
         return {
             candles,
             patterns,
+            currentPatterns: windowResults.filter(window => window.isCurrent)
+                .flatMap(window => window.result.currentPatterns),
             events,
             diagnostics: {
                 ...fullWindowResult.result.diagnostics,
@@ -1822,6 +1843,71 @@
             }));
     }
 
+    function buildMarketContext(data, scanResult, options = {}) {
+        const candles = normalizeCandles(data);
+        const latest = candles[candles.length - 1];
+        if (candles.length < DEFAULT_OPTIONS.minCandles) return null;
+        const price = Number.isFinite(Number(options.price)) && Number(options.price) > 0 ? Number(options.price) : latest.close;
+        const intervalMs = getMedianIntervalMs(candles);
+        const volatility = getVolatility(candles);
+        const tolerance = Math.max(volatility * 0.45, price * 0.0016);
+        const pivots = detectPivots(candles.slice(-160));
+        const zones = [{ side: 'support', pivots: pivots.lows }, { side: 'resistance', pivots: pivots.highs }]
+            .flatMap(definition => clusterPivots(definition.pivots, tolerance).map(cluster => {
+                const values = cluster.pivots.map(pivot => pivot.value);
+                const lastTestTimeMs = Math.max(...cluster.pivots.map(pivot => pivot.timeMs));
+                const halfWidth = Math.max(Math.max(...values) - cluster.level, cluster.level - Math.min(...values), tolerance * 0.35);
+                return {
+                    level: cluster.level,
+                    low: cluster.level - halfWidth,
+                    high: cluster.level + halfWidth,
+                    touches: new Set(cluster.pivots.map(pivot => pivot.timeMs)).size,
+                    startTimeMs: Math.min(...cluster.pivots.map(pivot => pivot.timeMs)),
+                    lastTestTimeMs,
+                    distancePercent: (cluster.level - price) / price * 100,
+                    side: definition.side
+                };
+            }))
+            .filter(zone => zone.touches >= 2 && latest.timeMs - zone.lastTestTimeMs <= intervalMs * 60)
+            .filter(zone => zone.side === 'support' ? zone.level <= price : zone.level >= price)
+            .sort((left, right) => Math.abs(left.distancePercent) - Math.abs(right.distancePercent));
+        const nearestZones = ['support', 'resistance'].map(side => zones.find(zone => zone.side === side)).filter(Boolean);
+        const candidates = (scanResult?.currentPatterns || scanResult?.patterns || [])
+            .filter(pattern => ['trend', 'channel'].includes(pattern.type)
+                && !isTentativePattern(pattern) && pattern.scanIsCurrent !== false
+                && latest.timeMs - pattern.formation.endTimeMs <= intervalMs * 24)
+            .filter(pattern => {
+                const boundaries = Object.values(pattern.lines).map(line => lineValueAtTime(line, latest.timeMs));
+                const nearPrice = Math.min(...boundaries) - volatility * 3 <= price
+                    && Math.max(...boundaries) + volatility * 3 >= price;
+                return nearPrice && !getPatternDirections(pattern).some(direction => (
+                    candles.slice(-2).every(candle => isOutsidePattern(pattern, candle, direction, tolerance))
+                ));
+            })
+            .sort((left, right) => right.formation.endTimeMs - left.formation.endTimeMs
+                || right.confidence - left.confidence);
+        const activePattern = candidates[0] || null;
+        const highs = pivots.highs.slice(-2);
+        const lows = pivots.lows.slice(-2);
+        let trend = 'mixed';
+        if (highs.length === 2 && lows.length === 2) {
+            if (highs[1].value > highs[0].value + tolerance && lows[1].value > lows[0].value + tolerance) trend = 'rising';
+            else if (highs[1].value < highs[0].value - tolerance && lows[1].value < lows[0].value - tolerance) trend = 'falling';
+            else if (Math.abs(highs[1].value - highs[0].value) <= tolerance
+                && Math.abs(lows[1].value - lows[0].value) <= tolerance) trend = 'ranging';
+        }
+        if (activePattern?.variant === 'horizontal-channel') trend = 'ranging';
+        const events = [...(scanResult?.events || [])]
+            .filter(event => event.eventTimeMs <= latest.timeMs && latest.timeMs - event.eventTimeMs <= intervalMs * 12)
+            .sort((left, right) => right.eventTimeMs - left.eventTimeMs || right.priority - left.priority)
+            .filter((event, index, all) => !all.slice(0, index).some(previous => (
+                previous.kind === event.kind && previous.direction === event.direction
+                && Math.abs(previous.eventTimeMs - event.eventTimeMs) <= intervalMs * 2
+            ))).slice(0, 3);
+        return { price, trend, zones: nearestZones, activePattern, events,
+            intervalMs, asOfTimeMs: latest.timeMs + intervalMs };
+    }
+
     function formatEventCommentary(event, context = {}) {
         if (!event) {
             return '';
@@ -1854,6 +1940,8 @@
 
     return Object.freeze({
         aggregateCandles,
+        aggregateClosedCandles,
+        buildMarketContext,
         detectPivots,
         detectSignificantEvents,
         formatEventCommentary,

@@ -3959,6 +3959,28 @@
             line-height: 1.4;
         }
 
+        .mobile-market-evidence {
+            margin: 5px 0 0;
+            color: rgba(220, 233, 236, 0.66);
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .chart-ta-label {
+            fill: #b5f0e9;
+            font-size: 11px;
+            font-weight: 650;
+            paint-order: stroke;
+            stroke: #101c23;
+            stroke-width: 4px;
+            stroke-linejoin: round;
+        }
+
+        .chart-ta-zone { fill: rgba(91, 220, 211, 0.10); }
+        .chart-ta-zone[data-side="resistance"] { fill: rgba(232, 189, 134, 0.12); }
+        .chart-ta-marker { fill: #b5f0e9; stroke: #101c23; stroke-width: 2px; }
+        .chart-ta-label[data-event-kind^="failed"] { fill: #efba90; }
+
         .chart-drawing-hit-line {
             fill: none;
             stroke: transparent;
@@ -4222,9 +4244,10 @@
                         <span id="mobileChartDrawingCount" class="mobile-chart-drawing-count">0</span>
                     </button>
                     <button class="mobile-chart-autoscan-toggle" type="button" data-mobile-chart-autoscan-toggle aria-pressed="true" aria-busy="false">
-                        Auto
+                        Auto TA
                         <span id="mobileChartAutoscanCount" class="mobile-chart-autoscan-count">0</span>
                     </button>
+                    <button class="mobile-chart-drawing-action" type="button" data-mobile-chart-autoscan-details aria-pressed="false">More structures</button>
                     <span class="mobile-chart-drawing-actions">
                         <button class="mobile-chart-drawing-action" type="button" data-mobile-chart-drawing-cancel hidden>Cancel</button>
                         <button class="mobile-chart-drawing-action" type="button" data-mobile-chart-drawing-lock hidden>Lock</button>
@@ -4242,8 +4265,11 @@
                 </div>
             </div>
             <div id="mobileMarketNote" class="mobile-market-note" aria-live="polite" hidden>
-                <span class="mobile-market-note-label">Market note</span>
-                <p id="mobileMarketNoteText" class="mobile-market-note-text"></p>
+                <span class="mobile-market-note-label">Market reading</span>
+                <div>
+                    <p id="mobileMarketNoteText" class="mobile-market-note-text"></p>
+                    <p id="mobileMarketEvidence" class="mobile-market-evidence"></p>
+                </div>
             </div>
             <div class="mobile-stat-strip">
                 <div class="mobile-stat-chip">
@@ -4918,6 +4944,7 @@
     let mobileSelectedRange = 'day';
     let mobileSelectedCurrency = 'USD';
     let mobileChartAutoscanEnabled = true;
+    let mobileChartAutoscanDetails = false;
     const mobileLatestPrices = {
         USD: null,
         EUR: null
@@ -5077,16 +5104,18 @@
         }
 
         const result = getCurrentMobileChartAutoscanResult();
-        return Array.isArray(result?.patterns) ? result.patterns : [];
+        if (!result?.commentaryEligible) return [];
+        const active = [result.context?.activePattern].filter(Boolean);
+        return mobileChartAutoscanDetails ? [...active, ...result.patterns.filter(pattern => pattern.id !== active[0]?.id)] : active;
     }
 
     function getCurrentMobileChartAutoscanTentativePatterns() {
-        if (!mobileChartAutoscanEnabled) {
+        if (!mobileChartAutoscanEnabled || !mobileChartAutoscanDetails) {
             return [];
         }
 
         const result = getCurrentMobileChartAutoscanResult();
-        return Array.isArray(result?.tentativePatterns) ? result.tentativePatterns : [];
+        return result?.commentaryEligible ? result.tentativePatterns : [];
     }
 
     function getMobileChartAutoscanCandleSignature(candles, source) {
@@ -5168,6 +5197,12 @@
                 ...(Array.isArray(scanLookbackCandles) ? { lookbackWindows: scanLookbackCandles } : {})
             };
             const scanResult = engine.scanMarket(candles, scanOptions);
+            // Keep events already observed at a close; later fits must not relocate them.
+            if (commentaryEligible) {
+                scanResult.events = [...(existingResult?.events || []), ...scanResult.events]
+                    .filter(event => candles[candles.length - 1].timeMs - event.eventTimeMs <= rangeConfig.bucketMs * 12)
+                    .filter((event, index, all) => all.findIndex(item => item.fingerprint === event.fingerprint) === index);
+            }
             const scannedTentativePatterns = typeof engine.scanTentativePatterns === 'function'
                 ? engine.scanTentativePatterns(candles, {
                     ...scanOptions,
@@ -5188,12 +5223,11 @@
                     : [...scanResult.patterns, ...scannedTentativePatterns]);
             const patterns = visiblePatterns.filter(pattern => !tentativePatternIds.has(pattern.id));
             const tentativePatterns = visiblePatterns.filter(pattern => tentativePatternIds.has(pattern.id));
-            const visibleConfirmedPatternIds = new Set(patterns.map(pattern => pattern.id));
             const scanFinishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             const result = {
                 ...scanResult,
                 patterns,
-                events: scanResult.events.filter(event => visibleConfirmedPatternIds.has(event.patternId)),
+                context: commentaryEligible ? engine.buildMarketContext(candles, scanResult, { price: mobileLatestPrices[scopeKey.split(':')[0]] }) : null,
                 tentativePatterns,
                 source,
                 signature,
@@ -5240,7 +5274,7 @@
             low: Number(row?.[3]),
             close: Number(row?.[4])
         }));
-        const aggregatedCandles = engine.aggregateCandles(rawCandles, config.bucketMs);
+        const aggregatedCandles = engine.aggregateClosedCandles(rawCandles, config.bucketMs, config.krakenIntervalMinutes * 60000);
         const latestCandle = aggregatedCandles[aggregatedCandles.length - 1];
         const windowStartMs = latestCandle ? latestCandle.timeMs - config.windowMs : Infinity;
         const candles = aggregatedCandles.filter(candle => candle.timeMs >= windowStartMs);
@@ -5330,32 +5364,44 @@
     function updateMobileMarketNote() {
         const note = document.getElementById('mobileMarketNote');
         const noteText = document.getElementById('mobileMarketNoteText');
+        const evidence = document.getElementById('mobileMarketEvidence');
         const engine = getMobileChartAutoscanEngine();
         const result = getCurrentMobileChartAutoscanResult();
-        const event = mobileChartAutoscanEnabled && result?.commentaryEligible
-            ? result.events?.[0]
-            : null;
         const config = MOBILE_CHART_AUTOSCAN_RANGE_CONFIGS[mobileSelectedRange];
-        const commentary = event && engine
-            ? engine.formatEventCommentary(event, {
-                rangeLabel: config.rangeLabel,
-                assetLabel: `BTC/${mobileSelectedCurrency}`,
-                candleLabel: config.candleLabel
-            })
-            : '';
-
-        if (!note || !noteText || !commentary) {
-            if (note) {
-                note.hidden = true;
-            }
+        if (!note || !noteText) return;
+        note.hidden = !mobileChartAutoscanEnabled;
+        if (note.hidden) return;
+        if (result?.commentaryEligible) {
+            result.context = engine.buildMarketContext(result.candles, result, { price: mobileLatestPrices[mobileSelectedCurrency] });
+        }
+        const context = result?.context;
+        if (!context) {
+            noteText.textContent = `${config.candleLabel} candles · ${mobileChartAutoscanBusyScopes.has(getMobileChartDrawingScopeKey()) ? 'Loading market structure…' : 'Candle data unavailable.'}`;
+            evidence.textContent = 'Analysis needs complete market candles.';
             return;
         }
+        const stale = Date.now() - context.asOfTimeMs > config.bucketMs + config.cacheTtlMs;
+        const nearby = context.zones.find(zone => Math.abs(zone.distancePercent) < 0.6);
+        const event = context.events[0];
+        const state = event ? getMobileChartEventLabel(event) : 'No recent confirmed break';
+        noteText.textContent = `${config.candleLabel} · ${context.trend} trend. ${nearby ? `Near ${nearby.side}. ` : ''}${state}.${stale ? ' Candle data is stale.' : ''}`;
+        const details = context.zones.map(zone => `${zone.side === 'support' ? 'Support' : 'Resistance'} ${formatCurrencyValue(zone.low, mobileSelectedCurrency)}–${formatCurrencyValue(zone.high, mobileSelectedCurrency)} · ${zone.touches} touches · tested ${formatMobileChartAge(zone.lastTestTimeMs)} ago`);
+        if (context.activePattern) details.push(`${context.activePattern.label} · ${Object.values(context.activePattern.touches || {}).reduce((sum, value) => sum + value, 0)} touches`);
+        if (event) details.push(`${event.patternLabel} · ${formatMobileChartAge(event.eventTimeMs + config.bucketMs)} ago`);
+        if (!details.length) details.push('No nearby levels with repeated tests.');
+        details.push(`Closed through ${new Date(context.asOfTimeMs).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+        if (mobileChartAutoscanDetails) details.push('Extra lines include historical and tentative structures.');
+        evidence.textContent = details.join(' • ');
+    }
 
-        if (note.dataset.eventId !== event.id || noteText.textContent !== commentary) {
-            note.dataset.eventId = event.id;
-            noteText.textContent = commentary;
-        }
-        note.hidden = false;
+    function formatMobileChartAge(timeMs) {
+        const minutes = Math.max(0, Math.floor((Date.now() - timeMs) / 60000));
+        return minutes < 60 ? `${minutes}m` : (minutes < 1440 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 1440)}d`);
+    }
+
+    function getMobileChartEventLabel(event) {
+        return { breakout: 'Breakout confirmed', breakdown: 'Breakdown confirmed', 'retest-held': 'Retest held',
+            'failed-breakout': 'Breakout failed', 'failed-breakdown': 'Breakdown failed' }[event.kind] || 'Structure changed';
     }
 
     function syncMobileChartAutoscanControls() {
@@ -5364,7 +5410,7 @@
         const countElement = document.getElementById('mobileChartAutoscanCount');
         const patterns = getCurrentMobileChartAutoscanPatterns();
         const tentativePatterns = getCurrentMobileChartAutoscanTentativePatterns();
-        const patternCount = patterns.length + tentativePatterns.length;
+        const patternCount = patterns.length + tentativePatterns.length + (mobileChartAutoscanEnabled ? getCurrentMobileChartAutoscanResult()?.context?.zones.length || 0 : 0);
         const busy = mobileChartAutoscanEnabled && mobileChartAutoscanBusyScopes.has(scopeKey);
 
         if (button) {
@@ -5378,6 +5424,10 @@
         if (countElement) {
             countElement.textContent = String(patternCount);
         }
+        const detailsButton = document.querySelector('[data-mobile-chart-autoscan-details]');
+        detailsButton.hidden = !mobileChartAutoscanEnabled;
+        detailsButton.setAttribute('aria-pressed', String(mobileChartAutoscanDetails));
+        detailsButton.textContent = mobileChartAutoscanDetails ? 'Fewer structures' : 'More structures';
         updateMobileMarketNote();
     }
 
@@ -8105,10 +8155,8 @@
             : (isAutoscan ? 'autoscan' : 'manual');
         if (isAutoscan) {
             const title = createChartSvgElement('title');
-            const confidence = Number.isFinite(Number(drawing.confidence))
-                ? `, ${Math.round(Number(drawing.confidence) * 100)}% confidence`
-                : '';
-            title.textContent = `${isTentative ? 'Tentative ' : ''}${drawing.label || 'automatic chart pattern'}${confidence}`;
+            const touches = Object.values(drawing.touches || {}).reduce((sum, value) => sum + value, 0);
+            title.textContent = `${isTentative ? 'Tentative ' : ''}${drawing.label || 'automatic chart pattern'}, ${touches} touches`;
             drawingGroup.appendChild(title);
         }
         appendMobileChartDrawingPolygon(drawingGroup, pixelGeometry.polygon, isSelected, isAutoscan, isTentative);
@@ -8159,6 +8207,69 @@
         });
     }
 
+    function renderMobileChartMarketContext(group, geometry) {
+        const context = getCurrentMobileChartAutoscanResult()?.context;
+        if (!mobileChartAutoscanEnabled || !context) return;
+        const { plot, yScale, xScale } = geometry;
+        const occupied = [];
+        const label = (text, x, y, anchor = 'end', kind = '') => {
+            const width = Math.min(plot.width, text.length * 6.3);
+            const left = anchor === 'end' ? x - width : x;
+            y = Math.max(plot.top + 12, Math.min(plot.bottom - 4, y));
+            for (let offset = 0; offset < 6; offset++) {
+                const candidate = y + (offset % 2 ? -1 : 1) * Math.ceil(offset / 2) * 15;
+                if (candidate < plot.top + 12 || candidate > plot.bottom - 4) continue;
+                if (occupied.some(box => Math.abs(box.y - candidate) < 14 && left < box.right && left + width > box.left)) continue;
+                const node = createChartSvgElement('text');
+                node.setAttribute('class', 'chart-ta-label');
+                node.setAttribute('x', x);
+                node.setAttribute('y', candidate);
+                node.setAttribute('text-anchor', anchor);
+                if (kind) node.dataset.eventKind = kind;
+                node.textContent = text;
+                group.appendChild(node);
+                occupied.push({ left, right: left + width, y: candidate });
+                return;
+            }
+        };
+        context.zones.forEach(zone => {
+            const top = Math.max(plot.top, yScale(zone.high));
+            const bottom = Math.min(plot.bottom, yScale(zone.low));
+            if (bottom >= top) {
+                const band = createChartSvgElement('rect');
+                band.setAttribute('class', 'chart-ta-zone');
+                band.dataset.side = zone.side;
+                band.setAttribute('x', plot.left);
+                band.setAttribute('y', top);
+                band.setAttribute('width', plot.width);
+                band.setAttribute('height', Math.max(2, bottom - top));
+                group.appendChild(band);
+            }
+            const distance = (zone.level - context.price) / context.price * 100;
+            const offscreen = zone.low > geometry.domainMax ? ' ↑' : (zone.high < geometry.domainMin ? ' ↓' : '');
+            label(`${zone.side === 'support' ? 'Support' : 'Resistance'} ${formatCurrencyValue(zone.level, mobileSelectedCurrency)} · ${distance >= 0 ? '+' : ''}${distance.toFixed(1)}%${offscreen}`,
+                plot.right - 4, yScale(zone.level) - 7);
+        });
+        context.events.forEach(event => {
+            if (event.eventTimeMs < geometry.minTime || event.eventTimeMs > geometry.maxTime
+                || event.close < geometry.domainMin || event.close > geometry.domainMax) return;
+            const x = xScale(event.eventTimeMs);
+            const y = yScale(event.close);
+            const dot = createChartSvgElement('circle');
+            dot.setAttribute('class', 'chart-ta-marker');
+            dot.setAttribute('cx', x);
+            dot.setAttribute('cy', y);
+            dot.setAttribute('r', '4');
+            dot.dataset.eventKind = event.kind;
+            const title = createChartSvgElement('title');
+            title.textContent = `${getMobileChartEventLabel(event)} · ${event.patternLabel} · ${new Date(event.eventTimeMs + context.intervalMs).toLocaleString()}`;
+            dot.appendChild(title);
+            group.appendChild(dot);
+            const rightHalf = x > plot.left + plot.width / 2;
+            label(getMobileChartEventLabel(event), rightHalf ? x - 7 : x + 7, y - 12, rightHalf ? 'end' : 'start', event.kind);
+        });
+    }
+
     function renderMobileChartDrawingLayers({
         visualGroup,
         interactionGroup,
@@ -8169,6 +8280,7 @@
         visualGroup.replaceChildren();
         interactionGroup.replaceChildren();
         draftGroup.replaceChildren();
+        updateMobileMarketNote();
 
         const tentativeAutoscanDrawings = getCurrentMobileChartAutoscanTentativePatterns();
         tentativeAutoscanDrawings.forEach(drawing => {
@@ -8181,6 +8293,8 @@
             const pixelGeometry = buildMobileChartDrawingPixelGeometry(drawing, geometry);
             appendMobileChartDrawingVisual(visualGroup, drawing, pixelGeometry, false);
         });
+
+        renderMobileChartMarketContext(visualGroup, geometry);
 
         const drawings = getCurrentMobileChartDrawings();
         const orderedDrawings = [
@@ -8528,6 +8642,13 @@
 
         if (event.target.closest('[data-mobile-chart-autoscan-toggle]')) {
             toggleMobileChartAutoscan();
+            return;
+        }
+
+        if (event.target.closest('[data-mobile-chart-autoscan-details]')) {
+            mobileChartAutoscanDetails = !mobileChartAutoscanDetails;
+            requestMobileChartDrawingRender();
+            syncMobileChartAutoscanControls();
             return;
         }
 

@@ -115,6 +115,47 @@ test('aggregateCandles preserves true OHLC values within each display bucket', (
     ]);
 });
 
+test('analysis excludes unfinished aggregate candles and buckets with missing source bars', () => {
+    const step = 5 * 60 * 1000;
+    const raw = Array.from({ length: 7 }, (_, index) => ({
+        timeMs: START_TIME_MS + index * step, open: 100, high: 102, low: 99, close: 101
+    }));
+    const closed = autoscan.aggregateClosedCandles(raw, INTERVAL_MS, step, START_TIME_MS + 7 * step);
+    assert.equal(closed.length, 3);
+    assert.equal(closed.at(-1).timeMs, START_TIME_MS + 4 * step);
+    assert.equal(autoscan.aggregateClosedCandles(raw.filter((_, index) => index !== 2), INTERVAL_MS, step,
+        START_TIME_MS + 7 * step).length, 2);
+});
+
+test('market context chooses the nearest tested zones and excludes historical or broken structures', () => {
+    const candles = makeNoisyHorizontalRange();
+    const result = autoscan.scanMarket(candles);
+    const context = autoscan.buildMarketContext(candles, result, { price: 104 });
+    assert.deepEqual(context.zones.map(zone => zone.side), ['support', 'resistance']);
+    assert.ok(context.zones.every(zone => zone.touches >= 2 && zone.low < zone.high && zone.lastTestTimeMs <= candles.at(-1).timeMs));
+    assert.ok(context.zones[0].level < 104 && context.zones[1].level > 104);
+    assert.equal(context.activePattern?.variant, 'horizontal-channel');
+    assert.ok(context.activePattern.availableTimeMs <= context.asOfTimeMs);
+    const historical = result.currentPatterns.map(pattern => ({ ...pattern, scanIsCurrent: false }));
+    assert.equal(autoscan.buildMarketContext(candles, { ...result, currentPatterns: historical }).activePattern, null);
+    const broken = [...candles, ...[0, 1].map(index => ({ timeMs: candles.at(-1).timeMs + (index + 1) * INTERVAL_MS,
+        open: 120, high: 121, low: 119, close: 120 }))];
+    assert.equal(autoscan.buildMarketContext(broken, result).activePattern, null);
+    assert.equal(autoscan.buildMarketContext(candles.slice(0, 12), result), null);
+});
+
+test('break markers use the confirmation candle and cannot precede pattern availability', () => {
+    const formation = makeDescendingChannel();
+    const pattern = autoscan.scanPatterns(formation).find(item => item.variant === 'descending-channel');
+    const candles = appendChannelCloses([...formation], [103, 104, 108]);
+    const event = autoscan.detectSignificantEvents([pattern], candles).find(item => item.kind === 'breakout');
+    assert.ok(event);
+    assert.equal(event.eventTimeMs, candles.at(-2).timeMs);
+    assert.equal(event.close, 104);
+    assert.equal(event.boundary, autoscan.lineValueAtTime(pattern.lines.upper, event.eventTimeMs));
+    assert.deepEqual(autoscan.detectSignificantEvents([{ ...pattern, availableTimeMs: candles.at(-1).timeMs }], candles), []);
+});
+
 test('finds descending channels, symmetrical triangles, and rising wedges from wick extremes', () => {
     const cases = [
         {

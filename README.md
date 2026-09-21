@@ -71,6 +71,8 @@ The Windows package has an explicit isolated-QA entry point: `--verify-price-ale
 
 ## Dashboard
 
+Auto TA shows the nearest repeatedly tested support and resistance zones, their prices and distance, and at most one current trend or channel. A persistent market reading identifies the candle timeframe, trend, touch counts, last tests and data freshness. Confirmed breaks, held retests and failed breaks appear at their confirmation candles. **More structures** adds historical and tentative formations. Analysis uses complete exchange candles; touch counts describe evidence, not a probability of success.
+
 - Live BTC price with recent market context.
 - Current block height and block timing.
 - Fee pressure and mempool-oriented network signals.
