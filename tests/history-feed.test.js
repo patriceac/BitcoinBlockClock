@@ -79,3 +79,23 @@ test('returns byte-for-byte stable merged history for identical inputs', () => {
         historyFeed.mergeHistoricalPriceHistory(input)
     );
 });
+
+test('50-week MA uses 49 completed Sunday closes and the current plotted price', () => {
+    const monday = Date.UTC(2026, 8, 21);
+    const sundayCloses = {};
+    for (let week = 1; week < 50; week++) {
+        sundayCloses[new Date(monday - (week * 7 - 6) * 86400000).toISOString().slice(0, 10)] = 100;
+    }
+    const points = [
+        { x: monday, y: 200 },
+        { x: monday + 86400000, y: 250 }
+    ];
+
+    assert.deepEqual(historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points), [
+        { x: monday, y: 102 },
+        { x: monday + 86400000, y: 103 }
+    ]);
+
+    delete sundayCloses[new Date(monday - 86400000).toISOString().slice(0, 10)];
+    assert.deepEqual(historyFeed.buildFiftyWeekMovingAverage(sundayCloses, points), []);
+});

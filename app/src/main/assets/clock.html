@@ -144,6 +144,10 @@
             color: rgba(197, 222, 244, 0.9);
         }
 
+        .mobile-trend-pill[hidden] {
+            display: none;
+        }
+
         @media (max-width: 420px) {
             .mobile-price-status-stack {
                 position: absolute;
@@ -4203,7 +4207,7 @@
                 </button>
                 <div class="mobile-price-status-stack" aria-live="polite">
                     <div class="mobile-price-trend-readout">
-                        <span id="mobileTrendBadge" class="mobile-trend-pill is-neutral">Pending</span>
+                        <span id="mobileTrendBadge" class="mobile-trend-pill is-neutral" hidden>50W MA</span>
                     </div>
                     <span id="mobileRangeChange" class="mobile-change-pill">Pending</span>
                 </div>
@@ -4885,6 +4889,10 @@
     }
 
     const HISTORY_WINDOW_DAYS = 365;
+    const FIFTY_WEEK_MA_STORAGE_KEY = 'bitcoinFiftyWeekMovingAverageHistoryV1';
+    const FIFTY_WEEK_MA_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
+    let fiftyWeekHistoryPromise = null;
+    let fiftyWeekLastAttemptAt = 0;
     const INTRADAY_WINDOW_HOURS = 24;
     const INTRADAY_WINDOW_MS = INTRADAY_WINDOW_HOURS * 60 * 60 * 1000;
     const INTRADAY_BUCKET_MINUTES = 10;
@@ -4974,18 +4982,6 @@
     const mobileChartAutoscanPendingRequests = new Map();
     const mobileChartAutoscanFallbackSeries = new Map();
     const mobileChartAutoscanBusyScopes = new Set();
-    const MOBILE_TREND_EMA_PERIODS = {
-        day: 12,
-        week: 12,
-        month: 7,
-        year: 21
-    };
-    const MOBILE_TREND_NEUTRAL_THRESHOLDS = {
-        day: 0.5,
-        week: 1,
-        month: 1.5,
-        year: 3
-    };
     mobileSelectedRange = getSavedMobileSelectedRange();
     mobileSelectedCurrency = getSavedMobileSelectedCurrency();
     mobileChartAutoscanEnabled = getSavedMobileChartAutoscanEnabled();
@@ -5818,6 +5814,36 @@
             throw new Error(`Kraken ${currencyCode} history response contained no usable committed prices.`);
         }
         return { source: 'kraken-ohlc', series };
+    }
+
+    async function getFiftyWeekPriceHistory() {
+        const cached = await getStoredData(FIFTY_WEEK_MA_STORAGE_KEY);
+        if (Date.now() - Number(cached.updatedAt) < FIFTY_WEEK_MA_REFRESH_INTERVAL_MS &&
+            new Date(cached.updatedAt).toISOString().slice(0, 10) === getTodayDate() &&
+            cached.USD && cached.EUR) {
+            return cached;
+        }
+
+        if (!fiftyWeekHistoryPromise && Date.now() - fiftyWeekLastAttemptAt >= 5 * 60 * 1000) {
+            fiftyWeekLastAttemptAt = Date.now();
+            const today = getTodayDate();
+            const startDate = shiftDate(today, -714);
+            fiftyWeekHistoryPromise = Promise.all([
+                fetchKrakenHistoricalPriceSeries('USD', startDate, today),
+                fetchKrakenHistoricalPriceSeries('EUR', startDate, today)
+            ]).then(async ([usd, eur]) => {
+                const history = { updatedAt: Date.now(), USD: usd.series, EUR: eur.series };
+                await setStoredData(FIFTY_WEEK_MA_STORAGE_KEY, history);
+                redrawAllCharts().catch(error => console.warn('Redrawing the 50-week moving average failed.', error));
+                return history;
+            }).catch(error => {
+                console.warn('50-week moving average history unavailable.', error);
+                return cached;
+            }).finally(() => {
+                fiftyWeekHistoryPromise = null;
+            });
+        }
+        return cached;
     }
 
     async function fetchHistoricalPriceSeries(currencyCode, rangeFrom, rangeTo, startDate, endDate) {
@@ -6915,69 +6941,17 @@
         setMobileChangeText('mobileRangeChange', formatSignedPercent(changePercent), isNegative);
     }
 
-    function getMobileTrendEmaPeriod(pointCount) {
-        if (!Number.isFinite(pointCount) || pointCount <= 2) {
-            return 2;
-        }
-
-        const preferredWindowSize = MOBILE_TREND_EMA_PERIODS[mobileSelectedRange] || 7;
-        return Math.max(2, Math.min(preferredWindowSize, Math.floor(pointCount / 2)));
-    }
-
-    function buildExponentialMovingAverageData(data) {
-        const sortedData = sortChartData(data);
-        if (sortedData.length < 2) {
-            return [];
-        }
-
-        const period = getMobileTrendEmaPeriod(sortedData.length);
-        const smoothingFactor = 2 / (period + 1);
-        let previousEma = sortedData[0].y;
-
-        return sortedData.map((point, index) => {
-            previousEma = index === 0
-                ? point.y
-                : (point.y * smoothingFactor) + (previousEma * (1 - smoothingFactor));
-            return {
-                x: point.x,
-                y: previousEma
-            };
-        });
-    }
-
-    function getMobileTrendAnalysis(data) {
-        const trendLineData = buildExponentialMovingAverageData(data);
-        if (trendLineData.length < 2) {
-            return null;
-        }
-
-        const firstPoint = trendLineData[0];
-        const lastPoint = trendLineData[trendLineData.length - 1];
-        const change = lastPoint.y - firstPoint.y;
-        const changePercent = firstPoint.y > 0 ? (change / firstPoint.y) * 100 : 0;
-        const neutralThreshold = MOBILE_TREND_NEUTRAL_THRESHOLDS[mobileSelectedRange] || 1;
-        const isNeutral = Math.abs(changePercent) < neutralThreshold;
-        const isNegative = !isNeutral && changePercent < 0;
-        const label = isNeutral ? 'Sideways' : (isNegative ? 'Downtrend' : 'Uptrend');
-
-        return {
-            trendLineData,
-            changePercent,
-            isNegative,
-            isNeutral,
-            text: `${label} ${formatSignedPercent(changePercent)}`
-        };
-    }
-
-    function updateMobileTrendBadge(analysis) {
+    function updateMobileMovingAverageBadge(data, currencyCode) {
         const element = document.getElementById('mobileTrendBadge');
         if (!element) {
             return;
         }
 
-        element.textContent = analysis ? analysis.text : 'Pending';
-        element.classList.toggle('is-negative', Boolean(analysis?.isNegative));
-        element.classList.toggle('is-neutral', !analysis || Boolean(analysis.isNeutral));
+        const latest = data[data.length - 1];
+        element.hidden = !latest;
+        element.textContent = latest ? `50W MA ${formatCompactPrice(latest.y)}` : '50W MA';
+        element.title = `50-week simple moving average in ${currencyCode}: 49 completed weekly Kraken closes plus the plotted price for the current week.`;
+        element.classList.add('is-neutral');
     }
 
     function getLatestFiniteSeriesValue(series) {
@@ -7102,9 +7076,20 @@
         const priceRangeData = getMobilePriceRangeData(chartData);
         const priceStatsData = getMobilePriceStatsData(chartData, priceRangeData);
         const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
-        const priceTrendAnalysis = getMobileTrendAnalysis(priceRangeData);
+        const movingAverageData = getHistoricalMarketDataEngine().buildFiftyWeekMovingAverage(
+            selectedCurrency === 'EUR' ? chartData.fiftyWeekHistory?.EUR : chartData.fiftyWeekHistory?.USD,
+            priceRangeData
+        );
+        const priceValues = priceRangeData.map(point => Number(point.y)).filter(Number.isFinite);
+        const priceDomain = priceValues.length
+            ? buildChartDomain(Math.min(...priceValues), Math.max(...priceValues), 0.12)
+            : null;
+        const fittingMovingAverageData = movingAverageData.length > 1 &&
+            movingAverageData.length === priceRangeData.length && movingAverageData.every(point => (
+            point.y >= priceDomain?.domainMin && point.y <= priceDomain?.domainMax
+        )) ? movingAverageData : [];
         updateMobileRangeStats(priceStatsData, priceRangeData);
-        updateMobileTrendBadge(priceTrendAnalysis);
+        updateMobileMovingAverageBadge(fittingMovingAverageData, selectedCurrency);
         updateMobileChartAutoscanForRangeData(priceRangeData);
 
         [
@@ -7128,7 +7113,7 @@
                 plotPadding: showDesktopAxes ? { top: 14, right: 62, bottom: 12, left: 16 } : null,
                 yDomainPadding: 0.12,
                 maxPointGapMs: priceMaxGapMs,
-                overlayData: priceTrendAnalysis?.trendLineData || null,
+                overlayData: fittingMovingAverageData,
                 overlayColor: 'rgba(177, 222, 255, 0.76)'
             },
             {
@@ -7185,6 +7170,7 @@
     }
 
     async function redrawAllCharts({ fallbackPrices = mobileLatestPrices } = {}) {
+        const fiftyWeekHistory = await getFiftyWeekPriceHistory();
         const chartData = {
             usd: await getDataForChart('USD'),
             eur: await getDataForChart('EUR'),
@@ -7196,7 +7182,8 @@
             weeklyUSD: await getMobileWeeklyChartData(),
             weeklyEUR: await getMobileWeeklyChartData('EUR'),
             monthlyUSD: await getMobileMonthlyChartData(),
-            monthlyEUR: await getMobileMonthlyChartData('EUR')
+            monthlyEUR: await getMobileMonthlyChartData('EUR'),
+            fiftyWeekHistory
         };
 
         const fallbackTimestamp = Date.now();

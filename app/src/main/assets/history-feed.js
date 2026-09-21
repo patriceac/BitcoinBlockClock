@@ -83,10 +83,49 @@
         return nextHistory;
     }
 
+    function buildFiftyWeekMovingAverage(dailyCloses, chartPoints) {
+        const dayMs = 24 * 60 * 60 * 1000;
+        const weekMs = 7 * dayMs;
+        const weekStart = timeMs => {
+            const dayStart = Math.floor(timeMs / dayMs) * dayMs;
+            return dayStart - ((new Date(timeMs).getUTCDay() + 6) % 7) * dayMs;
+        };
+        const sundayCloses = new Map();
+
+        Object.entries(dailyCloses || {}).forEach(([date, rawPrice]) => {
+            const timeMs = Date.parse(`${date}T00:00:00Z`);
+            const price = Number(rawPrice);
+            if (Number.isFinite(timeMs) && Number.isFinite(price) && price > 0 &&
+                new Date(timeMs).getUTCDay() === 0) {
+                sundayCloses.set(weekStart(timeMs), price);
+            }
+        });
+
+        return (chartPoints || []).flatMap(point => {
+            const timeMs = typeof point.x === 'number' ? point.x : Date.parse(point.x);
+            const price = Number(point.y);
+            if (!Number.isFinite(timeMs) || !Number.isFinite(price) || price <= 0) {
+                return [];
+            }
+
+            const currentWeek = weekStart(timeMs);
+            let sum = price;
+            for (let previousWeek = 1; previousWeek < 50; previousWeek++) {
+                const close = sundayCloses.get(currentWeek - previousWeek * weekMs);
+                if (close == null) {
+                    return [];
+                }
+                sum += close;
+            }
+            return [{ x: point.x, y: sum / 50 }];
+        });
+    }
+
     return Object.freeze({
         getKrakenOhlcRows,
         hasDailySeriesValues,
         mapKrakenOhlcToDailySeries,
-        mergeHistoricalPriceHistory
+        mergeHistoricalPriceHistory,
+        buildFiftyWeekMovingAverage
     });
 }));
