@@ -7132,11 +7132,12 @@
         const priceRangeData = getMobilePriceRangeData(chartData);
         const priceStatsData = getMobilePriceStatsData(chartData, priceRangeData);
         const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
-        const movingAverageData = getHistoricalMarketDataEngine().buildFiftyWeekMovingAverage(
-            selectedCurrency === 'EUR' ? chartData.fiftyWeekHistory?.EUR : chartData.fiftyWeekHistory?.USD,
-            priceRangeData,
-            { x: Date.now(), y: mobileLatestPrices[selectedCurrency] }
-        );
+        const movingAverageData = mobileSelectedRange === 'year'
+            ? getHistoricalMarketDataEngine().buildFiftyWeekMovingAverage(
+                selectedCurrency === 'EUR' ? chartData.fiftyWeekHistory?.EUR : chartData.fiftyWeekHistory?.USD,
+                priceRangeData,
+                { x: Date.now(), y: mobileLatestPrices[selectedCurrency] }
+            ) : [];
         const priceValues = priceRangeData.map(point => Number(point.y)).filter(Number.isFinite);
         const priceDomain = priceValues.length
             ? buildChartDomain(Math.min(...priceValues), Math.max(...priceValues), 0.12)
@@ -7227,7 +7228,7 @@
     }
 
     async function redrawAllCharts({ fallbackPrices = mobileLatestPrices } = {}) {
-        const fiftyWeekHistory = await getFiftyWeekPriceHistory();
+        const fiftyWeekHistory = mobileSelectedRange === 'year' ? await getFiftyWeekPriceHistory() : null;
         const chartData = {
             usd: await getDataForChart('USD'),
             eur: await getDataForChart('EUR'),
