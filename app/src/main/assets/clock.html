@@ -3982,6 +3982,11 @@
         .chart-ta-marker { fill: #b5f0e9; stroke: #101c23; stroke-width: 2px; }
         .chart-ta-label[data-event-kind^="failed"] { fill: #efba90; }
 
+        @media (min-width: 1080px) {
+            .mobile-price-card { grid-template-rows: auto minmax(80px, 1fr) auto auto auto auto; overflow-y: auto; }
+            .mobile-price-chart-shell { height: auto; min-height: 80px; }
+        }
+
         .chart-drawing-hit-line {
             fill: none;
             stroke: transparent;
