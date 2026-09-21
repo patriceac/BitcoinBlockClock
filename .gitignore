@@ -27,9 +27,7 @@ local.properties
 # Generated GitHub Release artifacts
 /output/release-*/
 
-# Local QA evidence and site packaging output
+# Local QA evidence
 /output/playwright/
-/output/sites/
 /output/alerts-qa/
 /.playwright-cli/
-/site/
