@@ -83,6 +83,30 @@
         return nextHistory;
     }
 
+    function buildSimpleMovingAverage(historyPoints, chartPoints, { windowMs, bucketMs }) {
+        const sampleCount = windowMs / bucketMs;
+        if (!Number.isInteger(sampleCount) || sampleCount < 1 || bucketMs <= 0) {
+            return [];
+        }
+        const bucketTime = point => Math.floor((typeof point.x === 'number'
+            ? point.x : Date.parse(point.x)) / bucketMs) * bucketMs;
+        const closes = new Map((historyPoints || [])
+            .map(point => [bucketTime(point), Number(point.y)])
+            .filter(([time, price]) => Number.isFinite(time) && Number.isFinite(price) && price > 0));
+
+        return (chartPoints || []).flatMap(point => {
+            const time = bucketTime(point);
+            let sum = 0;
+            for (let offset = 0; offset < sampleCount; offset++) {
+                const close = closes.get(time - offset * bucketMs);
+                // A missing bucket must not silently shorten or extend the average's window.
+                if (close == null) return [];
+                sum += close;
+            }
+            return [{ x: point.x, y: sum / sampleCount }];
+        });
+    }
+
     function buildFiftyWeekMovingAverage(dailyCloses, chartPoints, latestPoint = null) {
         const dayMs = 24 * 60 * 60 * 1000;
         const weekMs = 7 * dayMs;
@@ -164,6 +188,7 @@
         hasDailySeriesValues,
         mapKrakenOhlcToDailySeries,
         mergeHistoricalPriceHistory,
+        buildSimpleMovingAverage,
         buildFiftyWeekMovingAverage
     });
 }));

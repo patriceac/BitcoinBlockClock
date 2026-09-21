@@ -80,6 +80,28 @@ test('returns byte-for-byte stable merged history for identical inputs', () => {
     );
 });
 
+test('short moving averages use full trailing windows from the first visible point without future prices', () => {
+    for (const [windowMs, bucketMs] of [[4 * 3600000, 600000], [24 * 3600000, 3600000], [7 * 86400000, 6 * 3600000]]) {
+        const count = windowMs / bucketMs;
+        const history = Array.from({ length: count + 3 }, (_, i) => ({ x: i * bucketMs, y: 100 + i }));
+        const visible = history.slice(count - 1, count + 2);
+        history.at(-1).y = 1000000;
+        assert.deepEqual(historyFeed.buildSimpleMovingAverage(history, visible, { windowMs, bucketMs }),
+            visible.map((point, i) => ({ x: point.x, y: 100 + (count - 1) / 2 + i })));
+    }
+});
+
+test('short moving averages wait for complete history and recover only after a gap leaves the window', () => {
+    const history = Array.from({ length: 8 }, (_, i) => ({ x: i * 1000, y: 100 + i }));
+    const visible = history.slice();
+    history.splice(3, 1);
+    assert.deepEqual(historyFeed.buildSimpleMovingAverage(history, visible, { windowMs: 3000, bucketMs: 1000 }), [
+        { x: 2000, y: 101 },
+        { x: 6000, y: 105 },
+        { x: 7000, y: 106 }
+    ]);
+});
+
 test('50-week MA smoothly interpolates weekly values without following intraday noise', () => {
     const monday = Date.UTC(2026, 8, 21);
     const sundayCloses = {};

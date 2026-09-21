@@ -4943,6 +4943,11 @@
     const MOBILE_MONTHLY_BUCKET_MS = MOBILE_MONTHLY_BUCKET_HOURS * 60 * 60 * 1000;
     const MOBILE_MONTHLY_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
     const MOBILE_MONTHLY_STORAGE_KEY = 'bitcoinMobileMonthlyPriceHistory';
+    const MOBILE_MOVING_AVERAGE_CONFIGS = {
+        day: { label: '4H MA', duration: '4 hours', windowMs: 4 * 3600000, bucketMs: INTRADAY_BUCKET_MS },
+        week: { label: '24H MA', duration: '24 hours', windowMs: 24 * 3600000, bucketMs: MOBILE_WEEKLY_BUCKET_MS },
+        month: { label: '7D MA', duration: '7 days', windowMs: 7 * 86400000, bucketMs: MOBILE_MONTHLY_BUCKET_MS }
+    };
     const MOBILE_RANGE_SELECTION_STORAGE_KEY = 'bitcoinMobileSelectedRange';
     const MOBILE_CURRENCY_SELECTION_STORAGE_KEY = 'bitcoinMobileSelectedCurrency';
     const MOBILE_CHART_AUTOSCAN_ENABLED_STORAGE_KEY = 'bitcoinMobileChartAutoscanEnabledV1';
@@ -6064,7 +6069,7 @@
 
     function getIntradayWindow(nowMs = Date.now()) {
         return {
-            startMs: nowMs - INTRADAY_WINDOW_MS,
+            startMs: nowMs - INTRADAY_WINDOW_MS - MOBILE_MOVING_AVERAGE_CONFIGS.day.windowMs,
             endMs: nowMs
         };
     }
@@ -6209,6 +6214,7 @@
         const updatedAt = Number(rawHistory?.updatedAt);
 
         baseHistory.updatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0;
+        baseHistory.includesMovingAverageHistory = rawHistory?.includesMovingAverageHistory === true;
         baseHistory.USD = trimIntradaySeries(rawHistory?.USD, nowMs);
         baseHistory.EUR = trimIntradaySeries(rawHistory?.EUR, nowMs);
 
@@ -6250,12 +6256,12 @@
         return pairKey && Array.isArray(result[pairKey]) ? result[pairKey] : [];
     }
 
-    function mapKrakenOhlcToIntradaySeries(responseData) {
+    function mapKrakenOhlcToBucketSeries(responseData, floorToBucket = floorToIntradayBucket) {
         const series = {};
 
         getKrakenOhlcRows(responseData).forEach(row => {
             const timestampMs = Number(row?.[0]) * 1000;
-            const bucketTimestamp = floorToIntradayBucket(timestampMs);
+            const bucketTimestamp = floorToBucket(timestampMs);
             const bucketValue = normalizePriceBucketValue({
                 open: row?.[1],
                 high: row?.[2],
@@ -6272,7 +6278,7 @@
     }
 
     function shouldRefreshIntradayHistory(history, nowMs = Date.now()) {
-        if (!history.updatedAt) {
+        if (!history.updatedAt || !history.includesMovingAverageHistory) {
             return true;
         }
 
@@ -6302,8 +6308,9 @@
 
         return await setIntradayHistory({
             updatedAt: nowMs,
-            USD: mapKrakenOhlcToIntradaySeries(usdData),
-            EUR: mapKrakenOhlcToIntradaySeries(eurData)
+            includesMovingAverageHistory: true,
+            USD: mapKrakenOhlcToBucketSeries(usdData),
+            EUR: mapKrakenOhlcToBucketSeries(eurData)
         }, nowMs);
     }
 
@@ -6327,6 +6334,7 @@
         const bucketTimestamp = String(floorToIntradayBucket(nowMs));
         const nextHistory = {
             updatedAt: history.updatedAt,
+            includesMovingAverageHistory: history.includesMovingAverageHistory,
             USD: patchPriceBucketSeries(history.USD, bucketTimestamp, usdPrice, nowMs, getIntradayWindow, floorToIntradayBucket),
             EUR: patchPriceBucketSeries(history.EUR, bucketTimestamp, eurPrice, nowMs, getIntradayWindow, floorToIntradayBucket)
         };
@@ -6344,7 +6352,7 @@
 
     function getMobileWeeklyWindow(nowMs = Date.now()) {
         return {
-            startMs: nowMs - MOBILE_WEEKLY_WINDOW_MS,
+            startMs: nowMs - MOBILE_WEEKLY_WINDOW_MS - MOBILE_MOVING_AVERAGE_CONFIGS.week.windowMs,
             endMs: nowMs
         };
     }
@@ -6362,6 +6370,7 @@
         const updatedAt = Number(rawHistory?.updatedAt);
 
         baseHistory.updatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0;
+        baseHistory.includesMovingAverageHistory = rawHistory?.includesMovingAverageHistory === true;
         baseHistory.USD = trimMobileWeeklySeries(rawHistory?.USD, nowMs);
         baseHistory.EUR = trimMobileWeeklySeries(rawHistory?.EUR, nowMs);
 
@@ -6384,7 +6393,7 @@
     }
 
     function shouldRefreshMobileWeeklyHistory(history, nowMs = Date.now()) {
-        if (!history.updatedAt) {
+        if (!history.updatedAt || !history.includesMovingAverageHistory) {
             return true;
         }
 
@@ -6395,30 +6404,38 @@
         return Object.keys(history.USD).length < 24 || Object.keys(history.EUR).length < 24;
     }
 
+    async function fetchMobileWeeklyPriceSeries(currencyCode, rangeFrom, rangeTo) {
+        try {
+            const response = await fetchWithTimeout(
+                `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=${currencyCode.toLowerCase()}&from=${rangeFrom}&to=${rangeTo}`
+            );
+            if (!response.ok) throw new Error(`Weekly market data request failed with status ${response.status}`);
+            const series = bucketMobileWeeklyPrices((await response.json()).prices);
+            if (!Object.keys(series).length) throw new Error('Weekly market data contained no prices.');
+            return series;
+        } catch (error) {
+            console.warn(`CoinGecko ${currencyCode} weekly prices unavailable; using Kraken hourly OHLC fallback.`, error);
+            const pair = getMobileChartAutoscanKrakenPair(currencyCode);
+            const response = await fetchWithTimeout(`https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=60`);
+            if (!response.ok) throw new Error(`Kraken weekly market data request failed with status ${response.status}`);
+            return mapKrakenOhlcToBucketSeries(await response.json(), floorToMobileWeeklyBucket);
+        }
+    }
+
     async function refreshMobileWeeklyHistory(nowMs = Date.now()) {
         const { startMs, endMs } = getMobileWeeklyWindow(nowMs);
         const rangeFrom = Math.floor(startMs / 1000);
         const rangeTo = Math.floor(endMs / 1000);
-        const [usdResponse, eurResponse] = await Promise.all([
-            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${rangeFrom}&to=${rangeTo}`),
-            fetch(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=eur&from=${rangeFrom}&to=${rangeTo}`)
-        ]);
-
-        [usdResponse, eurResponse].forEach(response => {
-            if (!response.ok) {
-                throw new Error(`Mobile weekly market data request failed with status ${response.status}`);
-            }
-        });
-
-        const [usdData, eurData] = await Promise.all([
-            usdResponse.json(),
-            eurResponse.json()
+        const [usdSeries, eurSeries] = await Promise.all([
+            fetchMobileWeeklyPriceSeries('USD', rangeFrom, rangeTo),
+            fetchMobileWeeklyPriceSeries('EUR', rangeFrom, rangeTo)
         ]);
 
         return await setMobileWeeklyHistory({
             updatedAt: nowMs,
-            USD: bucketMobileWeeklyPrices(usdData.prices),
-            EUR: bucketMobileWeeklyPrices(eurData.prices)
+            includesMovingAverageHistory: true,
+            USD: usdSeries,
+            EUR: eurSeries
         }, nowMs);
     }
 
@@ -6442,6 +6459,7 @@
         const bucketTimestamp = String(floorToMobileWeeklyBucket(nowMs));
         const nextHistory = {
             updatedAt: history.updatedAt,
+            includesMovingAverageHistory: history.includesMovingAverageHistory,
             USD: patchPriceBucketSeries(history.USD, bucketTimestamp, usdPrice, nowMs, getMobileWeeklyWindow, floorToMobileWeeklyBucket),
             EUR: patchPriceBucketSeries(history.EUR, bucketTimestamp, eurPrice, nowMs, getMobileWeeklyWindow, floorToMobileWeeklyBucket)
         };
@@ -6453,7 +6471,7 @@
         const history = await getMobileWeeklyHistory(nowMs);
         const series = isValidMobileCurrency(currencyCode) ? history[currencyCode] : history.USD;
 
-        return priceBucketSeriesToChartData(series);
+        return priceBucketSeriesToChartData(series).filter(point => point.x >= nowMs - MOBILE_WEEKLY_WINDOW_MS);
     }
 
     function createEmptyMobileMonthlyHistory() {
@@ -6466,7 +6484,7 @@
 
     function getMobileMonthlyWindow(nowMs = Date.now()) {
         return {
-            startMs: nowMs - MOBILE_MONTHLY_WINDOW_MS,
+            startMs: nowMs - MOBILE_MONTHLY_WINDOW_MS - MOBILE_MOVING_AVERAGE_CONFIGS.month.windowMs,
             endMs: nowMs
         };
     }
@@ -6484,6 +6502,7 @@
         const updatedAt = Number(rawHistory?.updatedAt);
 
         baseHistory.updatedAt = Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0;
+        baseHistory.includesMovingAverageHistory = rawHistory?.includesMovingAverageHistory === true;
         baseHistory.USD = trimMobileMonthlySeries(rawHistory?.USD, nowMs);
         baseHistory.EUR = trimMobileMonthlySeries(rawHistory?.EUR, nowMs);
 
@@ -6506,7 +6525,7 @@
     }
 
     function shouldRefreshMobileMonthlyHistory(history, nowMs = Date.now()) {
-        if (!history.updatedAt) {
+        if (!history.updatedAt || !history.includesMovingAverageHistory) {
             return true;
         }
 
@@ -6539,6 +6558,7 @@
 
         return await setMobileMonthlyHistory({
             updatedAt: nowMs,
+            includesMovingAverageHistory: true,
             USD: bucketMobileMonthlyPrices(usdData.prices),
             EUR: bucketMobileMonthlyPrices(eurData.prices)
         }, nowMs);
@@ -6564,6 +6584,7 @@
         const bucketTimestamp = String(floorToMobileMonthlyBucket(nowMs));
         const nextHistory = {
             updatedAt: history.updatedAt,
+            includesMovingAverageHistory: history.includesMovingAverageHistory,
             USD: patchPriceBucketSeries(history.USD, bucketTimestamp, usdPrice, nowMs, getMobileMonthlyWindow, floorToMobileMonthlyBucket),
             EUR: patchPriceBucketSeries(history.EUR, bucketTimestamp, eurPrice, nowMs, getMobileMonthlyWindow, floorToMobileMonthlyBucket)
         };
@@ -6575,7 +6596,7 @@
         const history = await getMobileMonthlyHistory(nowMs);
         const series = isValidMobileCurrency(currencyCode) ? history[currencyCode] : history.USD;
 
-        return priceBucketSeriesToChartData(series);
+        return priceBucketSeriesToChartData(series).filter(point => point.x >= nowMs - MOBILE_MONTHLY_WINDOW_MS);
     }
 
     function getLatestHashRate(priceHistory, preferredDate = getTodayDate()) {
@@ -6997,16 +7018,20 @@
         setMobileChangeText('mobileRangeChange', formatSignedPercent(changePercent), isNegative);
     }
 
-    function updateMobileMovingAverageBadge(data, currencyCode) {
+    function updateMobileMovingAverageBadge(data, currencyCode, latestChartPoint) {
         const element = document.getElementById('mobileTrendBadge');
         if (!element) {
             return;
         }
 
-        const latest = data[data.length - 1];
+        const config = MOBILE_MOVING_AVERAGE_CONFIGS[mobileSelectedRange];
+        const label = config?.label || '50W MA';
+        const latest = data.length > 1 && data.at(-1).x === latestChartPoint?.x ? data.at(-1) : null;
         element.hidden = !latest;
-        element.textContent = latest ? `50W MA ${formatCompactPrice(latest.y)}` : '50W MA';
-        element.title = `Smoothed 50-week simple moving average in ${currencyCode}, interpolated between weekly closes. The current week uses the latest price.`;
+        element.textContent = latest ? `${label} ${formatCompactPrice(latest.y)}` : label;
+        element.title = config
+            ? `Simple moving average over ${config.duration} in ${currencyCode}. Includes the current price bucket.`
+            : `Smoothed 50-week simple moving average in ${currencyCode}, interpolated between weekly closes. The current week uses the latest price.`;
         element.classList.add('is-neutral');
     }
 
@@ -7132,22 +7157,27 @@
         const priceRangeData = getMobilePriceRangeData(chartData);
         const priceStatsData = getMobilePriceStatsData(chartData, priceRangeData);
         const priceMaxGapMs = getMobilePriceMaxGapMs(chartData);
+        const movingAverageConfig = MOBILE_MOVING_AVERAGE_CONFIGS[mobileSelectedRange];
         const movingAverageData = mobileSelectedRange === 'year'
             ? getHistoricalMarketDataEngine().buildFiftyWeekMovingAverage(
                 selectedCurrency === 'EUR' ? chartData.fiftyWeekHistory?.EUR : chartData.fiftyWeekHistory?.USD,
                 priceRangeData,
                 { x: Date.now(), y: mobileLatestPrices[selectedCurrency] }
-            ) : [];
+            ) : getHistoricalMarketDataEngine().buildSimpleMovingAverage(
+                priceBucketSeriesToChartData(chartData.movingAverageHistory?.[mobileSelectedRange]?.[selectedCurrency]),
+                priceRangeData,
+                movingAverageConfig
+            );
         const priceValues = priceRangeData.map(point => Number(point.y)).filter(Number.isFinite);
         const priceDomain = priceValues.length
             ? buildChartDomain(Math.min(...priceValues), Math.max(...priceValues), 0.12)
             : null;
-        const fittingMovingAverageData = movingAverageData.length > 1 &&
+        const visibleMovingAverageData = movingAverageConfig ? movingAverageData : movingAverageData.length > 1 &&
             movingAverageData.length === priceRangeData.length && movingAverageData.every(point => (
             point.y >= priceDomain?.domainMin && point.y <= priceDomain?.domainMax
         )) ? movingAverageData : [];
         updateMobileRangeStats(priceStatsData, priceRangeData);
-        updateMobileMovingAverageBadge(fittingMovingAverageData, selectedCurrency);
+        updateMobileMovingAverageBadge(visibleMovingAverageData, selectedCurrency, priceRangeData.at(-1));
         updateMobileChartAutoscanForRangeData(priceRangeData);
 
         [
@@ -7171,7 +7201,8 @@
                 plotPadding: showDesktopAxes ? { top: 14, right: 62, bottom: 12, left: 16 } : null,
                 yDomainPadding: 0.12,
                 maxPointGapMs: priceMaxGapMs,
-                overlayData: fittingMovingAverageData,
+                overlayData: visibleMovingAverageData,
+                includeOverlayInDomain: Boolean(movingAverageConfig),
                 overlayColor: 'rgba(177, 222, 255, 0.76)'
             },
             {
@@ -7241,7 +7272,12 @@
             weeklyEUR: await getMobileWeeklyChartData('EUR'),
             monthlyUSD: await getMobileMonthlyChartData(),
             monthlyEUR: await getMobileMonthlyChartData('EUR'),
-            fiftyWeekHistory
+            fiftyWeekHistory,
+            movingAverageHistory: {
+                day: await getIntradayHistory(),
+                week: await getMobileWeeklyHistory(),
+                month: await getMobileMonthlyHistory()
+            }
         };
 
         const fallbackTimestamp = Date.now();
@@ -7793,7 +7829,8 @@
         svgHeight,
         singlePointSpanMs = 86400000,
         plotPadding = null,
-        yDomainPadding = 0.08
+        yDomainPadding = 0.08,
+        extraYData = []
     }) {
         const sourceData = data
             .map(point => ({
@@ -7816,8 +7853,9 @@
             });
         }
 
-        const maxVal = Math.max(...renderData.map(point => point.y));
-        const minVal = Math.min(...renderData.map(point => point.y));
+        const domainValues = [...renderData, ...extraYData].map(point => Number(point.y)).filter(Number.isFinite);
+        const maxVal = Math.max(...domainValues);
+        const minVal = Math.min(...domainValues);
         const { domainMin, domainMax } = buildChartDomain(minVal, maxVal, yDomainPadding);
         const minTime = renderData[0].timeMs;
         const maxTime = renderData[renderData.length - 1].timeMs;
@@ -8754,6 +8792,7 @@
         chartStyle = 'line',
         overlayData = null,
         overlayColor = 'rgba(177, 222, 255, 0.72)',
+        includeOverlayInDomain = false,
         enableDrawings = false
     }) {
         const container = document.getElementById(containerId);
@@ -8778,7 +8817,8 @@
             svgWidth,
             svgHeight,
             plotPadding,
-            yDomainPadding
+            yDomainPadding,
+            extraYData: includeOverlayInDomain ? overlayData || [] : []
         });
 
         if (!geometry) {
@@ -9375,10 +9415,10 @@
         container.dataset.chartRendered = 'true';
     }
 
-    async function getIntradayChartData(currencyCode) {
-        const intradayHistory = await getIntradayHistory();
+    async function getIntradayChartData(currencyCode, nowMs = Date.now()) {
+        const intradayHistory = await getIntradayHistory(nowMs);
 
-        return priceBucketSeriesToChartData(intradayHistory[currencyCode]);
+        return priceBucketSeriesToChartData(intradayHistory[currencyCode]).filter(point => point.x >= nowMs - INTRADAY_WINDOW_MS);
     }
 
     async function getDataForChart(type) {
