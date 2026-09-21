@@ -8254,7 +8254,7 @@
             const distance = (zone.level - context.price) / context.price * 100;
             const offscreen = zone.low > geometry.domainMax ? ' ↑' : (zone.high < geometry.domainMin ? ' ↓' : '');
             label(`${zone.side === 'support' ? 'Support' : 'Resistance'} ${formatCurrencyValue(zone.level, mobileSelectedCurrency)} · ${distance >= 0 ? '+' : ''}${distance.toFixed(1)}%${offscreen}`,
-                plot.right - 4, yScale(zone.level) - 7);
+                plot.left + 4, yScale(zone.level) - 7, 'start');
         });
         context.events.forEach(event => {
             if (event.eventTimeMs < geometry.minTime || event.eventTimeMs > geometry.maxTime
