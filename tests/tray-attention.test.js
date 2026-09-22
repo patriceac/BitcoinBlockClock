@@ -18,6 +18,25 @@ test('no alert means the plain icon and no price tooltip', async () => {
     assert.equal(attention.tooltip(), DEFAULT_TOOLTIP);
 });
 
+test('tray badge color follows the latest alert direction across restart and acknowledgement', async () => {
+    const store = memoryStore();
+    const attention = new TrayAttention({ store });
+    await attention.load();
+    assert.equal(attention.iconName(), 'bitcoin-logo');
+
+    await attention.mark({ ...alert, direction: 'up' });
+    assert.equal(attention.iconName(), 'bitcoin-alert-up');
+
+    const restarted = new TrayAttention({ store });
+    await restarted.load();
+    assert.equal(restarted.iconName(), 'bitcoin-alert-up');
+
+    await restarted.mark({ ...alert, id: 'down', direction: 'down' });
+    assert.equal(restarted.iconName(), 'bitcoin-alert');
+    await restarted.acknowledge();
+    assert.equal(restarted.iconName(), 'bitcoin-logo');
+});
+
 test('unread alert survives restart and acknowledgement stays cleared after restart', async () => {
     const store = memoryStore();
     const attention = new TrayAttention({ store });

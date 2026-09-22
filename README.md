@@ -44,7 +44,7 @@ The Android APK is a release-mode sideload build. Configure production signing b
 
 ## Price alerts
 
-Opening the desktop tray icon or a phone notification opens the regular Bitcoin dashboard. On desktop, a **red dot on the tray icon** signals an unread price alert, without a notification popup or sound. Hover over the icon or open its context menu for the alert details. The dot survives restarts and clears when you open or focus the dashboard; a later qualifying movement marks it again. Android continues to use movement notifications. There is no standing monitoring notification or routine price notification.
+Opening the desktop tray icon or a phone notification opens the regular Bitcoin dashboard. On desktop, a **dot on the tray icon—green for a price rise, red for a fall—** signals an unread price alert, without a notification popup or sound. Hover over the icon or open its context menu for the alert details. The dot survives restarts and clears when you open or focus the dashboard; a later qualifying movement marks it again. Android continues to use movement notifications. There is no standing monitoring notification or routine price notification.
 
 - A move of **±2%** from the reference triggers an alert. The first fresh quote establishes the initial reference.
 - Crossing **any positive $5,000 boundary** triggers an alert in either direction, including exact touches and multiple levels in a jump.
@@ -67,7 +67,7 @@ Android is currently built as a release-mode sideload APK with the existing loca
 
 `npm test` covers the JavaScript reducer, monitor persistence, offline recovery, delivery retry and concurrent polls, plus existing dashboard tests. `./gradlew testReleaseUnitTest lintRelease assembleRelease` tests and builds Android. Both reducers run `app/src/test/resources/price-alert-vectors.json` to prevent rule drift.
 
-The Windows package has an explicit isolated-QA entry point: `--verify-price-alerts=<evidence-directory>`. It runs synthetic quotes through the real main-process monitor and tray badge, checks hidden-window processing and persisted unread state, dispatches the tray click event, and verifies dashboard opening and badge clearing. It writes `alerts-result.json` and exposes a `tray-attention-ready.json` phase for capturing the badged icon. Use the executable test harness for this mode; its alert monitor never contacts the quote provider. The Windows badge icon can be regenerated with `scripts/generate-tray-attention.ps1`.
+The Windows package has an explicit isolated-QA entry point: `--verify-price-alerts=<evidence-directory>`. It runs synthetic quotes through the real main-process monitor and tray badge, checks hidden-window processing and persisted unread state, dispatches the tray click event, and verifies dashboard opening and badge clearing. It writes `alerts-result.json` and exposes a `tray-attention-ready.json` phase for capturing the badged icon. Use the executable test harness for this mode; its alert monitor never contacts the quote provider. The Windows badge icons can be regenerated with `scripts/generate-tray-attention.ps1 -Direction down` and `-Direction up`.
 
 ## Dashboard
 

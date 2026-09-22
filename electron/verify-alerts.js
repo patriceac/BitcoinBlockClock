@@ -12,7 +12,13 @@ exports.verify = async ({ priceMonitor, mainWindow, tray, trayAttention, getTray
         await priceMonitor.poll();
         checks.initialSilent = delivered() === 0 && trayAttention.alert === null;
         mainWindow.hide();
-        while (samples.length) await priceMonitor.poll();
+        checks.downIcon = false;
+        while (samples.length) {
+            await priceMonitor.poll();
+            if (trayAttention.alert?.direction === 'down') {
+                checks.downIcon = path.basename(getTrayIconPath()) === 'bitcoin-alert.ico';
+            }
+        }
         checks.hiddenMonitoring = delivered() === 4;
         checks.combined = priceMonitor.data.lastAlert?.levels[0] === 80000 && priceMonitor.data.lastAlert?.percentageTriggered === true;
         checks.referenceReset = priceMonitor.data.engine.reference === 80050;
@@ -24,7 +30,7 @@ exports.verify = async ({ priceMonitor, mainWindow, tray, trayAttention, getTray
         await restarted.load();
         checks.attentionPersisted = restarted.alert?.id === trayAttention.alert?.id;
         const attentionIcon = nativeImage.createFromPath(getTrayIconPath());
-        checks.attentionIcon = !attentionIcon.isEmpty() && path.basename(getTrayIconPath()) === 'bitcoin-alert.ico';
+        checks.attentionIcon = !attentionIcon.isEmpty() && path.basename(getTrayIconPath()) === 'bitcoin-alert-up.ico';
         await fs.writeFile(path.join(directory, 'tray-attention-32.png'), attentionIcon.resize({ width: 32, height: 32 }).toPNG());
         const trayBounds = tray.getBounds();
         let trayExposure;

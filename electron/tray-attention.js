@@ -54,6 +54,10 @@ class TrayAttention {
     tooltip() {
         return this.alert ? `${this.alert.title}\n${this.alert.body}`.slice(0, 127) : DEFAULT_TOOLTIP;
     }
+
+    iconName() {
+        return this.alert ? (this.alert.direction === 'up' ? 'bitcoin-alert-up' : 'bitcoin-alert') : 'bitcoin-logo';
+    }
 }
 
 module.exports = { TrayAttention, DEFAULT_TOOLTIP };

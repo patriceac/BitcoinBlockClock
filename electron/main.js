@@ -47,7 +47,7 @@ function getWindowIconPath() {
 
 function getTrayIconPath() {
     if (!trayAttention?.alert) return getWindowIconPath();
-    return path.join(app.getAppPath(), 'electron', 'assets', process.platform === 'win32' ? 'bitcoin-alert.ico' : 'bitcoin-alert.png');
+    return path.join(app.getAppPath(), 'electron', 'assets', `${trayAttention.iconName()}.${process.platform === 'win32' ? 'ico' : 'png'}`);
 }
 
 function acknowledgeTrayAttention() {
