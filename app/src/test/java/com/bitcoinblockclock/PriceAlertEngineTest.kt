@@ -46,4 +46,9 @@ class PriceAlertEngineTest {
         assertEquals("Bitcoin ↑ · $80,050.00", alert!!.title)
         assertEquals("Crossed $80,000 ↑ · +2.10% since last reference", alert.body)
     }
+
+    @Test fun notificationTitleShowsDirectionCue() {
+        assertEquals("🟢 Bitcoin ↑ · $80,050.00", priceAlertNotificationTitle("up", "Bitcoin ↑ · $80,050.00"))
+        assertEquals("🔴 Bitcoin ↓ · $78,400.00", priceAlertNotificationTitle("down", "Bitcoin ↓ · $78,400.00"))
+    }
 }

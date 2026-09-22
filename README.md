@@ -59,7 +59,7 @@ While the app is visible, the regular dashboard refreshes its displayed price **
 
 Windows monitoring runs in the main process while the window is closed to the tray. Enable **Start at Login** in the tray to resume at sign-in. Quitting or sleeping the computer stops checks until it resumes.
 
-Android requests notification permission for actual movement alerts only. Its persisted background job survives reboot and is rescheduled on app update if previously enabled. Updating from 1.1.0 removes the old standing notification and its channel. Battery restrictions, Doze, force-stop, missing connectivity or disabled notifications can delay or prevent checks. There are no status or connection-error notifications.
+Android requests notification permission for actual movement alerts only. Each notification title starts with 🟢 for a price rise or 🔴 for a fall. Its persisted background job survives reboot and is rescheduled on app update if previously enabled. Updating from 1.1.0 removes the old standing notification and its channel. Battery restrictions, Doze, force-stop, missing connectivity or disabled notifications can delay or prevent checks. There are no status or connection-error notifications.
 
 Android is currently built as a release-mode sideload APK with the existing local signing identity so updates preserve installed data. Store distribution needs a managed production signing key.
 

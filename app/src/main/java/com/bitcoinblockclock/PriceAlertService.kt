@@ -33,6 +33,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.coroutines.coroutineContext
 
+internal fun priceAlertNotificationTitle(direction: String, title: String) =
+    "${if (direction == "up") "🟢" else "🔴"} $title"
+
 /** Short, OS-scheduled checks. No foreground service or routine notification. */
 class PriceAlertService : JobService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -144,7 +147,7 @@ class PriceAlertService : JobService() {
             context.getSystemService(NotificationManager::class.java).notify(alert.getString("id"), 7101,
                 NotificationCompat.Builder(context, ALERT_CHANNEL)
                     .setSmallIcon(R.drawable.ic_price_alert)
-                    .setContentTitle(alert.getString("title"))
+                    .setContentTitle(priceAlertNotificationTitle(alert.getString("direction"), alert.getString("title")))
                     .setContentText(alert.getString("body"))
                     .setStyle(NotificationCompat.BigTextStyle().bigText(alert.getString("body")))
                     .setContentIntent(openApp(context)).setAutoCancel(true).setOnlyAlertOnce(true)
