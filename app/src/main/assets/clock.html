@@ -5394,7 +5394,9 @@
         const stale = Date.now() - context.asOfTimeMs > config.bucketMs + config.cacheTtlMs;
         const nearby = context.zones.find(zone => Math.abs(zone.distancePercent) < 0.6);
         const event = context.events[0];
-        const state = event ? getMobileChartEventLabel(event) : 'No recent confirmed break';
+        const state = event
+            ? `Recent: ${getMobileChartEventLabel(event)} (${formatMobileChartAge(event.eventTimeMs + config.bucketMs)} ago)`
+            : 'No recent detected crossing';
         noteText.textContent = `${config.candleLabel} · ${context.trend} trend. ${nearby ? `Near ${nearby.side}. ` : ''}${state}.${stale ? ' Candle data is stale.' : ''}`;
         const details = context.zones.map(zone => `${zone.side === 'support' ? 'Support' : 'Resistance'} ${formatCurrencyValue(zone.low, mobileSelectedCurrency)}–${formatCurrencyValue(zone.high, mobileSelectedCurrency)} · ${zone.touches} touches · tested ${formatMobileChartAge(zone.lastTestTimeMs)} ago`);
         if (context.activePattern) details.push(`${context.activePattern.label} · ${Object.values(context.activePattern.touches || {}).reduce((sum, value) => sum + value, 0)} touches`);
@@ -5411,8 +5413,10 @@
     }
 
     function getMobileChartEventLabel(event) {
-        return { breakout: 'Breakout confirmed', breakdown: 'Breakdown confirmed', 'retest-held': 'Retest held',
-            'failed-breakout': 'Breakout failed', 'failed-breakdown': 'Breakdown failed' }[event.kind] || 'Structure changed';
+        const level = formatCurrencyValue(event.boundary, mobileSelectedCurrency);
+        const side = event.close > event.boundary ? 'above' : (event.close < event.boundary ? 'below' : 'at');
+        const action = event.kind === 'retest-held' ? 'Retest closed' : 'Closed';
+        return `${action} ${side} ${level}`;
     }
 
     function syncMobileChartAutoscanControls() {
@@ -8307,7 +8311,7 @@
             dot.setAttribute('r', '4');
             dot.dataset.eventKind = event.kind;
             const title = createChartSvgElement('title');
-            title.textContent = `${getMobileChartEventLabel(event)} · ${event.patternLabel} · ${new Date(event.eventTimeMs + context.intervalMs).toLocaleString()}`;
+            title.textContent = `${getMobileChartEventLabel(event)} · ${event.patternLabel} boundary · ${new Date(event.eventTimeMs + context.intervalMs).toLocaleString()}`;
             dot.appendChild(title);
             group.appendChild(dot);
             const rightHalf = x > plot.left + plot.width / 2;
